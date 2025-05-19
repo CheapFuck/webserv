@@ -1,0 +1,39 @@
+#include "../custom_types/types.hpp"
+#include "../config.hpp"
+#include "types.hpp"
+
+#include <iostream>
+#include <string.h>
+#include <cstring>
+
+Size::Size(const std::string &str) {
+	_size = std::stoul(str);
+
+	if (_size == 0)
+		throw ConfigParsingException("Invalid size value: " + str);
+
+	for (size_t i = 0; i < str.size(); i++) {
+		if (!isdigit(str[i])) {
+			if (strncmp(str.c_str() + i, "kb", 3) == 0 || strncmp(str.c_str() + i, "Kb", 3) == 0)
+				_size *= 1024;
+			else if (strncmp(str.c_str() + i, "mb", 3) == 0 || strncmp(str.c_str() + i, "Mb", 3) == 0)
+				_size *= 1024 * 1024;
+			else if (strncmp(str.c_str() + i, "gb", 3) == 0 || strncmp(str.c_str() + i, "Gb", 3) == 0)
+				_size *= 1024 * 1024 * 1024;
+			else
+				throw ConfigParsingException("Invalid size multiplier: " + str);
+			break;
+		}
+	}
+};
+
+Size::Size() : _size(0) {}
+
+size_t Size::get_size() const {
+	return _size;
+}
+
+std::ostream &operator<<(std::ostream &os, const Size &size) {
+	os << "Size(size: " << size.get_size() << ")";
+	return os;
+}
