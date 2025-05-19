@@ -4,30 +4,37 @@ DBNAME := $(NAME)_db
 CXX := c++
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -Wall -Wextra -Werror -std=c++20
+CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
 CXXDBFLAGS := -g -fsanitize=address
 
-SRCS := main.cpp \
-	config/tokenizer.cpp \
-	config/lexer.cpp \
-	config/consts.cpp \
-	config/custom_types/size.cpp \
-	config/custom_types/path.cpp \
-	config/rules/MaxBodySize.cpp \
-	config/rules/ServerName.cpp \
-	config/rules/Port.cpp \
-	config/rules/Method.cpp \
-	config/rules/Root.cpp \
-	config/rules/Index.cpp \
-	config/rules/Redirect.cpp \
-	config/rules/ErrorPages.cpp \
-	config/rules/AutoIndex.cpp \
-	config/rules/UploadDir.cpp \
-	config/rules/Location.cpp \
-	config/rules/RouteRules.cpp \
-	config/rules/ServerConfig.cpp
+SRCS = main.cpp \
+       Server.cpp \
+       Config.cpp \
+       Client.cpp \
+       Request.cpp \
+       Response.cpp \
+       Utils.cpp \
+	 	config/tokenizer.cpp \
+		config/lexer.cpp \
+		config/consts.cpp \
+		config/custom_types/size.cpp \
+		config/custom_types/path.cpp \
+		config/rules/MaxBodySize.cpp \
+		config/rules/ServerName.cpp \
+		config/rules/Port.cpp \
+		config/rules/Method.cpp \
+		config/rules/Root.cpp \
+		config/rules/Index.cpp \
+		config/rules/Redirect.cpp \
+		config/rules/ErrorPages.cpp \
+		config/rules/AutoIndex.cpp \
+		config/rules/UploadDir.cpp \
+		config/rules/Location.cpp \
+		config/rules/RouteRules.cpp \
+		config/rules/ServerConfig.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
+DEPS := $(OBJS:%.o=%.d)
 DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
 
 all: $(NAME)
@@ -74,5 +81,7 @@ dbrun: $(DBNAME)
 gdb: $(DBNAME)
 	@echo "\033[1;32mRunning gdb on ./$(DBNAME)\033[0m"
 	gdb --args ./$(DBNAME)
+
+-include $(DEPS)
 
 .PHONY: all clean fclean re run rerun debug dbrun gdb
