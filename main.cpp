@@ -1,53 +1,77 @@
-#include "Server.hpp"
-#include "Config.hpp"
+// #include "Server.hpp"
+// #include "Config.hpp"
+#include <exception>
 #include <iostream>
-#include <string>
-#include <cstdlib>
-#include <signal.h>
+// #include <string>
+// #include <cstdlib>
+// #include <signal.h>
 
-Server* g_server = NULL; // Global pointer for signal handling
+#include "config/config.hpp"
+#include "config/rules/rules.hpp"
 
-void signalHandler(int signum) {
-    if (signum == SIGINT || signum == SIGTERM) {
-        std::cout << "\nShutting down server..." << std::endl;
-        if (g_server)
-            g_server->shutdown();
-        exit(0);
+#include "server.hpp"
+
+#include <sys/socket.h>
+
+std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
+    try {
+        std::vector<Token> tokens = tokenize(configPath);
+        Object raw_data = lexer(tokens);
+        return fetch_server_configs(raw_data);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error parsing configuration: " << e.what() << std::endl;
+        return std::vector<ServerConfig>();
     }
 }
 
+int run_servers(const std::vector<ServerConfig>& serverConfigs) {
+    std::vector<Server> servers;
+    servers.reserve(serverConfigs.size());
+
+    for (const ServerConfig& config : serverConfigs) {
+        try {
+            servers.emplace_back(config);
+        } catch (const std::exception& e) {
+            std::cerr << "Error creating server: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    while (!servers.empty()) {
+        for (size_t i = 0; i < servers.size(); ++i) {
+            try {
+                servers[i].run_once();
+            } catch (const std::exception& e) {
+                std::cerr << "Error running server: " << e.what() << std::endl;
+                servers.erase(servers.begin() + i);
+                break;
+            }
+        }
+    }
+
+    return (0);
+}
+
 int main(int argc, char* argv[]) {
-    try {
-        std::string configPath = "default.conf";
-        
-        if (argc > 2) {
-            std::cerr << "Usage: " << argv[0] << " [configuration file]" << std::endl;
-            return 1;
-        } else if (argc == 2) {
-            configPath = argv[1];
-        }
-        
-        // Set up signal handling
-        signal(SIGINT, signalHandler);
-        signal(SIGTERM, signalHandler);
-        
-        // Parse configuration
-        Config config;
-        if (!config.parseFile(configPath)) {
-            std::cerr << "Failed to parse configuration file: " << configPath << std::endl;
-            return 1;
-        }
-        
-        // Initialize and run server
-        Server server(config);
-        g_server = &server;
-        
-        std::cout << "Server starting..." << std::endl;
-        server.run();
-        
-        return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+    if (argc > 2) {
+        std::cerr << "Usage: " << argv[0] << " [configuration file]" << std::endl;
         return 1;
     }
+
+    std::string configPath = "default.conf";
+    if (argc == 2) configPath = argv[1];
+
+    std::vector<ServerConfig> serverConfigs = load_server_configs(configPath);
+    if (serverConfigs.empty()) {
+        std::cerr << "No valid server configurations found." << std::endl;
+        return 1;
+    }
+
+    if (run_servers(serverConfigs) != 0) {
+        std::cerr << "Error running servers." << std::endl;
+        return 1;
+    }
+
+    return (0);
 }

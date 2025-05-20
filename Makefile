@@ -8,6 +8,8 @@ CXXFLAGS := -Wall -Wextra -Werror -std=c++20
 CXXDBFLAGS := -g -fsanitize=address
 
 SRCS := main.cpp \
+	client.cpp \
+	server.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \
 	config/consts.cpp \
