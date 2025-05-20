@@ -13,7 +13,6 @@ bool Request::parse(const std::string& buffer) {
     if (_headersParsed) {
         // Headers already parsed, just append body
         _body.append(buffer);
-        
         // Check if we have received the full body
         if (_chunked) {
             // TODO: Implement chunked encoding parsing

@@ -16,7 +16,7 @@ Client::~Client() {
 }
 
 bool Client::readRequest() {
-    char buf[4096];
+    char buf[3];
     ssize_t bytesRead = recv(_socket, buf, sizeof(buf) - 1, 0);
     
     if (bytesRead <= 0) {
@@ -41,7 +41,9 @@ bool Client::readRequest() {
     if (_request.parse(_buffer)) {
         _requestComplete = true;
     }
-    
+	if (_requestComplete)
+		std::cout << "Request body complete:\n" << _request.getBody();
+
     return true;
 }
 
