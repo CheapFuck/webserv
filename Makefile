@@ -4,7 +4,7 @@ DBNAME := $(NAME)_db
 CXX := c++
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -Wall -Wextra -Werror -std=c++20
+CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
 CXXDBFLAGS := -g -fsanitize=address
 
 SRCS := main.cpp \
@@ -30,6 +30,7 @@ SRCS := main.cpp \
 	config/rules/ServerConfig.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
+DEPS := $(OBJS:%.o=%.d)
 DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
 
 all: $(NAME)
@@ -76,5 +77,7 @@ dbrun: $(DBNAME)
 gdb: $(DBNAME)
 	@echo "\033[1;32mRunning gdb on ./$(DBNAME)\033[0m"
 	gdb --args ./$(DBNAME)
+
+-include $(DEPS)
 
 .PHONY: all clean fclean re run rerun debug dbrun gdb
