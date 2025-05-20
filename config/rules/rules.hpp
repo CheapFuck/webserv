@@ -11,7 +11,7 @@ private:
 
 public:
 	PortRule(const Object &obj, bool required = true);
-	inline int get() const;
+	int get() const;
 };
 
 class ServerNameRule {
@@ -20,7 +20,7 @@ private:
 
 public:
 	ServerNameRule(const Object &obj, bool required = false);
-	inline std::string get() const;
+	std::string get() const;
 };
 
 class MaxBodySizeRule {
@@ -29,7 +29,7 @@ private:
 
 public:
 	MaxBodySizeRule(const Object &obj, bool required = true);
-	inline size_t get_size() const;
+	size_t get() const;
 };
 
 class ErrorPageRule {
@@ -40,7 +40,7 @@ private:
 public:
 	ErrorPageRule(const Object &obj, bool required = false);
 	const Path &get_error_page(int code) const;
-	inline const std::map<int, Path> &get_error_pages() const;
+	const std::map<int, Path> &get_error_pages() const;
 };
 
 class MethodRule {
@@ -49,8 +49,8 @@ private:
 
 public:
 	MethodRule(const Object &obj, bool required = false);
-	inline bool is_allowed(Method method) const;
-	inline const Method &get_methods() const;
+	bool is_allowed(Method method) const;
+	const Method &get_methods() const;
 };
 
 class RootRule {
@@ -60,8 +60,8 @@ private:
 
 public:
 	RootRule(const Object &obj, bool required = false);
-	inline const Path &get() const;
-	inline bool is_set() const;
+	const Path &get() const;
+	bool is_set() const;
 };
 
 class IndexRule {
@@ -71,8 +71,8 @@ private:
 
 public:
 	IndexRule(const Object &obj, bool required = false);
-	inline const std::string &get() const;
-	inline bool is_set() const;
+	const std::string &get() const;
+	bool is_set() const;
 };
 
 class AutoIndexRule {
@@ -82,8 +82,8 @@ private:
 
 public:
 	AutoIndexRule(const Object &obj, bool required = false);
-	inline bool get() const;
-	inline bool is_set() const;
+	bool get() const;
+	bool is_set() const;
 };
 
 class UploadDirRule {
@@ -93,8 +93,8 @@ private:
 
 public:
 	UploadDirRule(const Object &obj, bool required = false);
-	inline const Path &get() const;
-	inline bool is_set() const;
+	const Path &get() const;
+	bool is_set() const;
 };
 
 class RedirectRule {
@@ -104,8 +104,8 @@ private:
 
 public:
 	RedirectRule(const Object &obj, bool required = false);
-	inline const std::string &get() const;
-	inline bool is_set() const;
+	const std::string &get() const;
+	bool is_set() const;
 };
 
 class LocationRule {
@@ -121,7 +121,7 @@ public:
 	RedirectRule redirect;
 
 	LocationRule(const std::string &path, const Object &obj);
-	inline const std::string &get_path() const;
+	const std::string &get_path() const;
 };
 
 class RouteRules {
@@ -130,8 +130,8 @@ private:
 
 public:
 	RouteRules(const Object &obj, bool required = false);
-	inline const std::vector<LocationRule> &get_routes() const;
-	inline const LocationRule &get_route(std::string &url) const;
+	const std::vector<LocationRule> &get_routes() const;
+	const LocationRule &get_route(std::string &url) const;
 };
 
 class ServerConfig {

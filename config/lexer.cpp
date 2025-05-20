@@ -71,7 +71,7 @@ static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
 	if (tokens[i].type != STR)
 		throw ConfigParsingException("Expected a string token");
 
-	Rule rule {get_rule_key(tokens[i++].value), {}, false};
+	Rule rule {get_rule_key(tokens[i++].value), {}};
 
 	while (true) {
 		if (tokens[i].type == SEMICOLON) {

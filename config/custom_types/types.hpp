@@ -12,7 +12,7 @@ public:
 	Size(const std::string &str);
 	Size();
 
-	size_t get_size() const;
+	size_t get() const;
 };
 
 class Path {

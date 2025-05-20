@@ -29,11 +29,11 @@ Size::Size(const std::string &str) {
 
 Size::Size() : _size(0) {}
 
-size_t Size::get_size() const {
+size_t Size::get() const {
 	return _size;
 }
 
 std::ostream &operator<<(std::ostream &os, const Size &size) {
-	os << "Size(size: " << size.get_size() << ")";
+	os << "Size(size: " << size.get() << ")";
 	return os;
 }

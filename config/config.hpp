@@ -55,8 +55,8 @@ enum Key {
 };
 
 enum ArgumentType {
-	STRING,
-	OBJECT,
+	STRING = 1 << 0,
+	OBJECT = 1 << 1,
 };
 
 struct Argument {
@@ -68,7 +68,6 @@ struct Argument {
 struct Rule {
 	Key key;
 	std::vector<Argument> arguments;
-	bool used;
 };
 
 std::ostream& operator<<(std::ostream& os, const TokenType& type);
