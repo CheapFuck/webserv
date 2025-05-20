@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-Request::Request() : _headersParsed(false), _contentLength(0), _chunked(false) {
+Request::Request() : _body(""), _headersParsed(false), _contentLength(0), _chunked(false) {
 }
 
 Request::~Request() {
@@ -12,7 +12,7 @@ Request::~Request() {
 bool Request::parse(const std::string& buffer) {
     if (_headersParsed) {
         // Headers already parsed, just append body
-        _body.append(buffer);
+		_body.append(buffer);
         // Check if we have received the full body
         if (_chunked) {
             // TODO: Implement chunked encoding parsing
@@ -137,4 +137,8 @@ const std::string& Request::getHeader(const std::string& name) const {
 
 const std::string& Request::getBody() const {
     return _body;
+}
+
+size_t Request::getContentLength() const {
+    return _contentLength;
 }

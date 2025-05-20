@@ -16,7 +16,7 @@ Client::~Client() {
 }
 
 bool Client::readRequest() {
-    char buf[3];
+    char buf[20];
     ssize_t bytesRead = recv(_socket, buf, sizeof(buf) - 1, 0);
     
     if (bytesRead <= 0) {
@@ -38,7 +38,10 @@ bool Client::readRequest() {
     _buffer.append(buf, bytesRead);
     
     // Try to parse request
-    if (_request.parse(_buffer)) {
+	std::cout << "sdface\n";
+	std::cout << _request.getContentLength() << "\n";
+	std::cout << _request.getBody().length() << "\n";
+    if (_request.parse(_buffer) && _request.getContentLength() <= _request.getBody().length()) {
         _requestComplete = true;
     }
 	if (_requestComplete)
@@ -56,7 +59,7 @@ void Client::processRequest(const Config& config) {
     const ServerConfig* server = config.findServer("0.0.0.0", 80, _request.getHeader("Host"));
     if (!server) {
         _response.setStatusCode(404);
-        _response.setBody("<html><body><h1>404 Not Found</h1><p>Server not found</p></body></html>");
+        _response.setBody("<html><body><h1>404 Not Found</h1><p>Server not foundSSS</p></body></html>");
         return;
     }
     

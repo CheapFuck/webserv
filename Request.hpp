@@ -26,6 +26,7 @@ public:
     const std::string& getVersion() const;
     const std::string& getHeader(const std::string& name) const;
     const std::string& getBody() const;
+    size_t getContentLength() const;
     
 private:
     bool parseRequestLine(const std::string& line);
