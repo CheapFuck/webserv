@@ -1,7 +1,7 @@
 #include "client.hpp"
 
 #include <iostream>
-
+#include <sstream>
 #include <unistd.h>
 
 Client::Client(int socket) :
@@ -41,7 +41,7 @@ bool Client::read_request() {
     while (bytes_read > 0) {
         buffer[bytes_read] = '\0';
         _buffer.append(buffer, bytes_read);
-        if (is_headers_received()) break;
+        if (is_headers_received()) break; ;
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
     if (bytes_read < 0) {
@@ -54,11 +54,58 @@ bool Client::read_request() {
     return true;
 }
 
-bool Client::is_headers_received() const {
+const std::string& Client::get_header(const std::string& key) const
+{
+    std::unordered_map<std::string, std::string>::const_iterator iter = _headers_dict.find(key);
+    if (iter == _headers_dict.end())
+        throw std::out_of_range("No such header was parsed: " + key);
+    return (iter->second);
+}
+
+bool Client::parse_headers() 
+{
+    std::istringstream stream(_buffer);
+    std::string line;
+    while (std::getline(stream, line, '\n')) 
+    {
+        // Remove trailing \r
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+
+        // Find position of colon
+        size_t colon = line.find(':');
+        if (colon != std::string::npos) 
+        {
+            std::string key = line.substr(0, colon);
+            std::string value = line.substr(colon + 1);
+            _headers_dict[key] = value;
+        }   
+    }
+
+    try
+    {
+        std::cout << get_header("Host") << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    try
+    {
+        std::cout << get_header("Ho2st") << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
+    return (true);
+}
+
+bool Client::is_headers_received() {
     if (_buffer.find("\r\n\r\n") == std::string::npos) {
         return false;
     }
-    std::cout << _buffer;
+    parse_headers();
     return true;
 }
 
