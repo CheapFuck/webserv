@@ -77,7 +77,7 @@ void Server::_setup_epoll() {
 		throw ServerCreationException("Failed to create epoll instance");
 
 	epoll_event event{};
-	event.events = EPOLLIN;
+	event.events = EPOLLIN | EPOLLET;
 	event.data.fd = _server_fd;
 
 	if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, _server_fd, &event) == -1) {

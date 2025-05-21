@@ -46,7 +46,7 @@ bool Client::read_request() {
     }
     if (bytes_read < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return (true);
+            exit(0);
         // Potentially an error - but ye well 42 rules yk...
         return false;
     }
@@ -89,15 +89,6 @@ bool Client::parse_headers()
     {
         std::cerr << e.what() << '\n';
     }
-    try
-    {
-        std::cout << get_header("Ho2st") << std::endl;
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-    }
-    
     return (true);
 }
 
