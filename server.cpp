@@ -57,6 +57,8 @@ void Server::_setup_socket() {
 	if (_server_fd == -1)
 		throw ServerCreationException("Failed to create socket");
 
+	int enable = 1;
+	setsockopt(_server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
 	sockaddr_in address{};
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
@@ -132,7 +134,7 @@ void Server::_handle_client_input(int fd, Client &client) {
 		return ;
 	}
 
-	if (client.is_request_complete())
+	if (client.is_headers_received())
 	{
 		epoll_event event{};
 		event.events = EPOLLOUT | EPOLLET;

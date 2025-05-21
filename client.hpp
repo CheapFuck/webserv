@@ -20,7 +20,7 @@ public:
     ~Client();
     
     bool read_request();
-    bool is_request_complete() const;
+    bool is_headers_received() const;
     void process_request(const ServerConfig& config);
     bool send_response();
     bool is_response_complete() const;

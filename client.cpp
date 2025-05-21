@@ -38,13 +38,12 @@ bool Client::read_request() {
         return false;
     }
 
-    while (bytes_read > 0 || bytes_read == 1) {
+    while (bytes_read > 0) {
         buffer[bytes_read] = '\0';
         _buffer.append(buffer, bytes_read);
-        if (is_request_complete()) break;
+        if (is_headers_received()) break;
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
-    std::cout << _buffer;
     if (bytes_read < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
             return (true);
@@ -55,11 +54,12 @@ bool Client::read_request() {
     return true;
 }
 
-bool Client::is_request_complete() const {
+bool Client::is_headers_received() const {
     if (_buffer.find("\r\n\r\n") == std::string::npos) {
         return false;
     }
-    return false;
+    std::cout << _buffer;
+    return true;
 }
 
 void Client::process_request(const ServerConfig& config) {

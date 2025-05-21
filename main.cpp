@@ -13,6 +13,14 @@
 
 #include <sys/socket.h>
 
+bool g_quit = false;
+
+void signalHandler(int signum) {
+    if (signum == SIGINT || signum == SIGTERM) {
+        g_quit = true;
+    }
+}
+
 std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
     try {
         std::vector<Token> tokens = tokenize(configPath);
@@ -38,7 +46,7 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
         }
     }
 
-    while (!servers.empty()) {
+    while (!servers.empty() && !g_quit) {
         for (size_t i = 0; i < servers.size(); ++i) {
             try {
                 servers[i].run_once();
@@ -68,10 +76,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
     if (run_servers(serverConfigs) != 0) {
         std::cerr << "Error running servers." << std::endl;
         return 1;
     }
-
     return (0);
 }
