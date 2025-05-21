@@ -4,7 +4,7 @@
 #include <iostream>
 // #include <string>
 // #include <cstdlib>
-// #include <signal.h>
+#include <signal.h>
 
 #include "config/config.hpp"
 #include "config/rules/rules.hpp"

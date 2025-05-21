@@ -38,17 +38,18 @@ bool Client::read_request() {
         return false;
     }
 
-    while (bytes_read > 0) {
+    while (bytes_read > 0 || bytes_read == 1) {
         buffer[bytes_read] = '\0';
         _buffer.append(buffer, bytes_read);
         if (is_request_complete()) break;
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
     std::cout << _buffer;
-    std::cout << "Bread:" << bytes_read;
     if (bytes_read < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return (true);
         // Potentially an error - but ye well 42 rules yk...
-        return true;
+        return false;
     }
 
     return true;
