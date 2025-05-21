@@ -31,7 +31,7 @@ Client::Client() : _socket(-1) {
 }
 
 bool Client::read_request() {
-    char buffer[16];
+    char buffer[2];
     ssize_t bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_read == 0) {
         // Client disconnected
@@ -44,7 +44,8 @@ bool Client::read_request() {
         if (is_request_complete()) break;
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
-
+    std::cout << _buffer;
+    std::cout << "Bread:" << bytes_read;
     if (bytes_read < 0) {
         // Potentially an error - but ye well 42 rules yk...
         return true;
@@ -57,7 +58,7 @@ bool Client::is_request_complete() const {
     if (_buffer.find("\r\n\r\n") == std::string::npos) {
         return false;
     }
-    return true;
+    return false;
 }
 
 void Client::process_request(const ServerConfig& config) {
