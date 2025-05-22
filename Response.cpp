@@ -33,6 +33,11 @@ const std::unordered_map<std::string, std::string>& Response::getHeaders() const
 	return (_headers_dict);
 }
 
+const std::string &Response::getBody() const
+{
+    return (_body);
+}
+
 std::string Response::toString() const
 {
     std::ostringstream os;
@@ -54,6 +59,8 @@ std::ostream &operator<<(std::ostream &os, const Response& obj)
 		os << iter->first << ": " << iter->second << "\r\n";
 	}	
 	os << "\r\n";
+    if (obj.getBody().length() > 0)
+        os << obj.getBody() << "\r\n";
     return (os);
 }
 
@@ -68,6 +75,8 @@ std::ostringstream &operator<<(std::ostringstream &os, const Response& obj)
 		os << iter->first << ": " << iter->second << "\r\n";
 	}	
 	os << "\r\n";
+    if (obj.getBody().length() > 0)
+        os << obj.getBody() << "\r\n";
     return (os);
 }
 

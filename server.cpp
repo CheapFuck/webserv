@@ -166,7 +166,6 @@ void Server::_handle_client_output(int fd, Client &client) {
 			_remove_client(client.get_socket());
 			return ;
 		}
-		client.reset();
 	}
 }
 

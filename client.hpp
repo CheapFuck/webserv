@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/rules/rules.hpp"
+#include "Response.hpp"
 #include "Request.hpp"
 #include <string>
 
@@ -35,4 +36,5 @@ public:
     int get_socket() const;
 
     Request request;
+    Response response;
 };

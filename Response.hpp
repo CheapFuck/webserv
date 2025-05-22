@@ -26,12 +26,8 @@ public:
 	static constexpr const char* _tls_version = "1.1";
 	size_t getStatusCode() const;
     const char* getStatusMessage() const;
+    const std::string &getBody() const;
 };
-
-//     std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-
-
-
 
 std::ostream &operator<<(std::ostream &os, const Response& obj);
 std::ostringstream &operator<<(std::ostringstream &os, const Response& obj);
