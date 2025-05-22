@@ -60,6 +60,7 @@ bool Client::read_request() {
         return true;
     }
 
+
     return true;
 }
 
@@ -111,7 +112,6 @@ void Client::_handle_get_request(const LocationRule& route) {
         response.setHeader("Content-Type", get_mime_type(request_path));
         response.setHeader("Content-Length", std::to_string(ss.str().length()));
         response.setHeader("Connection", "close");
-        std::cout << ss.str() << std::endl;
         response.setBody(ss.str());
     } 
 }
