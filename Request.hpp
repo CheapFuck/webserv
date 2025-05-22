@@ -3,12 +3,10 @@
 
 #include <string>
 #include <unordered_map>
-#include "config/consts.hpp"
 
 class Request {
 private:
     std::unordered_map<std::string, std::string> _headers_dict;
-
 public:
     Request();
     ~Request();
