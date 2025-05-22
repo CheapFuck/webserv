@@ -5,15 +5,9 @@
 #include "Utils.hpp"
 #include "config/consts.hpp"
 
-Request::Request() 
-{
+Request::Request() {}
 
-}
-
-Request::~Request() 
-{
-
-}
+Request::~Request() {}
 
 Request::Request(const Request& other) 
 {
@@ -28,7 +22,6 @@ Request& Request::operator=(const Request& other)
         _path = other._path;
         _version = other._version;
         _headers_dict = other._headers_dict;
-        _body = other._body;
         _headers_parsed = other._headers_parsed;
         _content_length = other._content_length;
     }
@@ -117,6 +110,13 @@ const std::string& Request::get_header(const std::string& key) const
     return (empty);
 }
 
+const std::string& Request::get_header(const std::string& key, const std::string& default_value) const {
+    std::unordered_map<std::string, std::string>::const_iterator iter = _headers_dict.find(key);
+    if (iter != _headers_dict.end())
+        return (iter->second);
+    return (default_value);
+}
+
 const std::string& Request::get_path() const {
     return (_path);
 }
@@ -134,6 +134,7 @@ bool Request::is_complete() const {
     switch (_method) {
         case GET:
         case HEAD:
+        case DELETE:
             return (_buffer.empty());
         case POST:
         case PUT:
@@ -148,10 +149,14 @@ bool Request::is_complete() const {
 void Request::reset() {
     _buffer.clear();
     _headers_dict.clear();
-    _body.clear();
     _method = UNKNOWN_METHOD;
     _path.clear();
     _version.clear();
     _headers_parsed = false;
     _content_length = 0;
+}
+
+const std::string& Request::getBody() const {
+    if (_headers_parsed) return (_buffer);
+    throw std::runtime_error("Headers not parsed yet");
 }

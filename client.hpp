@@ -38,3 +38,10 @@ public:
     Request request;
     Response response;
 };
+
+struct FilePart {
+    std::string name;
+    std::string filename;
+    std::string contentType;
+    std::string content;
+};

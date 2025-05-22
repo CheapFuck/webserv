@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete File</title>
+    <script>
+        function deleteFile(filePath) {
+            fetch(`http://localhost:8080/delete?file=${encodeURIComponent(filePath)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message); // Show success/failure message
+            })
+            .catch(error => {
+                alert('Error deleting file: ' + error);
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Delete a File</h1>
+    <p>Click the button to delete a file.</p>
+
+    <!-- Example delete button (deletes file "somefile.txt") -->
+    <button onclick="deleteFile('Cleaner_42.sh.txt')">Delete File</button>
+</body>
+</html>

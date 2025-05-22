@@ -8,6 +8,76 @@
 #include <fstream>
 #include <sstream>
 
+std::string extractBoundary(const std::string& contentType) {
+    size_t pos = contentType.find("boundary=");
+    if (pos != std::string::npos) {
+        return "--" + contentType.substr(pos + 9); // skip "boundary="
+    }
+    return "";
+}
+
+std::string extractBetween(const std::string& str, const std::string& start, const std::string& end) {
+    size_t s = str.find(start);
+    if (s == std::string::npos) return "";
+    s += start.length();
+    size_t e = str.find(end, s);
+    return (e == std::string::npos) ? "" : str.substr(s, e - s);
+}
+
+void parseMultipartFormData(const std::string& body, const std::string& boundary,
+    std::map<std::string, std::string>& formFields,
+    std::vector<FilePart>& files) {
+    size_t pos = 0, next;
+    std::cout << body << std::endl;
+    while ((next = body.find(boundary, pos)) != std::string::npos) {
+        size_t headerEnd = body.find("\r\n\r\n", pos);
+        if (headerEnd == std::string::npos) break;
+
+        std::string headers = body.substr(pos, headerEnd - pos);
+        size_t contentStart = headerEnd + 4;
+        size_t contentEnd = body.find(boundary, contentStart) - 2; // exclude \r\n
+
+        std::string content = body.substr(contentStart, contentEnd - contentStart);
+        FilePart part;
+
+        if (headers.find("filename=\"") != std::string::npos) {
+            part.name = extractBetween(headers, "name=\"", "\"");
+            part.filename = extractBetween(headers, "filename=\"", "\"");
+            part.content = content;
+            files.push_back(part);
+        } else {
+            std::string name = extractBetween(headers, "name=\"", "\"");
+            formFields[name] = content;
+        }
+
+        pos = contentEnd + boundary.length() + 2; // move to next part
+    }
+}
+
+std::map<std::string, std::string> parseQueryParams(const std::string& url) {
+    std::map<std::string, std::string> params;
+    size_t queryStart = url.find("?");
+    
+    if (queryStart == std::string::npos) {
+        return params;  // No query string, return empty map
+    }
+
+    std::string queryString = url.substr(queryStart + 1);  // Skip past "?"
+    std::istringstream queryStream(queryString);
+    std::string param;
+
+    while (std::getline(queryStream, param, '&')) {
+        size_t eqPos = param.find("=");
+        if (eqPos != std::string::npos) {
+            std::string key = param.substr(0, eqPos);
+            std::string value = param.substr(eqPos + 1);
+            params[key] = value;
+        }
+    }
+
+    return params;
+}
+
 Client::Client(int socket) :
     _socket(socket) {
     std::cout << "Client created with socket: " << socket << std::endl;
@@ -92,7 +162,6 @@ void Client::_handle_get_request(const LocationRule& route) {
             request_path = request_path + "/" + route.index.get();
             std::cout << "Request path: " << request_path << std::endl;
         } else {
-            // TODO: handle directory listing here!
             response.setStatusCode(403);
             return ;
         }
@@ -117,27 +186,69 @@ void Client::_handle_get_request(const LocationRule& route) {
 }
 
 void Client::_handle_post_request(const LocationRule& route) {
-    (void)route;
+    std::cout << "Handling POST request" << std::endl;
+    std::string content_type = request.get_header("Content-Type", "");
+    if (content_type.find("multipart/form-data") == std::string::npos) {
+        response.setStatusCode(415);
+        return ;
+    }
+
+    std::map<std::string, std::string> formFields;
+    std::vector<FilePart> files;
+
+    parseMultipartFormData(request.getBody(), extractBoundary(content_type), formFields, files);
+    for (const FilePart& file : files) {
+        std::ofstream outFile((route.upload_dir.get().get_path() + "/" + file.filename).c_str(), std::ios::binary);
+        if (outFile) {
+            outFile.write(file.content.c_str(), file.content.length());
+            outFile.close();
+        } else {
+            response.setStatusCode(500);
+            return ;
+        }
+    }
+
     response.setStatusCode(200);
     response.setHeader("Content-Type", "text/plain");
-    response.setHeader("Connection", "close");
+    response.setBody("File(s) uploaded successfully");
 }
 
 void Client::_handle_delete_request(const LocationRule& route) {
     (void)route;
+    std::cout << "Handling DELETE request" << std::endl;
+    std::map<std::string, std::string> queryParams = parseQueryParams(request.get_path());
+
+    if (queryParams.find("file") == queryParams.end()) {
+        response.setStatusCode(400);
+        return ;
+    }
+
+    std::string filePath = queryParams["file"];
+
+    if (filePath.find("..") != std::string::npos || filePath.find("/uploads/") == std::string::npos) {
+        response.setStatusCode(400);
+        return ;
+    }
+
+    std::string fullPath = "var/www/uploads/" + filePath;
+    if (std::remove(fullPath.c_str()) != 0) {
+        response.setStatusCode(404);
+        return ;
+    }
+
     response.setStatusCode(200);
-    response.setHeader("Content-Type", "text/plain");
-    response.setHeader("Connection", "close");
 }
 
 void Client::process_request(const ServerConfig& config) {
     response = Response();
 
     const LocationRule *route = config.routes.find(request.get_path());
+    std::cout << "Route: " << route << std::endl;
     if (route == nullptr) {
         response.setStatusCode(404);
         return ;
     }
+    std::cout << "Route found: " << *route << std::endl;
 
     if (!route->methods.is_allowed(request.get_method())) {
         response.setStatusCode(405);

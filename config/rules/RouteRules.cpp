@@ -31,9 +31,11 @@ const LocationRule *RouteRules::find(const std::string &url) const {
 	std::pair<const LocationRule *, size_t> result = std::make_pair(nullptr, 0);
 
 	for (const LocationRule &route : _routes) {
-		if (url.find(route.get_path()) == 0) {
+		if (url.starts_with(route.get_path())) {
 			size_t len = route.get_path().length();
-			if (len > result.second) {
+			if (!(url[len] == '/' || url[len] == '\0' || url[len] == '?' || route.get_path().back() == '/')) 
+				continue;
+			if (!result.first || len > result.second) {
 				result.first = &route;
 				result.second = len;
 			}

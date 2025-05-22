@@ -32,6 +32,19 @@ public:
 	size_t get() const;
 };
 
+class CGIRule {
+private:
+	std::map<std::string, std::string> _cgi_paths;
+
+public:
+	CGIRule(const Object &obj, bool required = false);
+	const std::map<std::string, std::string> &get_paths() const;
+	const std::string &get_path(const std::string &ext) const;
+
+	bool is_set() const;
+	bool exists(const std::string &ext) const;
+};
+
 class ErrorPageRule {
 private:
 	std::map<int, Path> _error_pages;
@@ -119,6 +132,7 @@ public:
 	AutoIndexRule autoindex;
 	IndexRule index;
 	RedirectRule redirect;
+	CGIRule cgi_paths;
 
 	LocationRule(const std::string &path, const Object &obj);
 	const std::string &get_path() const;
@@ -153,6 +167,7 @@ std::ostream& operator<<(std::ostream& os, const MaxBodySizeRule& rule);
 std::ostream& operator<<(std::ostream& os, const ErrorPageRule& rule);
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule);
+std::ostream& operator<<(std::ostream& os, const CGIRule& rule);
 std::ostream& operator<<(std::ostream& os, const RouteRules& rules);
 std::ostream& operator<<(std::ostream& os, const MethodRule& rule);
 std::ostream& operator<<(std::ostream& os, const RootRule& rule);

@@ -12,7 +12,6 @@ private:
     std::string _path;
     std::string _version;
     std::unordered_map<std::string, std::string> _headers_dict;
-    std::string _body;
     bool _headers_parsed;
     size_t _content_length;
 
@@ -29,6 +28,7 @@ public:
     
     bool parse_headers();
     const std::string& get_header(const std::string& key) const;
+    const std::string& get_header(const std::string& key, const std::string& default_value) const;
     const std::string& getBody() const;
     bool is_headers_received();
 

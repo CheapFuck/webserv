@@ -9,13 +9,14 @@ LocationRule::LocationRule(const std::string &path, const Object &obj)
 	  upload_dir(UploadDirRule(obj, false)),
 	  autoindex(AutoIndexRule(obj, false)),
 	  index(IndexRule(obj, false)),
-	  redirect(RedirectRule(obj, false)) {}
+	  redirect(RedirectRule(obj, false)),
+	  cgi_paths(CGIRule(obj, false)) {}
 
 inline const std::string &LocationRule::get_path() const {
 	return _path;
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule) {
-	os << "LocationRule(path: " << rule.get_path() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoindex << ", index: " << rule.index << ", redirect: " << rule.redirect << ")";
+	os << "LocationRule(path: " << rule.get_path() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoindex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.cgi_paths << ")";
 	return os;
 }

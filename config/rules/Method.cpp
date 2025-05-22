@@ -23,6 +23,7 @@ MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METH
 			if (method & _methods)
 				throw ConfigParsingException("Duplicate method: " + arg.str);
 			_methods = _methods | method;
+			found = true;
 		}
 	}
 

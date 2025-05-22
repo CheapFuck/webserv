@@ -20,6 +20,7 @@ SRCS := main.cpp \
 	config/rules/MaxBodySize.cpp \
 	config/rules/ServerName.cpp \
 	config/rules/Port.cpp \
+	config/rules/CGI.cpp \
 	config/rules/Method.cpp \
 	config/rules/Root.cpp \
 	config/rules/Index.cpp \
