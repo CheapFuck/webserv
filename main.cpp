@@ -1,17 +1,11 @@
-// #include "Server.hpp"
-// #include "Config.hpp"
+#include <sys/socket.h>
 #include <exception>
 #include <iostream>
-// #include <string>
-// #include <cstdlib>
 #include <signal.h>
 
+#include "server.hpp"
 #include "config/config.hpp"
 #include "config/rules/rules.hpp"
-
-#include "server.hpp"
-
-#include <sys/socket.h>
 
 bool g_quit = false;
 
