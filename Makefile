@@ -28,7 +28,8 @@ SRCS := main.cpp \
 	config/rules/Location.cpp \
 	config/rules/RouteRules.cpp \
 	config/rules/ServerConfig.cpp \
-	Request.cpp 
+	Request.cpp \
+	Response.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
 DEPS := $(OBJS:%.o=%.d)

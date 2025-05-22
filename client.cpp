@@ -58,8 +58,11 @@ void Client::process_request(const ServerConfig& config) {
 
 bool Client::send_response() {
     // TODO obviously
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-    ssize_t bytes_sent = send(_socket, response.c_str(), response.size(), 0);
+	Response response;
+	response.setStatusCode(200);
+	response.setHeader("Content-Length", "0");
+	response.setBody("");
+    ssize_t bytes_sent = send(_socket, response.toString().c_str(), response.toString().length(), 0);
     if (bytes_sent < 0) {
         std::cerr << "Failed to send response" << std::endl;
         return false;
