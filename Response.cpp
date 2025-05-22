@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 Response::Response() : _statusCode(0), _body("") {
+	setHeader("Content-Length", "0");
 }
 
 Response::~Response() {

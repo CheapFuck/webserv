@@ -82,7 +82,6 @@ bool Request::parse_headers()
     std::string line;
     bool parsed_first_line = false;
 
-    std::cout << _buffer << std::endl;
     while (std::getline(stream, line, '\n')) 
     {
         line = Utils::trim(line);

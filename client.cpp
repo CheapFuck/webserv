@@ -28,7 +28,8 @@ Client& Client::operator=(const Client& other) {
     return *this;
 }
 
-Client::~Client() {}
+Client::~Client() {
+}
 
 Client::Client() : _socket(-1) {
     std::cout << "Client created with default socket" << std::endl;
@@ -91,6 +92,8 @@ void Client::_handle_get_request(const LocationRule& route) {
             request_path = request_path + "/" + route.index.get();
             std::cout << "Request path: " << request_path << std::endl;
         } else {
+			if (route.autoindex.get())
+
             // TODO: handle directory listing here!
             response.setStatusCode(403);
             return ;
@@ -170,6 +173,7 @@ void Client::process_request(const ServerConfig& config) {
 
 bool Client::send_response() {
     std::string response_str = response.toString();
+	std::cout << "Sending "<< response_str;
     ssize_t bytes_sent = send(_socket, response_str.c_str(), response_str.length(), 0);
     if (bytes_sent < 0) {
         std::cerr << "Failed to send response" << std::endl;
