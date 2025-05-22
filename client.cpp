@@ -134,6 +134,8 @@ void Client::_handle_delete_request(const LocationRule& route) {
 }
 
 void Client::process_request(const ServerConfig& config) {
+    (void)config;
+    return ;
     const LocationRule *route = config.routes.find(request.get_path());
     if (route == nullptr) {
         std::string response = "HTTP/1.1 404 Route Not Found\r\nContent-Length: 0\r\n\r\n";
@@ -171,15 +173,16 @@ void Client::process_request(const ServerConfig& config) {
 bool Client::send_response() {
     // TODO obviously
 	Response response;
-	response.setStatusCode(200);
+	response.setStatusCode(301);
 	response.setHeader("Content-Length", "0");
 	response.setBody("");
-    ssize_t bytes_sent = send(_socket, response.toString().c_str(), response.toString().length(), 0);
+    std::string response_str = response.toString();
+    ssize_t bytes_sent = send(_socket, response_str.c_str(), response_str.length(), 0);
     if (bytes_sent < 0) {
         std::cerr << "Failed to send response" << std::endl;
         return false;
     }
-    std::cout << "Sent response: " << response << std::endl;
+    std::cout << "Sent response: " << response_str << std::endl;
     return true;
 }
 

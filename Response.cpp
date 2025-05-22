@@ -1,5 +1,6 @@
 #include "Response.hpp"
 #include <sstream>
+#include <iostream> 
 #include <ctime>
 #include <unordered_map>
 
@@ -27,7 +28,7 @@ size_t Response::getStatusCode() const
 	return (_statusCode);
 }
 
-const std::unordered_map<std::string, std::string> Response::getHeaders() const
+const std::unordered_map<std::string, std::string>& Response::getHeaders() const
 {
 	return (_headers_dict);
 }
@@ -36,21 +37,35 @@ std::string Response::toString() const
 {
     std::ostringstream os;
 
-    os << this;
+    os << *this;
     std::string as_string = os.str();
+    std::cout << "Response: " << as_string << std::endl;
     return (as_string);
 }
 
 std::ostream &operator<<(std::ostream &os, const Response& obj)
 {
-	std::unordered_map<std::string, std::string> _readonly;
+	const std::unordered_map<std::string, std::string>& _readonly = obj.getHeaders();
 
-	_readonly = obj.getHeaders();
     os << obj._protocol << "/" <<  obj._tls_version << " " << obj.getStatusCode() \
 	<< " " << obj.getStatusMessage() << "\r\n";
 	for (std::unordered_map<std::string, std::string>::const_iterator iter = _readonly.begin(); iter != _readonly.end(); iter++)
 	{		
-		os << iter->first << ":" << iter->second << "\r\n";
+		os << iter->first << ": " << iter->second << "\r\n";
+	}	
+	os << "\r\n";
+    return (os);
+}
+
+std::ostringstream &operator<<(std::ostringstream &os, const Response& obj)
+{
+	const std::unordered_map<std::string, std::string>& _readonly = obj.getHeaders();
+
+    os << obj._protocol << "/" <<  obj._tls_version << " " << obj.getStatusCode() \
+	<< " " << obj.getStatusMessage() << "\r\n";
+	for (std::unordered_map<std::string, std::string>::const_iterator iter = _readonly.begin(); iter != _readonly.end(); iter++)
+	{		
+		os << iter->first << ": " << iter->second << "\r\n";
 	}	
 	os << "\r\n";
     return (os);

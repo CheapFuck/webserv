@@ -20,7 +20,7 @@ public:
     void setHeader(const std::string& name, const std::string& value);
     void setBody(const std::string& body);
     
-	const std::unordered_map<std::string, std::string> getHeaders() const;
+	const std::unordered_map<std::string, std::string>& getHeaders() const;
     std::string toString() const;
 	static constexpr const char* _protocol = "HTTP";
 	static constexpr const char* _tls_version = "1.1";
@@ -34,5 +34,6 @@ public:
 
 
 std::ostream &operator<<(std::ostream &os, const Response& obj);
+std::ostringstream &operator<<(std::ostringstream &os, const Response& obj);
 
 #endif // RESPONSE_HPP
