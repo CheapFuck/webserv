@@ -2,7 +2,6 @@
 
 #include "config/rules/rules.hpp"
 #include "Request.hpp"
-#include "Response.hpp"
 #include <string>
 
 #include <netinet/in.h>
@@ -12,6 +11,11 @@ class Client {
 private:
     int _socket;
 
+    void _handle_get_request(const LocationRule& route);
+    void _handle_post_request(const LocationRule& route);
+    void _handle_delete_request(const LocationRule& route);
+
+    std::string get_mime_type(const std::string& path) const;
 
 public:
     Client();

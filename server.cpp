@@ -136,7 +136,7 @@ void Server::_handle_client_input(int fd, Client &client) {
 		return ;
 	}
 
-	if (client.request.is_headers_received())
+	if (client.request.is_complete())
 	{
 		epoll_event event{};
 		event.events = EPOLLOUT | EPOLLET;

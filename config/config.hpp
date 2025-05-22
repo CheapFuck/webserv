@@ -5,7 +5,6 @@
 #include <exception>
 #include <string>
 #include <vector>
-#include <ranges>
 #include <map>
 
 class ConfigParsingException : public std::exception {

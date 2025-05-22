@@ -131,7 +131,7 @@ private:
 public:
 	RouteRules(const Object &obj, bool required = false);
 	const std::vector<LocationRule> &get_routes() const;
-	const LocationRule &get_route(std::string &url) const;
+	const LocationRule *find(const std::string &url) const;
 };
 
 class ServerConfig {

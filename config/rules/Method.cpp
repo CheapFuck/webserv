@@ -34,11 +34,11 @@ MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METH
 	}
 }
 
-inline bool MethodRule::is_allowed(Method method) const {
+bool MethodRule::is_allowed(Method method) const {
 	return _methods & method;
 }
 
-inline const Method& MethodRule::get_methods() const {
+const Method& MethodRule::get_methods() const {
 	return _methods;
 }
 
