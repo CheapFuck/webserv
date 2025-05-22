@@ -58,7 +58,9 @@ void Server::_setup_socket() {
 		throw ServerCreationException("Failed to create socket");
 
 	int enable = 1;
-	setsockopt(_server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
+	if (setsockopt(_server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1)
+		throw ServerCreationException("Failed to set socket options");
+
 	sockaddr_in address{};
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
