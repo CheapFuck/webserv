@@ -1,95 +1,64 @@
 #include "Response.hpp"
 #include <sstream>
 #include <ctime>
+#include <unordered_map>
 
-Response::Response() : _statusCode(200), _built(false) {
+Response::Response() : _statusCode(0), _body("") {
 }
 
 Response::~Response() {
 }
 
-void Response::setStatusCode(int code) {
+void Response::setStatusCode(size_t code) {
     _statusCode = code;
-    _built = false;
 }
 
-void Response::setHeader(const std::string& name, const std::string& value) {
-    _headers[name] = value;
-    _built = false;
+void Response::setHeader(const std::string& name, const std::string& value) 
+{
+    _headers_dict[name] = value;
 }
 
 void Response::setBody(const std::string& body) {
     _body = body;
-    _built = false;
 }
 
-std::string Response::toString() {
-    if (!_built) {
-        build();
-    }
-    
-    return _responseStr;
+size_t Response::getStatusCode() const
+{
+	return (_statusCode);
 }
 
-void Response::dataSent(size_t bytes) {
-    if (bytes >= _responseStr.length()) {
-        _responseStr.clear();
-    } else {
-        _responseStr = _responseStr.substr(bytes);
-    }
+const std::unordered_map<std::string, std::string> Response::getHeaders() const
+{
+	return (_headers_dict);
 }
 
-bool Response::isEmpty() const {
-    return _responseStr.empty();
+std::string Response::toString() const
+{
+    std::ostringstream os;
+
+    os << this;
+    std::string as_string = os.str();
+    return (as_string);
 }
 
-void Response::build() {
-    std::ostringstream oss;
-    
-    // Status line
-    oss << "HTTP/1.1 " << _statusCode << " " << getStatusMessage(_statusCode) << "\r\n";
-    
-    // Set default headers if not already set
-    if (_headers.find("Content-Type") == _headers.end()) {
-        _headers["Content-Type"] = "text/html; charset=UTF-8";
-    }
-    
-    if (_headers.find("Content-Length") == _headers.end()) {
-        std::ostringstream contentLength;
-        contentLength << _body.length();
-        _headers["Content-Length"] = contentLength.str();
-    }
-    
-    if (_headers.find("Date") == _headers.end()) {
-        char buffer[100];
-        time_t now = time(0);
-        struct tm* timeinfo = gmtime(&now);
-        strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", timeinfo);
-        _headers["Date"] = buffer;
-    }
-    
-    if (_headers.find("Server") == _headers.end()) {
-        _headers["Server"] = "webserv/1.0";
-    }
-    
-    // Headers
-    for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); 
-         it != _headers.end(); ++it) {
-        oss << it->first << ": " << it->second << "\r\n";
-    }
-    
-    // Empty line separating headers from body
-    oss << "\r\n";
-    
-    // Body
-    oss << _body;
-    
-    _responseStr = oss.str();
-    _built = true;
+std::ostream &operator<<(std::ostream &os, const Response& obj)
+{
+	std::unordered_map<std::string, std::string> _readonly;
+
+	_readonly = obj.getHeaders();
+    os << obj._protocol << "/" <<  obj._tls_version << " " << obj.getStatusCode() \
+	<< " " << obj.getStatusMessage() << "\r\n";
+	for (std::unordered_map<std::string, std::string>::const_iterator iter = _readonly.begin(); iter != _readonly.end(); iter++)
+	{		
+		os << iter->first << ":" << iter->second << "\r\n";
+	}	
+	os << "\r\n";
+    return (os);
 }
 
-std::string Response::getStatusMessage(int code) const {
-    switch (code) {
+
+const char* Response::getStatusMessage() const {
+    switch (_statusCode) {
         case 200: return "OK";
         case 201: return "Created";
         case 204: return "No Content";
@@ -108,3 +77,5 @@ std::string Response::getStatusMessage(int code) const {
         default: return "Unknown";
     }
 }
+
+

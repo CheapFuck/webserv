@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "Response.hpp"
 
 #include <sys/stat.h>
 #include <iostream>
@@ -169,12 +170,16 @@ void Client::process_request(const ServerConfig& config) {
 
 bool Client::send_response() {
     // TODO obviously
-    
-    // if (bytes_sent < 0) {
-    //     std::cerr << "Failed to send response" << std::endl;
-    //     return false;
-    // }
-    // std::cout << "Sent response: " << response << std::endl;
+	Response response;
+	response.setStatusCode(200);
+	response.setHeader("Content-Length", "0");
+	response.setBody("");
+    ssize_t bytes_sent = send(_socket, response.toString().c_str(), response.toString().length(), 0);
+    if (bytes_sent < 0) {
+        std::cerr << "Failed to send response" << std::endl;
+        return false;
+    }
+    std::cout << "Sent response: " << response << std::endl;
     return true;
 }
 
