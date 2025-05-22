@@ -11,14 +11,14 @@ Client::Client(int socket) :
 
 Client::Client(const Client& other) :
     _socket(other._socket),
-    _buffer(other._buffer) {
+    request(other.request) {
     std::cout << "Client copy constructor called" << std::endl;
 }
 
 Client& Client::operator=(const Client& other) {
     if (this != &other) {
         _socket = other._socket;
-        _buffer = other._buffer;
+        request._buffer = other.request._buffer;
         std::cout << "Client assignment operator called" << std::endl;
     }
     return *this;
@@ -34,69 +34,19 @@ bool Client::read_request() {
     char buffer[2];
     ssize_t bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_read == 0) {
-        // Client disconnected
         return false;
     }
 
     while (bytes_read > 0) {
         buffer[bytes_read] = '\0';
-        _buffer.append(buffer, bytes_read);
-        if (is_headers_received()) break; ;
+        request._buffer.append(buffer, bytes_read);
+        if (request.is_headers_received()) break; ;
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
     if (bytes_read < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            exit(0);
-        // Potentially an error - but ye well 42 rules yk...
         return false;
     }
 
-    return true;
-}
-
-const std::string& Client::get_header(const std::string& key) const
-{
-    std::unordered_map<std::string, std::string>::const_iterator iter = _headers_dict.find(key);
-    if (iter == _headers_dict.end())
-        throw std::out_of_range("No such header was parsed: " + key);
-    return (iter->second);
-}
-
-bool Client::parse_headers() 
-{
-    std::istringstream stream(_buffer);
-    std::string line;
-    while (std::getline(stream, line, '\n')) 
-    {
-        // Remove trailing \r
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-
-        // Find position of colon
-        size_t colon = line.find(':');
-        if (colon != std::string::npos) 
-        {
-            std::string key = line.substr(0, colon);
-            std::string value = line.substr(colon + 1);
-            _headers_dict[key] = value;
-        }   
-    }
-
-    try
-    {
-        std::cout << get_header("Host") << std::endl;
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-    }
-    return (true);
-}
-
-bool Client::is_headers_received() {
-    if (_buffer.find("\r\n\r\n") == std::string::npos) {
-        return false;
-    }
-    parse_headers();
     return true;
 }
 
@@ -123,7 +73,8 @@ bool Client::is_response_complete() const {
 }
 
 void Client::reset() {
-    _buffer.clear();
+    request._buffer.clear();
+    // Delete unordered map as well
     std::cout << "Client reset" << std::endl;
 }
 

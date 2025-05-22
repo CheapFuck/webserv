@@ -6,17 +6,15 @@
 
 class Response {
 private:
-    int _statusCode;
-    std::map<std::string, std::string> _headers;
-    std::string _body;
-    std::string _responseStr;
-    bool _built;
+    size_t _statusCode;
+    std::string _buffer; // Make this a custom buffer class for the request
+    std::unordered_map<std::string, std::string> _headers_dict;
     
 public:
     Response();
     ~Response();
     
-    void setStatusCode(int code);
+    void setStatusCode(size_t code);
     void setHeader(const std::string& name, const std::string& value);
     void setBody(const std::string& body);
     
