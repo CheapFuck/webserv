@@ -166,6 +166,7 @@ void Server::_handle_client_output(int fd, Client &client) {
 			_remove_client(client.get_socket());
 			return ;
 		}
+		client.reset();
 	}
 }
 
@@ -176,6 +177,12 @@ void Server::_handle_client_io(int fd, short revents) {
 		return ;
 	}
 	Client &client = it->second;
+
+	std::cout << "Handling client IO: " << fd << std::endl;
+	std::cout << "Events: " << revents << std::endl;
+	std::cout << (revents & EPOLLIN) << std::endl;
+	std::cout << (revents & EPOLLOUT) << std::endl;
+	std::cout << (revents & (EPOLLERR | EPOLLHUP)) << std::endl;
 
 	if (revents & EPOLLIN)
 		_handle_client_input(fd, client);
@@ -194,9 +201,12 @@ void Server::run_once() {
 	if (event_count == -1)
 		throw ServerCreationException("Failed to wait for epoll events");
 	for (int i = 0; i < event_count; ++i) {
-		if (events[i].data.fd == _server_fd)
+		std::cout << "Event: " << events[i].events << std::endl;
+		if (events[i].data.fd == _server_fd) {
 			_handle_new_connection();
-		else
+		}
+		else {
 			_handle_client_io(events[i].data.fd, events[i].events);
+		}
 	}
 }

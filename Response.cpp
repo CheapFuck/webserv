@@ -5,7 +5,9 @@
 #include <unordered_map>
 
 Response::Response() : _statusCode(0), _body("") {
-	setHeader("Content-Length", "0");
+    setHeader("Content-Length", "0");
+    setHeader("Content-Type", "text/html");
+    setHeader("Date", std::to_string(std::time(0)));
 }
 
 Response::~Response() {
@@ -21,6 +23,7 @@ void Response::setHeader(const std::string& name, const std::string& value)
 }
 
 void Response::setBody(const std::string& body) {
+    setHeader("Content-Length", std::to_string(body.length()));
     _body = body;
 }
 
