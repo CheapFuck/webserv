@@ -54,7 +54,7 @@ const std::string& Request::get_header(const std::string& key) const
     std::unordered_map<std::string, std::string>::const_iterator iter = _headers_dict.find(key);
     if (iter != _headers_dict.end())
         return (iter->second);
-    throw ;
+    throw ; // Remove me 
     return (empty);
 }
 
