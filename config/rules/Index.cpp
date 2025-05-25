@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-IndexRule::IndexRule(const Object &obj, bool required) : _is_set(false) {
+IndexRule::IndexRule(const Object &obj, bool required) {
 	int rule_count = 0;
 
 	for (const Rule &rule : obj) {
@@ -12,26 +12,40 @@ IndexRule::IndexRule(const Object &obj, bool required) : _is_set(false) {
 
 		if (rule.arguments.size() < 1)
 			throw ConfigParsingException("Invalid index rule");
-		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid index argument type");
 
-		_index = std::string(rule.arguments[0].str);
-		_is_set = true;
+		for (const Argument &arg : rule.arguments) {
+			if (arg.type != STRING)
+				throw ConfigParsingException("Invalid index argument type");
+			_index_pages.push_back(std::string(arg.str));
+		}
 	}
 
-	if (!_is_set && required)
+	if (_index_pages.empty() && required)
 		throw ConfigParsingException("Missing index rule");
 }
 
-inline const std::string &IndexRule::get() const {
-	return _index;
+inline const std::vector<std::string> &IndexRule::get() const {
+	return _index_pages;
 }
 
 inline bool IndexRule::is_set() const {
-	return _is_set;
+	return !_index_pages.empty();
 }
 
 std::ostream& operator<<(std::ostream& os, const IndexRule& rule) {
-	os << "IndexRule(index: " << rule.get() << ", is_set: " << rule.is_set() << ")";
+	if (!rule.is_set()) {
+		os << "IndexRule(is_set: false)";
+		return os;
+	}
+
+	os << "IndexRule(pages: ";
+	std::vector<std::string>::const_iterator it = rule.get().begin();
+	while (it != rule.get().end() && it != rule.get().end() - 1) {
+		os << *it;
+		++it;
+		if (it != rule.get().end())
+			os << ", ";
+	}
+	os << ")";
 	return os;
 }

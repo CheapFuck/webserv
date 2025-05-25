@@ -6,7 +6,7 @@
     <title>Delete File</title>
     <script>
         function deleteFile(filePath) {
-            fetch(`http://localhost:8080/delete?file=${encodeURIComponent(filePath)}`, {
+            fetch(`/upload?file=${encodeURIComponent(filePath)}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -14,7 +14,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message); // Show success/failure message
+                alert(data.error || data.message);
             })
             .catch(error => {
                 alert('Error deleting file: ' + error);
@@ -26,7 +26,7 @@
     <h1>Delete a File</h1>
     <p>Click the button to delete a file.</p>
 
-    <!-- Example delete button (deletes file "somefile.txt") -->
-    <button onclick="deleteFile('somefile.txt')">Delete File</button>
+    <input type="text" id="filePath" placeholder="Enter file path to delete"><br><br>
+    <button onclick="deleteFile(document.getElementById('filePath').value)">Delete File</button>
 </body>
 </html>

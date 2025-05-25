@@ -3,7 +3,66 @@
 #include "../config.hpp"
 #include "../consts.hpp"
 
-#include "../custom_types/types.hpp"
+#include <vector>
+#include <map>
+
+class Size;
+class Path;
+
+class PortRule;
+class ServerNameRule;
+class MaxBodySizeRule;
+class CGIRule;
+class ErrorPageRule;
+class MethodRule;
+class RootRule;
+class IndexRule;
+class AutoIndexRule;
+class UploadDirRule;
+class RedirectRule;
+class LocationRule;
+class RouteRules;
+class ServerConfig;
+
+// Custom types
+class Size {
+private:
+	size_t _size;
+
+	void _load_size(const std::string &str);
+
+public:
+	Size(const std::string &str);
+	Size();
+
+	size_t get() const;
+};
+
+class Path {
+private:
+	std::string _path;
+	bool _is_set;
+	
+public:
+	Path(const std::string &str);
+	Path(const Path &other);
+	Path();
+	Path &operator=(const Path &other);
+
+	Path &append(const std::string &str);
+	Path &pop();
+	Path &update_from_url(const std::string &route, const std::string &root);
+	std::string get_filename() const;
+	static Path create_from_url(const std::string &url, const LocationRule &route);
+	static Path create_dummy();
+	const std::string &get_path() const;
+	bool is_valid() const;
+};
+
+std::ostream& operator<<(std::ostream& os, const Path& path);
+std::ostream& operator<<(std::ostream& os, const Size& size);
+
+// Rules
 
 class PortRule {
 private:
@@ -79,12 +138,11 @@ public:
 
 class IndexRule {
 private:
-	std::string _index;
-	bool _is_set;
+	std::vector<std::string> _index_pages;
 
 public:
 	IndexRule(const Object &obj, bool required = false);
-	const std::string &get() const;
+	const std::vector<std::string> &get() const;
 	bool is_set() const;
 };
 

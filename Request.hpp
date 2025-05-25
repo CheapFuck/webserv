@@ -3,7 +3,9 @@
 
 #include <string>
 #include <unordered_map>
+
 #include "config/consts.hpp"
+#include "config/rules/rules.hpp"
 
 class Request {
 private:
@@ -11,6 +13,7 @@ private:
     Method _method;
     std::string _path;
     std::string _version;
+    size_t _max_body_size;
     std::unordered_map<std::string, std::string> _headers_dict;
     bool _headers_parsed;
     size_t _content_length;
@@ -19,7 +22,7 @@ private:
     bool _fetch_config_from_headers();
 
 public:
-    Request();
+    Request(size_t max_body_size);
     Request(const Request& other);
     Request& operator=(const Request& other);
     ~Request();
@@ -31,6 +34,7 @@ public:
     const std::string& get_header(const std::string& key, const std::string& default_value) const;
     const std::string& getBody() const;
     bool is_headers_received();
+    bool is_body_within_limits() const;
 
     const std::string& get_path() const;
     const std::string& get_version() const;

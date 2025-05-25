@@ -2,12 +2,30 @@
 #include "Utils.hpp"
 #include "Request.hpp"
 #include "config/consts.hpp"
+#include "config/rules/rules.hpp"
 
 #include <iostream>
 #include <sstream>
 #include <string.h>
 
-Request::Request() {}
+size_t get_content_length(const std::string &value) {
+    size_t length = 0;
+    try {
+        length = std::stoul(value);
+    } catch (const std::invalid_argument&) {
+        ERROR("Invalid Content-Length value: " << value);
+        return 0;
+    } catch (const std::out_of_range&) {
+        ERROR("Content-Length value out of range: " << value);
+        return 0;
+    }
+    return length;
+}
+
+Request::Request(size_t max_body_size) {
+    _max_body_size = max_body_size;
+    _headers_parsed = false;
+}
 
 Request::~Request() {}
 
@@ -23,6 +41,7 @@ Request& Request::operator=(const Request& other)
         _method = other._method;
         _path = other._path;
         _version = other._version;
+        _max_body_size = other._max_body_size;
         _headers_dict = other._headers_dict;
         _headers_parsed = other._headers_parsed;
         _content_length = other._content_length;
@@ -38,12 +57,19 @@ void Request::append_data(const std::string& data) {
             parse_headers();
             _headers_parsed = true;
             _buffer.erase(0, _buffer.find("\r\n\r\n") + 4);
+            _content_length = get_content_length(get_header("Content-Length", "0"));
+            DEBUG("Headers parsed, Content-Length: " << _content_length);
         }
     }
 }
 
 bool Request::is_headers_received() {
-    return (_buffer.find("\r\n\r\n") != std::string::npos);
+    return (_headers_parsed || _buffer.find("\r\n\r\n") != std::string::npos);
+}
+
+bool Request::is_body_within_limits() const {
+    if (!_headers_parsed) return true;
+    return (_buffer.size() <= _max_body_size && _content_length <= _max_body_size);
 }
 
 bool Request::_parse_request_line(const std::string& line) 
@@ -62,6 +88,8 @@ bool Request::_parse_request_line(const std::string& line)
     _method = string_to_method(method_str);
     _path = path;
     _version = version;
+
+    DEBUG_IF(_method == UNKNOWN_METHOD, "Unknown method: " << method_str);
 
     if (_method == UNKNOWN_METHOD) {
         ERROR("Unknown method: " << method_str);
@@ -131,7 +159,12 @@ const Method& Request::get_method() const {
 }
 
 bool Request::is_complete() const {
+    // Headers not parsed yet; should be considered incomplete
     if (!_headers_parsed) return (false);
+
+    // Body exceeds maximum size; should be considered complete
+    if (!is_body_within_limits()) return (true);
+
     switch (_method) {
         case GET:
         case HEAD:

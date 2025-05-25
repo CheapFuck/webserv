@@ -7,13 +7,13 @@
 class Response {
 private:
     size_t _statusCode;
-    std::string _buffer; // Make this a custom buffer class for the request
     std::unordered_map<std::string, std::string> _headers_dict;
 	std::string _body;
 
-    
 public:
     Response();
+    Response(const Response& other);
+    Response& operator=(const Response& other);
     ~Response();
     
     void setStatusCode(size_t code);

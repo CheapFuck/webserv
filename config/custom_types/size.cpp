@@ -1,6 +1,5 @@
-#include "../custom_types/types.hpp"
 #include "../config.hpp"
-#include "types.hpp"
+#include "../rules/rules.hpp"
 
 #include <iostream>
 #include <string.h>

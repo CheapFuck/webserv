@@ -29,7 +29,7 @@ void parseMultipartFormData(const std::string& body, const std::string& boundary
     std::map<std::string, std::string>& formFields,
     std::vector<FilePart>& files) {
     size_t pos = 0, next;
-    DEBUG(body);
+
     while ((next = body.find(boundary, pos)) != std::string::npos) {
         size_t headerEnd = body.find("\r\n\r\n", pos);
         if (headerEnd == std::string::npos) break;
@@ -79,8 +79,8 @@ std::map<std::string, std::string> parseQueryParams(const std::string& url) {
     return params;
 }
 
-Client::Client(int socket) :
-    _socket(socket) {
+Client::Client(int socket, const ServerConfig& config) :
+    _socket(socket), request(config.client_max_body_size.get()) {
     DEBUG("Client created with socket: " << socket);
 }
 
@@ -102,7 +102,7 @@ Client& Client::operator=(const Client& other) {
 Client::~Client() {
 }
 
-Client::Client() : _socket(-1) {
+Client::Client() : _socket(-1), request(0) {
     DEBUG("Client default constructor called");
 }
 
@@ -117,23 +117,64 @@ std::string Client::get_mime_type(const std::string& path) const {
 }
 
 bool Client::read_request() {
-    char buffer[64];
+    char buffer[4096];
     ssize_t bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
-    if (bytes_read == 0) {
+    if (bytes_read == 0)
         return false;
-    }
 
     while (bytes_read > 0) {
         buffer[bytes_read] = '\0';
         request.append_data(std::string(buffer));
+        if (!request.is_body_within_limits()) {
+            DEBUG("Request body exceeds maximum size");
+            response.setStatusCode(413);
+            return true;
+        }
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
     }
+    // DEBUG(request.getBody().size() << " bytes read from socket");
     if (bytes_read < 0) {
+        perror("recv");
         return true;
     }
 
-
     return true;
+}
+
+bool Client::_try_create_response_from_file(const Path& filepath) {
+    DEBUG("Trying to create response from file: " << filepath.get_path());
+    std::ifstream file(filepath.get_path(), std::ios::binary);
+
+    if (!file) {
+        DEBUG("File not found");
+        return (false);
+    }
+
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    file.close();
+
+    response.setStatusCode(200);
+    response.setHeader("Content-Type", get_mime_type(filepath.get_path()));
+    response.setHeader("Content-Length", std::to_string(ss.str().length()));
+    response.setHeader("Connection", "close");
+    response.setBody(ss.str());
+    DEBUG("Response created from file: " << filepath.get_path());
+    return (true);
+}
+
+bool Client::_try_to_create_response_from_index(const Path& base_filepath, const IndexRule& index_rule) {
+    for (const std::string &index : index_rule.get()) {
+        Path index_path = base_filepath;
+        index_path.append(index);
+        DEBUG("Trying to create response from index file: " << index_path.get_path());
+        if (_try_create_response_from_file(index_path)) {
+            DEBUG("Response created from index file: " << index_path.get_path());
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void Client::_handle_get_request(const LocationRule& route) {
@@ -144,53 +185,48 @@ void Client::_handle_get_request(const LocationRule& route) {
         return;
     }
 
-    std::string rootDir = route.root.get().get_path() + "/";
-
-    DEBUG(request.get_path());
-    DEBUG(rootDir);
-
-    std::string request_path = std::string(request.get_path()).replace(0, route.get_path().length(), rootDir);
-
-    if (request_path.find("..") != std::string::npos) {
+    Path filepath = Path::create_from_url(request.get_path(), route);
+    if (!filepath.is_valid()) {
+        DEBUG("Invalid request path: " << filepath.get_path());
         response.setStatusCode(400);
         return ;
     }
 
     struct stat path_stat{};
-    if (stat(request_path.c_str(), &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
+    if (stat(filepath.get_path().c_str(), &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
         DEBUG("Request path is a directory");
         if (route.index.is_set()) {
-            request_path = request_path + "/" + route.index.get();
-            DEBUG("Request path updated to index file: " << request_path);
+            if (!_try_to_create_response_from_index(filepath, route.index))
+                response.setStatusCode(404);
+            return ;
         } else {
             response.setStatusCode(403);
             return ;
         }
     }
 
-    DEBUG("Request path after processing: " << request_path);
-    std::ifstream file(request_path, std::ios::binary);
-    if (!file) {
+    DEBUG("Trying to fetch a file: " << filepath);
+    if (!_try_create_response_from_file(filepath)) {
+        DEBUG("File not found: " << filepath.get_path());
         response.setStatusCode(404);
         return ;
-    } else {
-        std::ostringstream ss;
-        ss << file.rdbuf();
-        file.close();
-
-        response.setStatusCode(200);
-        response.setHeader("Content-Type", get_mime_type(request_path));
-        response.setHeader("Content-Length", std::to_string(ss.str().length()));
-        response.setHeader("Connection", "close");
-        response.setBody(ss.str());
     }
 }
 
 void Client::_handle_post_request(const LocationRule& route) {
     DEBUG("Handling POST request for route: " << route.get_path());
     std::string content_type = request.get_header("Content-Type", "");
+    DEBUG("Content-Type: " << content_type);
+
+    if (!request.is_body_within_limits()) {
+        response.setStatusCode(413);
+        DEBUG("Request body exceeds maximum size");
+        return ;
+    }
+
     if (content_type.find("multipart/form-data") == std::string::npos) {
         response.setStatusCode(415);
+        DEBUG("Unsupported Content-Type: " << content_type);
         return ;
     }
 
@@ -199,7 +235,13 @@ void Client::_handle_post_request(const LocationRule& route) {
 
     parseMultipartFormData(request.getBody(), extractBoundary(content_type), formFields, files);
     for (const FilePart& file : files) {
-        std::ofstream outFile((route.upload_dir.get().get_path() + "/" + file.filename).c_str(), std::ios::binary);
+        Path uploadDir(route.upload_dir.get());
+        uploadDir.append(file.filename);
+        if (!uploadDir.is_valid()) {
+            response.setStatusCode(400);
+            return ;
+        }
+        std::ofstream outFile(uploadDir.get_path(), std::ios::binary);
         if (outFile) {
             outFile.write(file.content.c_str(), file.content.length());
             outFile.close();
@@ -215,32 +257,36 @@ void Client::_handle_post_request(const LocationRule& route) {
 }
 
 void Client::_handle_delete_request(const LocationRule& route) {
-    (void)route;
     DEBUG("DELETE request received for path: " << request.get_path());
     std::map<std::string, std::string> queryParams = parseQueryParams(request.get_path());
+    response.setHeader("Content-Type", "application/json");
 
     if (queryParams.find("file") == queryParams.end()) {
         response.setStatusCode(400);
+        response.setBody("{\"error\": \"Missing 'file' query parameter\"}");
         return ;
     }
 
-    std::string filePath = queryParams["file"];
-
-    if (filePath.find("..") != std::string::npos || filePath.find("/uploads/") == std::string::npos) {
+    Path filepath(route.upload_dir.get());
+    filepath.append(queryParams["file"]);
+    if (!filepath.is_valid()) {
         response.setStatusCode(400);
+        response.setBody("{\"error\": \"Invalid file path\"}");
         return ;
     }
 
-    std::string fullPath = "var/www/uploads/" + filePath;
-    if (std::remove(fullPath.c_str()) != 0) {
+    if (std::remove(filepath.get_path().c_str()) != 0) {
         response.setStatusCode(404);
+        response.setBody("{\"error\": \"File not found\"}");
         return ;
     }
 
     response.setStatusCode(200);
+    response.setBody("{\"message\": \"File deleted successfully\"}");
 }
 
 void Client::process_request(const ServerConfig& config) {
+    DEBUG("Processing request " << method_to_str(request.get_method()) << " for path: " << request.get_path());
     response = Response();
 
     const LocationRule *route = config.routes.find(request.get_path());
@@ -279,7 +325,7 @@ void Client::process_request(const ServerConfig& config) {
 
 bool Client::send_response() {
     std::string response_str = response.toString();
-    DEBUG("Sending response");
+    DEBUG("Sending response " << response.getStatusCode());
     ssize_t bytes_sent = send(_socket, response_str.c_str(), response_str.length(), 0);
     if (bytes_sent < 0) {
         ERROR("Failed to send response");

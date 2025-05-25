@@ -13,6 +13,23 @@ Response::Response() : _statusCode(0), _body("") {
 Response::~Response() {
 }
 
+Response::Response(const Response& other) 
+{
+    _statusCode = other._statusCode;
+    _body = other._body;
+    _headers_dict = other._headers_dict;
+}
+
+Response& Response::operator=(const Response& other) 
+{
+    if (this != &other) {
+        _statusCode = other._statusCode;
+        _body = other._body;
+        _headers_dict = other._headers_dict;
+    }
+    return *this;
+}
+
 void Response::setStatusCode(size_t code) {
     _statusCode = code;
 }

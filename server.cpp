@@ -109,7 +109,7 @@ void Server::_handle_new_connection() {
 		throw ClientConnectionException("Failed to add client socket to epoll");
 	}
 
-	_clients.emplace(client_fd, Client(client_fd));
+	_clients.emplace(client_fd, Client(client_fd, _config));
 	DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
 }
 
@@ -132,7 +132,6 @@ void Server::_remove_client(int fd) {
 
 void Server::_handle_client_input(int fd, Client &client) {
 	if (!client.read_request()) {
-		ERROR("Failed to read request from client: " << fd);
 		_remove_client(client.get_socket());
 		return ;
 	}
