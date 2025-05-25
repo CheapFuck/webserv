@@ -5,7 +5,7 @@ CXX := c++
 DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
-CXXDBFLAGS := -g -fsanitize=address
+CXXDBFLAGS := $(CXXFLAGS) -g -fsanitize=address -DDEBUG_MODE
 
 SRCS := main.cpp \
 	Request.cpp \
@@ -78,10 +78,12 @@ dbrun: $(DBNAME)
 	@echo "\033[1;32mRunning ./$(DBNAME)\033[0m"
 	./$(DBNAME)
 
+dbrerun: fclean dbrun
+
 gdb: $(DBNAME)
 	@echo "\033[1;32mRunning gdb on ./$(DBNAME)\033[0m"
 	gdb --args ./$(DBNAME)
 
 -include $(DEPS)
 
-.PHONY: all clean fclean re run rerun debug dbrun gdb
+.PHONY: all clean fclean re run rerun debug dbrun dbrerun gdb

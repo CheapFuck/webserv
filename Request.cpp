@@ -1,9 +1,11 @@
+#include "print.hpp"
+#include "Utils.hpp"
 #include "Request.hpp"
+#include "config/consts.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <string.h>
-#include "Utils.hpp"
-#include "config/consts.hpp"
 
 Request::Request() {}
 
@@ -62,7 +64,7 @@ bool Request::_parse_request_line(const std::string& line)
     _version = version;
 
     if (_method == UNKNOWN_METHOD) {
-        std::cerr << "Unknown method: " << method_str << std::endl;
+        ERROR("Unknown method: " << method_str);
         return (false);
     }
 
@@ -139,7 +141,7 @@ bool Request::is_complete() const {
         case PUT:
             return (_buffer.length() >= _content_length);
         default:
-            std::cerr << "Unknown method: " << _method << std::endl;
+            ERROR("Unknown method: " << _method);
             return (false);
             break;
     }

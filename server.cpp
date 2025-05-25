@@ -1,5 +1,6 @@
-#include "server.hpp"
 #include "config/rules/rules.hpp"
+#include "server.hpp"
+#include "print.hpp"
 
 #include <iostream>
 #include <exception>
@@ -42,7 +43,7 @@ Server::Server(const ServerConfig &config) :
 
 	this->_setup_socket();
 	this->_setup_epoll();
-	std::cout << "Server " << _config.server_name.get() << " is running on port " << _config.port.get() << std::endl;
+	PRINT("Server " << _config.server_name.get() << " is running on port " << _config.port.get());
 }
 
 Server::~Server() {
@@ -109,29 +110,29 @@ void Server::_handle_new_connection() {
 	}
 
 	_clients.emplace(client_fd, Client(client_fd));
-	std::cout << "New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port) << std::endl;
+	DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
 }
 
 void Server::_remove_client(int fd) {
 	epoll_event event{};
 	event.data.fd = fd;
 	if (epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, &event) == -1) {
-		std::cerr << "Failed to remove client from epoll: " << fd << std::endl;
+		ERROR("Failed to remove client from epoll: " << fd);
 	}
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
-		std::cerr << "Client not found: " << fd << std::endl;
+		ERROR("Client not found in _clients map: " << fd);
 		return ;
 	}
 	Client &client = it->second;
 	client.cleanup();
 	_clients.erase(it);
-	std::cout << "Client disconnected: " << fd << std::endl;
+	DEBUG("Client disconnected: " << fd);
 }
 
 void Server::_handle_client_input(int fd, Client &client) {
 	if (!client.read_request()) {
-		std::cerr << "Failed to read request from client: " << fd << std::endl;
+		ERROR("Failed to read request from client: " << fd);
 		_remove_client(client.get_socket());
 		return ;
 	}
@@ -142,7 +143,7 @@ void Server::_handle_client_input(int fd, Client &client) {
 		event.events = EPOLLOUT | EPOLLET;
 		event.data.fd = fd;
 		if (epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event) == -1) {
-			std::cerr << "Failed to modify epoll event for client: " << fd << std::endl;
+			ERROR("Failed to modify epoll event for client: " << fd);
 			_remove_client(client.get_socket());
 			return ;
 		}
@@ -152,7 +153,7 @@ void Server::_handle_client_input(int fd, Client &client) {
 
 void Server::_handle_client_output(int fd, Client &client) {
 	if (!client.send_response()) {
-		std::cerr << "Failed to send response to client: " << fd << std::endl;
+		ERROR("Failed to send response for client: " << fd);
 		_remove_client(client.get_socket());
 		return ;
 	}
@@ -162,7 +163,7 @@ void Server::_handle_client_output(int fd, Client &client) {
 		event.events = EPOLLIN | EPOLLET;
 		event.data.fd = fd;
 		if (epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event) == -1) {
-			std::cerr << "Failed to modify epoll event for client: " << fd << std::endl;
+			ERROR("Failed to modify epoll event for client: " << fd);
 			_remove_client(client.get_socket());
 			return ;
 		}
@@ -173,23 +174,20 @@ void Server::_handle_client_output(int fd, Client &client) {
 void Server::_handle_client_io(int fd, short revents) {
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
-		std::cerr << "Client not found: " << fd << std::endl;
+		ERROR("Client not found in _clients map: " << fd);
 		return ;
 	}
 	Client &client = it->second;
 
-	std::cout << "Handling client IO: " << fd << std::endl;
-	std::cout << "Events: " << revents << std::endl;
-	std::cout << (revents & EPOLLIN) << std::endl;
-	std::cout << (revents & EPOLLOUT) << std::endl;
-	std::cout << (revents & (EPOLLERR | EPOLLHUP)) << std::endl;
+	DEBUG("Handling client IO for fd: " << fd);
+	DEBUG("Events: " << revents);
 
 	if (revents & EPOLLIN)
 		_handle_client_input(fd, client);
 	else if (revents & EPOLLOUT)
 		_handle_client_output(fd, client);
 	else if (revents & (EPOLLERR | EPOLLHUP)) {
-		std::cerr << "Error on client socket: " << fd << std::endl;
+		ERROR("Error or hangup on client socket: " << fd);
 		_remove_client(fd);
 	}
 }
@@ -201,7 +199,6 @@ void Server::run_once() {
 	if (event_count == -1)
 		throw ServerCreationException("Failed to wait for epoll events");
 	for (int i = 0; i < event_count; ++i) {
-		std::cout << "Event: " << events[i].events << std::endl;
 		if (events[i].data.fd == _server_fd) {
 			_handle_new_connection();
 		}

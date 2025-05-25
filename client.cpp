@@ -1,5 +1,6 @@
-#include "client.hpp"
 #include "Response.hpp"
+#include "client.hpp"
+#include "print.hpp"
 
 #include <sys/stat.h>
 #include <iostream>
@@ -28,7 +29,7 @@ void parseMultipartFormData(const std::string& body, const std::string& boundary
     std::map<std::string, std::string>& formFields,
     std::vector<FilePart>& files) {
     size_t pos = 0, next;
-    std::cout << body << std::endl;
+    DEBUG(body);
     while ((next = body.find(boundary, pos)) != std::string::npos) {
         size_t headerEnd = body.find("\r\n\r\n", pos);
         if (headerEnd == std::string::npos) break;
@@ -80,20 +81,20 @@ std::map<std::string, std::string> parseQueryParams(const std::string& url) {
 
 Client::Client(int socket) :
     _socket(socket) {
-    std::cout << "Client created with socket: " << socket << std::endl;
+    DEBUG("Client created with socket: " << socket);
 }
 
 Client::Client(const Client& other) :
     _socket(other._socket),
     request(other.request) {
-    std::cout << "Client copy constructor called" << std::endl;
+    DEBUG("Client copy constructor called");
 }
 
 Client& Client::operator=(const Client& other) {
     if (this != &other) {
         _socket = other._socket;
         request = other.request;
-        std::cout << "Client assignment operator called" << std::endl;
+        DEBUG("Client assignment operator called");
     }
     return *this;
 }
@@ -102,7 +103,7 @@ Client::~Client() {
 }
 
 Client::Client() : _socket(-1) {
-    std::cout << "Client created with default socket" << std::endl;
+    DEBUG("Client default constructor called");
 }
 
 std::string Client::get_mime_type(const std::string& path) const {
@@ -136,18 +137,17 @@ bool Client::read_request() {
 }
 
 void Client::_handle_get_request(const LocationRule& route) {
-    std::cout << "Handling GET request" << std::endl;
-    std::cout << route << std::endl;
+    DEBUG("Handling GET request for route: " << route.get_path());
     if (!route.root.is_set()) {
         response.setStatusCode(500);
-        std::cerr << "Root not set" << std::endl;
+        ERROR("Root not set");
         return;
     }
 
     std::string rootDir = route.root.get().get_path() + "/";
 
-    std::cout << request.get_path() << std::endl;
-    std::cout << rootDir << std::endl;
+    DEBUG(request.get_path());
+    DEBUG(rootDir);
 
     std::string request_path = std::string(request.get_path()).replace(0, route.get_path().length(), rootDir);
 
@@ -158,17 +158,17 @@ void Client::_handle_get_request(const LocationRule& route) {
 
     struct stat path_stat{};
     if (stat(request_path.c_str(), &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
-        std::cout << "Request path is a directory" << std::endl;
+        DEBUG("Request path is a directory");
         if (route.index.is_set()) {
             request_path = request_path + "/" + route.index.get();
-            std::cout << "Request path: " << request_path << std::endl;
+            DEBUG("Request path updated to index file: " << request_path);
         } else {
             response.setStatusCode(403);
             return ;
         }
     }
 
-    std::cout << "Request path: " << request_path << std::endl;
+    DEBUG("Request path after processing: " << request_path);
     std::ifstream file(request_path, std::ios::binary);
     if (!file) {
         response.setStatusCode(404);
@@ -183,11 +183,11 @@ void Client::_handle_get_request(const LocationRule& route) {
         response.setHeader("Content-Length", std::to_string(ss.str().length()));
         response.setHeader("Connection", "close");
         response.setBody(ss.str());
-    } 
+    }
 }
 
 void Client::_handle_post_request(const LocationRule& route) {
-    std::cout << "Handling POST request" << std::endl;
+    DEBUG("Handling POST request for route: " << route.get_path());
     std::string content_type = request.get_header("Content-Type", "");
     if (content_type.find("multipart/form-data") == std::string::npos) {
         response.setStatusCode(415);
@@ -216,7 +216,7 @@ void Client::_handle_post_request(const LocationRule& route) {
 
 void Client::_handle_delete_request(const LocationRule& route) {
     (void)route;
-    std::cout << "Handling DELETE request" << std::endl;
+    DEBUG("DELETE request received for path: " << request.get_path());
     std::map<std::string, std::string> queryParams = parseQueryParams(request.get_path());
 
     if (queryParams.find("file") == queryParams.end()) {
@@ -244,12 +244,11 @@ void Client::process_request(const ServerConfig& config) {
     response = Response();
 
     const LocationRule *route = config.routes.find(request.get_path());
-    std::cout << "Route: " << route << std::endl;
     if (route == nullptr) {
         response.setStatusCode(404);
         return ;
     }
-    std::cout << "Route found: " << *route << std::endl;
+    DEBUG("Route found: " << *route);
 
     if (!route->methods.is_allowed(request.get_method())) {
         response.setStatusCode(405);
@@ -273,22 +272,20 @@ void Client::process_request(const ServerConfig& config) {
             _handle_delete_request(*route);
             break;
         default:
-            std::cerr << "Unknown method" << std::endl;
+            ERROR("Unknown method: " << request.get_method());
             break;
     }
-
-    std::cout << "Processing request..." << std::endl;
 }
 
 bool Client::send_response() {
     std::string response_str = response.toString();
-	std::cout << "Sending "<< response_str;
+    DEBUG("Sending response");
     ssize_t bytes_sent = send(_socket, response_str.c_str(), response_str.length(), 0);
     if (bytes_sent < 0) {
-        std::cerr << "Failed to send response" << std::endl;
+        ERROR("Failed to send response");
         return false;
     }
-    std::cout << "Sent response: " << response_str << std::endl;
+    DEBUG("Sent " << bytes_sent << " bytes to client");
     return true;
 }
 
@@ -298,7 +295,7 @@ bool Client::is_response_complete() const {
 
 void Client::reset() {
     request.reset();
-    std::cout << "Client reset" << std::endl;
+    DEBUG("Client reset");
 }
 
 int Client::get_socket() const {

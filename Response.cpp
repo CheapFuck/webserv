@@ -47,9 +47,7 @@ std::string Response::toString() const
     std::ostringstream os;
 
     os << *this;
-    std::string as_string = os.str();
-    std::cout << "Response: " << as_string << std::endl;
-    return (as_string);
+    return (os.str());
 }
 
 std::ostream &operator<<(std::ostream &os, const Response& obj)

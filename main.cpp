@@ -1,8 +1,10 @@
 #include <sys/socket.h>
+#include <filesystem>
 #include <exception>
 #include <iostream>
 #include <signal.h>
 
+#include "print.hpp"
 #include "server.hpp"
 #include "config/config.hpp"
 #include "config/rules/rules.hpp"
@@ -22,7 +24,7 @@ std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
         return fetch_server_configs(raw_data);
     }
     catch (const std::exception& e) {
-        std::cerr << "Error parsing configuration: " << e.what() << std::endl;
+        ERROR("Failed to load server configurations: " << e.what());
         return std::vector<ServerConfig>();
     }
 }
@@ -35,7 +37,7 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
         try {
             servers.emplace_back(config);
         } catch (const std::exception& e) {
-            std::cerr << "Error creating server: " << e.what() << std::endl;
+            ERROR("Error creating server: " << e.what());
             return 1;
         }
     }
@@ -45,7 +47,7 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
             try {
                 servers[i].run_once();
             } catch (const std::exception& e) {
-                std::cerr << "Error running server: " << e.what() << std::endl;
+                ERROR("Error running server: " << e.what());
                 servers.erase(servers.begin() + i);
                 break;
             }
@@ -57,7 +59,7 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
 
 int main(int argc, char* argv[]) {
     if (argc > 2) {
-        std::cerr << "Usage: " << argv[0] << " [configuration file]" << std::endl;
+        ERROR("Usage: " << argv[0] << " [configuration file]");
         return 1;
     }
 
@@ -66,7 +68,7 @@ int main(int argc, char* argv[]) {
 
     std::vector<ServerConfig> serverConfigs = load_server_configs(configPath);
     if (serverConfigs.empty()) {
-        std::cerr << "No valid server configurations found." << std::endl;
+        ERROR("No valid server configurations found in " << configPath);
         return 1;
     }
 
@@ -74,7 +76,7 @@ int main(int argc, char* argv[]) {
     signal(SIGTERM, signalHandler);
 
     if (run_servers(serverConfigs) != 0) {
-        std::cerr << "Error running servers." << std::endl;
+        ERROR("Error running servers.");
         return 1;
     }
     return (0);
