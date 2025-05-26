@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 std::string extractBoundary(const std::string& contentType) {
     size_t pos = contentType.find("boundary=");
@@ -215,6 +216,16 @@ void Client::_handle_get_request(const LocationRule& route) {
     }
 }
 
+static void ensure_upload_directory(const std::string& full_path)
+{
+    std::error_code errcode;
+    std::filesystem::create_directories(full_path, errcode);
+    if (errcode) {
+        std::cerr << "Failed to create directories: " << errcode.message() << std::endl;
+    }
+}
+
+
 void Client::_handle_post_request(const LocationRule& route) {
     DEBUG("Handling POST request for route: " << route.get_path());
     std::string content_type = request.get_header("Content-Type", "");
@@ -236,6 +247,7 @@ void Client::_handle_post_request(const LocationRule& route) {
     std::vector<FilePart> files;
 
     parseMultipartFormData(request.getBody(), extractBoundary(content_type), formFields, files);
+    ensure_upload_directory(route.upload_dir.get().get_path());
     for (const FilePart& file : files) {
         Path uploadDir(route.upload_dir.get());
         uploadDir.append(file.filename);
