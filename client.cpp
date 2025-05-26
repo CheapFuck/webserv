@@ -127,24 +127,15 @@ std::string Client::get_mime_type(const std::string& path) const {
 
 bool Client::read_request() {
     char buffer[4096];
-    int total_bytes_read = 0;
     ssize_t bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
-    total_bytes_read += bytes_read;
     if (bytes_read == 0)
         return false;
 
     while (bytes_read > 0) {
         buffer[bytes_read] = '\0';
         request.append_data(std::string(buffer));
-        if (!request.is_body_within_limits()) {
-            DEBUG("Request body exceeds maximum size");
-            response.setStatusCode(HttpStatusCode::PayloadTooLarge);
-            return true;
-        }
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
-        total_bytes_read += bytes_read;
     }
-    // DEBUG(request.getBody().size() << " bytes read from socket");
     if (bytes_read < 0) {
         perror("recv");
         return true;
@@ -336,6 +327,7 @@ void Client::process_request(const ServerConfig& config) {
             break;
         default:
             ERROR("Unknown method: " << request.get_method());
+            response.setStatusCode(HttpStatusCode::MethodNotAllowed);
             break;
     }
 }
