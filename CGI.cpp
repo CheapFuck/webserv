@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <cstring>
 #include <cstdlib>
-#include <cerrno>
+
 
 CGI::CGI() {
 }
@@ -20,18 +20,52 @@ CGI::~CGI() {
 bool CGI::execute(const Request& request, const RouteConfig& route, const ServerConfig& server, Response& response) {
     // Determine script path
     std::string requestPath = request.getPath();
+    std::cout << "CGI: Request path: " << requestPath << std::endl;
+    std::cout << "CGI: Route path: " << route.path << std::endl;
+    std::cout << "CGI: Route root: " << route.root << std::endl;
+    
+    // Calculate the script path correctly
+    std::string relativePath;
     if (requestPath.find(route.path) == 0) {
-        _scriptPath = route.root + requestPath.substr(route.path.length());
+        // Remove the route path prefix to get the relative path
+        relativePath = requestPath.substr(route.path.length());
+        // Remove leading slash if present
+        if (!relativePath.empty() && relativePath[0] == '/') {
+            relativePath = relativePath.substr(1);
+        }
     } else {
-        _scriptPath = route.root + requestPath;
+        relativePath = requestPath;
     }
+    
+    std::cout << "CGI: Calculated relative path: " << relativePath << std::endl;
+    
+    // Build the final script path
+    // Since route.root is "./" and route.path is "/cgi-bin/", we want "cgi-bin/test_cgi.php"
+    std::string routePathWithoutSlash = route.path;
+    if (routePathWithoutSlash[0] == '/') {
+        routePathWithoutSlash = routePathWithoutSlash.substr(1); // Remove leading slash
+    }
+    if (!routePathWithoutSlash.empty() && routePathWithoutSlash.back() == '/') {
+        routePathWithoutSlash = routePathWithoutSlash.substr(0, routePathWithoutSlash.length() - 1); // Remove trailing slash
+    }
+    
+    if (route.root == "./") {
+        _scriptPath = routePathWithoutSlash + "/" + relativePath;
+    } else {
+        _scriptPath = route.root + routePathWithoutSlash + "/" + relativePath;
+    }
+    
+    std::cout << "CGI: Route path without slashes: " << routePathWithoutSlash << std::endl;
+    std::cout << "CGI: Final script path: " << _scriptPath << std::endl;
     
     // Check if script exists and is executable
     struct stat statBuf;
     if (stat(_scriptPath.c_str(), &statBuf) != 0) {
-        std::cerr << "CGI script not found: " << _scriptPath << std::endl;
+        std::cerr << "CGI script not found: " << _scriptPath << " (errno: " << strerror(errno) << ")" << std::endl;
         return false;
     }
+    
+    std::cout << "CGI: Script found, checking permissions..." << std::endl;
     
     if (!(statBuf.st_mode & S_IXUSR)) {
         std::cerr << "CGI script not executable: " << _scriptPath << std::endl;
@@ -40,22 +74,42 @@ bool CGI::execute(const Request& request, const RouteConfig& route, const Server
     
     // Get file extension and find interpreter
     std::string extension = Utils::getFileExtension(_scriptPath);
+    std::cout << "CGI: File extension: " << extension << std::endl;
+    
     std::map<std::string, std::string>::const_iterator it = route.cgiExtensions.find(extension);
     if (it == route.cgiExtensions.end()) {
         std::cerr << "No CGI interpreter found for extension: " << extension << std::endl;
+        std::cout << "Available extensions: ";
+        for (std::map<std::string, std::string>::const_iterator iter = route.cgiExtensions.begin();
+             iter != route.cgiExtensions.end(); ++iter) {
+            std::cout << iter->first << " ";
+        }
+        std::cout << std::endl;
         return false;
     }
     _interpreter = it->second;
+    
+    std::cout << "CGI: Using interpreter: " << _interpreter << std::endl;
+    
+    // Check if interpreter exists
+    struct stat interpreterStat;
+    if (stat(_interpreter.c_str(), &interpreterStat) != 0) {
+        std::cerr << "CGI interpreter not found: " << _interpreter << " (errno: " << strerror(errno) << ")" << std::endl;
+        return false;
+    }
     
     // Setup environment variables
     setupEnvironment(request, route, server);
     
     // Execute script
     std::string output, error;
+    std::cout << "CGI: Executing script..." << std::endl;
     if (!executeScript(request.getBody(), output, error)) {
         std::cerr << "CGI execution failed: " << error << std::endl;
         return false;
     }
+    
+    std::cout << "CGI: Script executed successfully, output length: " << output.length() << std::endl;
     
     // Parse output and build response
     return parseOutput(output, response);
@@ -63,7 +117,7 @@ bool CGI::execute(const Request& request, const RouteConfig& route, const Server
 
 void CGI::setupEnvironment(const Request& request, const RouteConfig& route, const ServerConfig& server) {
     _env.clear();
-    (void)route; // Unused parameter, can be removed if not needed
+    (void)route; // Unused parameter, but kept for consistency with the method signature
     // Standard CGI environment variables
     _env["REQUEST_METHOD"] = request.getMethod();
     _env["SCRIPT_NAME"] = request.getPath();
@@ -76,6 +130,9 @@ void CGI::setupEnvironment(const Request& request, const RouteConfig& route, con
     _env["SERVER_PROTOCOL"] = "HTTP/1.1";
     _env["SERVER_SOFTWARE"] = "webserv/1.0";
     _env["GATEWAY_INTERFACE"] = "CGI/1.1";
+    
+    // IMPORTANT: PHP CGI security requirement
+    _env["REDIRECT_STATUS"] = "200";
     
     // Query string
     size_t queryPos = request.getPath().find('?');
@@ -93,6 +150,8 @@ void CGI::setupEnvironment(const Request& request, const RouteConfig& route, con
         if (!contentType.empty()) {
             _env["CONTENT_TYPE"] = contentType;
         }
+    } else {
+        _env["CONTENT_LENGTH"] = "0";
     }
     
     // HTTP headers as environment variables
@@ -137,6 +196,14 @@ void CGI::setupEnvironment(const Request& request, const RouteConfig& route, con
     
     // Working directory
     _env["PWD"] = getWorkingDirectory(_scriptPath);
+    
+    std::cout << "CGI: Environment variables set up" << std::endl;
+    
+    // Debug: print some key environment variables
+    std::cout << "CGI: REQUEST_METHOD=" << _env["REQUEST_METHOD"] << std::endl;
+    std::cout << "CGI: SCRIPT_FILENAME=" << _env["SCRIPT_FILENAME"] << std::endl;
+    std::cout << "CGI: CONTENT_LENGTH=" << _env["CONTENT_LENGTH"] << std::endl;
+    std::cout << "CGI: REDIRECT_STATUS=" << _env["REDIRECT_STATUS"] << std::endl;
 }
 
 bool CGI::executeScript(const std::string& input, std::string& output, std::string& error) {
@@ -150,6 +217,8 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         return false;
     }
     
+    std::cout << "CGI: About to fork..." << std::endl;
+    
     pid_t pid = fork();
     if (pid == -1) {
         std::cerr << "Failed to fork: " << strerror(errno) << std::endl;
@@ -161,6 +230,9 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
     
     if (pid == 0) {
         // Child process
+        std::cerr << "CGI Child: Starting child process" << std::endl;
+        std::cerr << "CGI Child: Script path: " << _scriptPath << std::endl;
+        std::cerr << "CGI Child: Interpreter: " << _interpreter << std::endl;
         
         // Close unused pipe ends
         close(inputPipe[1]);   // Close write end of input pipe
@@ -171,7 +243,8 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         if (dup2(inputPipe[0], STDIN_FILENO) == -1 ||
             dup2(outputPipe[1], STDOUT_FILENO) == -1 ||
             dup2(errorPipe[1], STDERR_FILENO) == -1) {
-            std::cerr << "Failed to redirect file descriptors: " << strerror(errno) << std::endl;
+            // Can't use std::cerr here since stderr is redirected
+            write(STDERR_FILENO, "Failed to redirect file descriptors\n", 36);
             exit(1);
         }
         
@@ -183,7 +256,7 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         // Change to script directory
         std::string workDir = getWorkingDirectory(_scriptPath);
         if (chdir(workDir.c_str()) == -1) {
-            std::cerr << "Failed to change directory to: " << workDir << std::endl;
+            write(STDERR_FILENO, "Failed to change directory\n", 27);
             exit(1);
         }
         
@@ -206,18 +279,32 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         strcpy(interpreterStr, _interpreter.c_str());
         argv.push_back(interpreterStr);
         
-        // Add script path
-        char* scriptStr = new char[_scriptPath.length() + 1];
-        strcpy(scriptStr, _scriptPath.c_str());
+        // Add script path (use relative path from working directory)
+        std::string scriptName = _scriptPath.substr(_scriptPath.find_last_of('/') + 1);
+        char* scriptStr = new char[scriptName.length() + 1];
+        strcpy(scriptStr, scriptName.c_str());
         argv.push_back(scriptStr);
         
         argv.push_back(NULL);
         
+        // Check if script exists in working directory
+        if (access(scriptName.c_str(), F_OK) != 0) {
+            write(STDERR_FILENO, "Script not found in working directory\n", 38);
+            exit(1);
+        }
+        
+        if (access(scriptName.c_str(), X_OK) != 0) {
+            write(STDERR_FILENO, "Script not executable in working directory\n", 43);
+            exit(1);
+        }
+        
         // Execute script
         execve(_interpreter.c_str(), &argv[0], &envp[0]);
-        
+
         // If we reach here, execve failed
-        std::cerr << "Failed to execute CGI script: " << strerror(errno) << std::endl;
+        char errorMsg[256];
+        snprintf(errorMsg, sizeof(errorMsg), "execve failed: errno=%d\n", errno);
+        write(STDERR_FILENO, errorMsg, strlen(errorMsg));
         exit(1);
     } else {
         // Parent process
@@ -261,8 +348,9 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         fd_set readSet;
         struct timeval timeout;
         time_t startTime = time(NULL);
+        bool processFinished = false;
         
-        while (true) {
+        while (!processFinished) {
             // Check for timeout
             if (time(NULL) - startTime > TIMEOUT_SECONDS) {
                 std::cerr << "CGI script timeout" << std::endl;
@@ -270,12 +358,60 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
                 break;
             }
             
+            // Check if process has finished
+            int status;
+            pid_t result = waitpid(pid, &status, WNOHANG);
+            if (result == pid) {
+                processFinished = true;
+                
+                // Read any remaining output and error
+                char buffer[4096];
+                ssize_t bytesRead;
+                
+                // Read all remaining stdout
+                while ((bytesRead = read(outputPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
+                    buffer[bytesRead] = '\0';
+                    output.append(buffer, bytesRead);
+                }
+                
+                // Read all remaining stderr
+                while ((bytesRead = read(errorPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
+                    buffer[bytesRead] = '\0';
+                    error.append(buffer, bytesRead);
+                }
+                
+                // Check exit status
+                if (WIFEXITED(status)) {
+                    int exitCode = WEXITSTATUS(status);
+                    std::cout << "CGI: Process exited with code: " << exitCode << std::endl;
+                    if (exitCode != 0) {
+                        std::cerr << "CGI script exited with code: " << exitCode << std::endl;
+                        if (!error.empty()) {
+                            std::cerr << "CGI stderr: " << error << std::endl;
+                        }
+                        close(outputPipe[0]);
+                        close(errorPipe[0]);
+                        return false;
+                    }
+                } else if (WIFSIGNALED(status)) {
+                    int signal = WTERMSIG(status);
+                    std::cerr << "CGI script terminated by signal: " << signal << std::endl;
+                    close(outputPipe[0]);
+                    close(errorPipe[0]);
+                    return false;
+                }
+                break;
+            } else if (result == -1 && errno != ECHILD) {
+                std::cerr << "waitpid error: " << strerror(errno) << std::endl;
+                break;
+            }
+            
             FD_ZERO(&readSet);
             FD_SET(outputPipe[0], &readSet);
             FD_SET(errorPipe[0], &readSet);
             
-            timeout.tv_sec = 1;
-            timeout.tv_usec = 0;
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000; // 100ms
             
             int selectResult = select(std::max(outputPipe[0], errorPipe[0]) + 1, 
                                     &readSet, NULL, NULL, &timeout);
@@ -283,38 +419,32 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
             if (selectResult == -1) {
                 std::cerr << "Select error: " << strerror(errno) << std::endl;
                 break;
-            } else if (selectResult == 0) {
-                // Timeout, continue loop to check overall timeout
-                continue;
-            }
-            
-            // Read from stdout
-            if (FD_ISSET(outputPipe[0], &readSet)) {
-                char buffer[4096];
-                ssize_t bytesRead = read(outputPipe[0], buffer, sizeof(buffer) - 1);
-                if (bytesRead > 0) {
-                    buffer[bytesRead] = '\0';
-                    output.append(buffer, bytesRead);
-                    
-                    // Check output size limit
-                    if (output.length() > MAX_OUTPUT_SIZE) {
-                        std::cerr << "CGI output too large" << std::endl;
-                        kill(pid, SIGKILL);
-                        break;
+            } else if (selectResult > 0) {
+                // Read from stdout
+                if (FD_ISSET(outputPipe[0], &readSet)) {
+                    char buffer[4096];
+                    ssize_t bytesRead = read(outputPipe[0], buffer, sizeof(buffer) - 1);
+                    if (bytesRead > 0) {
+                        buffer[bytesRead] = '\0';
+                        output.append(buffer, bytesRead);
+                        
+                        // Check output size limit
+                        if (output.length() > MAX_OUTPUT_SIZE) {
+                            std::cerr << "CGI output too large" << std::endl;
+                            kill(pid, SIGKILL);
+                            break;
+                        }
                     }
-                } else if (bytesRead == 0) {
-                    // EOF on stdout
-                    break;
                 }
-            }
-            
-            // Read from stderr
-            if (FD_ISSET(errorPipe[0], &readSet)) {
-                char buffer[4096];
-                ssize_t bytesRead = read(errorPipe[0], buffer, sizeof(buffer) - 1);
-                if (bytesRead > 0) {
-                    buffer[bytesRead] = '\0';
-                    error.append(buffer, bytesRead);
+                
+                // Read from stderr
+                if (FD_ISSET(errorPipe[0], &readSet)) {
+                    char buffer[4096];
+                    ssize_t bytesRead = read(errorPipe[0], buffer, sizeof(buffer) - 1);
+                    if (bytesRead > 0) {
+                        buffer[bytesRead] = '\0';
+                        error.append(buffer, bytesRead);
+                    }
                 }
             }
         }
@@ -323,24 +453,10 @@ bool CGI::executeScript(const std::string& input, std::string& output, std::stri
         close(outputPipe[0]);
         close(errorPipe[0]);
         
-        // Wait for child process
-        int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            std::cerr << "Failed to wait for child process: " << strerror(errno) << std::endl;
-            return false;
-        }
-        
-        // Check exit status
-        if (WIFEXITED(status)) {
-            int exitCode = WEXITSTATUS(status);
-            if (exitCode != 0) {
-                std::cerr << "CGI script exited with code: " << exitCode << std::endl;
-                return false;
-            }
-        } else if (WIFSIGNALED(status)) {
-            int signal = WTERMSIG(status);
-            std::cerr << "CGI script terminated by signal: " << signal << std::endl;
-            return false;
+        std::cout << "CGI: Final output length: " << output.length() << std::endl;
+        std::cout << "CGI: Final error length: " << error.length() << std::endl;
+        if (!error.empty()) {
+            std::cout << "CGI: Complete error output: " << error << std::endl;
         }
         
         return true;
@@ -352,6 +468,8 @@ bool CGI::parseOutput(const std::string& output, Response& response) {
         std::cerr << "Empty CGI output" << std::endl;
         return false;
     }
+    
+    std::cout << "CGI: Parsing output (first 200 chars): " << output.substr(0, 200) << std::endl;
     
     // Find the end of headers
     size_t headerEnd = output.find("\r\n\r\n");
@@ -389,6 +507,8 @@ bool CGI::parseOutput(const std::string& output, Response& response) {
         
         std::string name = Utils::trim(line.substr(0, colonPos));
         std::string value = Utils::trim(line.substr(colonPos + 1));
+        
+        std::cout << "CGI: Header - " << name << ": " << value << std::endl;
         
         // Handle special headers
         if (Utils::toLower(name) == "status") {
