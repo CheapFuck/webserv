@@ -121,7 +121,10 @@ bool Request::parse_headers()
         {
             std::string key = Utils::trim(line.substr(0, colon));
             std::string value = Utils::trim(line.substr(colon + 1));
-            _headers_dict[key] = value;
+            if (_headers_dict.find(key) != _headers_dict.end()) 
+                _headers_dict[key] += ", " + value;
+            else
+                _headers_dict[key] = value;
         }   
     }
 
@@ -156,6 +159,10 @@ const std::string& Request::get_version() const {
 
 const Method& Request::get_method() const {
     return (_method);
+}
+
+const std::unordered_map<std::string, std::string>& Request::get_headers() const {
+    return (_headers_dict);
 }
 
 bool Request::is_complete() const {

@@ -24,6 +24,15 @@ IndexRule::IndexRule(const Object &obj, bool required) {
 		throw ConfigParsingException("Missing index rule");
 }
 
+IndexRule::IndexRule(const IndexRule &other) : _index_pages(other._index_pages) {}
+
+IndexRule &IndexRule::operator=(const IndexRule &other) {
+	if (this != &other) {
+		_index_pages = other._index_pages;
+	}
+	return *this;
+}
+
 inline const std::vector<std::string> &IndexRule::get() const {
 	return _index_pages;
 }

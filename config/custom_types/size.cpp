@@ -28,6 +28,15 @@ Size::Size(const std::string &str) {
 
 Size::Size() : _size(0) {}
 
+Size::Size(const Size &other) : _size(other._size) {}
+
+Size &Size::operator=(const Size &other) {
+	if (this != &other) {
+		_size = other._size;
+	}
+	return *this;
+}
+
 size_t Size::get() const {
 	return _size;
 }

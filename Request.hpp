@@ -39,6 +39,7 @@ public:
     const std::string& get_path() const;
     const std::string& get_version() const;
     const Method& get_method() const;
+    const std::unordered_map<std::string, std::string>& get_headers() const;
 
     bool is_complete() const;
     void reset();

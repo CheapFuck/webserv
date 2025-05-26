@@ -33,7 +33,9 @@ private:
 
 public:
 	Size(const std::string &str);
+	Size(const Size &other);
 	Size();
+	Size &operator=(const Size &other);
 
 	size_t get() const;
 };
@@ -142,6 +144,8 @@ private:
 
 public:
 	IndexRule(const Object &obj, bool required = false);
+	IndexRule(const IndexRule &other);
+	IndexRule &operator=(const IndexRule &other);
 	const std::vector<std::string> &get() const;
 	bool is_set() const;
 };

@@ -12,7 +12,11 @@
 std::string extractBoundary(const std::string& contentType) {
     size_t pos = contentType.find("boundary=");
     if (pos != std::string::npos) {
-        return "--" + contentType.substr(pos + 9); // skip "boundary="
+        size_t endPos = contentType.find(',', pos);
+        if (endPos != std::string::npos) {
+            return "--" + contentType.substr(pos + 9, endPos - pos - 9); // skip "boundary="
+        } else
+            return "--" + contentType.substr(pos + 9); // skip "boundary="
     }
     return "";
 }
@@ -30,7 +34,12 @@ void parseMultipartFormData(const std::string& body, const std::string& boundary
     std::vector<FilePart>& files) {
     size_t pos = 0, next;
 
+    DEBUG_IF(body.size(), body);
+    DEBUG_IF_NOT(body.size(), "No body in request");
+    DEBUG("Parsing multipart form data with boundary: " << boundary);
+
     while ((next = body.find(boundary, pos)) != std::string::npos) {
+        DEBUG("Found boundary at position: " << next);
         size_t headerEnd = body.find("\r\n\r\n", pos);
         if (headerEnd == std::string::npos) break;
 
@@ -118,7 +127,9 @@ std::string Client::get_mime_type(const std::string& path) const {
 
 bool Client::read_request() {
     char buffer[4096];
+    int total_bytes_read = 0;
     ssize_t bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
+    total_bytes_read += bytes_read;
     if (bytes_read == 0)
         return false;
 
@@ -131,6 +142,7 @@ bool Client::read_request() {
             return true;
         }
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
+        total_bytes_read += bytes_read;
     }
     // DEBUG(request.getBody().size() << " bytes read from socket");
     if (bytes_read < 0) {
@@ -251,6 +263,12 @@ void Client::_handle_post_request(const LocationRule& route) {
         }
     }
 
+    if (files.empty()) {
+        response.setStatusCode(400);
+        response.setBody("No files uploaded");
+        return ;
+    }
+
     response.setStatusCode(200);
     response.setHeader("Content-Type", "text/plain");
     response.setBody("File(s) uploaded successfully");
@@ -329,14 +347,15 @@ bool Client::send_response() {
     ssize_t bytes_sent = send(_socket, response_str.c_str(), response_str.length(), 0);
     if (bytes_sent < 0) {
         ERROR("Failed to send response");
-        return false;
+        return (false);
     }
+    DEBUG("Response sent: " << response_str);
     DEBUG("Sent " << bytes_sent << " bytes to client");
-    return true;
+    return (true);
 }
 
 bool Client::is_response_complete() const {
-    return true;
+    return (true);
 }
 
 void Client::reset() {

@@ -116,9 +116,8 @@ void Server::_handle_new_connection() {
 void Server::_remove_client(int fd) {
 	epoll_event event{};
 	event.data.fd = fd;
-	if (epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, &event) == -1) {
+	if (epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, &event) == -1)
 		ERROR("Failed to remove client from epoll: " << fd);
-	}
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
 		ERROR("Client not found in _clients map: " << fd);
@@ -136,8 +135,7 @@ void Server::_handle_client_input(int fd, Client &client) {
 		return ;
 	}
 
-	if (client.request.is_complete())
-	{
+	if (client.request.is_complete()) {
 		epoll_event event{};
 		event.events = EPOLLOUT | EPOLLET;
 		event.data.fd = fd;
@@ -151,9 +149,10 @@ void Server::_handle_client_input(int fd, Client &client) {
 }
 
 void Server::_handle_client_output(int fd, Client &client) {
-	if (!client.send_response()) {
+	int response_code = client.send_response();
+	if (response_code == -1) {
 		ERROR("Failed to send response for client: " << fd);
-		_remove_client(client.get_socket());
+		close(fd);
 		return ;
 	}
 
@@ -178,8 +177,10 @@ void Server::_handle_client_io(int fd, short revents) {
 	}
 	Client &client = it->second;
 
-	DEBUG("Handling client IO for fd: " << fd);
-	DEBUG("Events: " << revents);
+	DEBUG_IF(revents & EPOLLIN, "EPOLLIN event detected for fd: " << fd);
+	DEBUG_IF(revents & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd);
+	DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "EPOLLERR or EPOLLHUP event detected for fd: " << fd);
+	DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd);
 
 	if (revents & EPOLLIN)
 		_handle_client_input(fd, client);
