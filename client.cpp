@@ -138,7 +138,7 @@ bool Client::read_request() {
         request.append_data(std::string(buffer));
         if (!request.is_body_within_limits()) {
             DEBUG("Request body exceeds maximum size");
-            response.setStatusCode(413);
+            response.setStatusCode(HttpStatusCode::PayloadTooLarge);
             return true;
         }
         bytes_read = recv(_socket, buffer, sizeof(buffer) - 1, 0);
@@ -166,10 +166,9 @@ bool Client::_try_create_response_from_file(const Path& filepath) {
     ss << file.rdbuf();
     file.close();
 
-    response.setStatusCode(200);
+    response.setStatusCode(HttpStatusCode::OK);
     response.setHeader("Content-Type", get_mime_type(filepath.get_path()));
     response.setHeader("Content-Length", std::to_string(ss.str().length()));
-    response.setHeader("Connection", "close");
     response.setBody(ss.str());
     DEBUG("Response created from file: " << filepath.get_path());
     return (true);
@@ -192,7 +191,7 @@ bool Client::_try_to_create_response_from_index(const Path& base_filepath, const
 void Client::_handle_get_request(const LocationRule& route) {
     DEBUG("Handling GET request for route: " << route.get_path());
     if (!route.root.is_set()) {
-        response.setStatusCode(500);
+        response.setStatusCode(HttpStatusCode::InternalServerError);
         ERROR("Root not set");
         return;
     }
@@ -200,7 +199,7 @@ void Client::_handle_get_request(const LocationRule& route) {
     Path filepath = Path::create_from_url(request.get_path(), route);
     if (!filepath.is_valid()) {
         DEBUG("Invalid request path: " << filepath.get_path());
-        response.setStatusCode(400);
+        response.setStatusCode(HttpStatusCode::BadRequest);
         return ;
     }
 
@@ -209,10 +208,10 @@ void Client::_handle_get_request(const LocationRule& route) {
         DEBUG("Request path is a directory");
         if (route.index.is_set()) {
             if (!_try_to_create_response_from_index(filepath, route.index))
-                response.setStatusCode(404);
+                response.setStatusCode(HttpStatusCode::NotFound);
             return ;
         } else {
-            response.setStatusCode(403);
+            response.setStatusCode(HttpStatusCode::Forbidden);
             return ;
         }
     }
@@ -220,7 +219,7 @@ void Client::_handle_get_request(const LocationRule& route) {
     DEBUG("Trying to fetch a file: " << filepath);
     if (!_try_create_response_from_file(filepath)) {
         DEBUG("File not found: " << filepath.get_path());
-        response.setStatusCode(404);
+        response.setStatusCode(HttpStatusCode::NotFound);
         return ;
     }
 }
@@ -231,13 +230,13 @@ void Client::_handle_post_request(const LocationRule& route) {
     DEBUG("Content-Type: " << content_type);
 
     if (!request.is_body_within_limits()) {
-        response.setStatusCode(413);
+        response.setStatusCode(HttpStatusCode::PayloadTooLarge);
         DEBUG("Request body exceeds maximum size");
         return ;
     }
 
     if (content_type.find("multipart/form-data") == std::string::npos) {
-        response.setStatusCode(415);
+        response.setStatusCode(HttpStatusCode::UnsupportedMediaType);
         DEBUG("Unsupported Content-Type: " << content_type);
         return ;
     }
@@ -250,7 +249,7 @@ void Client::_handle_post_request(const LocationRule& route) {
         Path uploadDir(route.upload_dir.get());
         uploadDir.append(file.filename);
         if (!uploadDir.is_valid()) {
-            response.setStatusCode(400);
+            response.setStatusCode(HttpStatusCode::BadRequest);
             return ;
         }
         std::ofstream outFile(uploadDir.get_path(), std::ios::binary);
@@ -258,18 +257,18 @@ void Client::_handle_post_request(const LocationRule& route) {
             outFile.write(file.content.c_str(), file.content.length());
             outFile.close();
         } else {
-            response.setStatusCode(500);
+            response.setStatusCode(HttpStatusCode::InternalServerError);
             return ;
         }
     }
 
     if (files.empty()) {
-        response.setStatusCode(400);
+        response.setStatusCode(HttpStatusCode::BadRequest);
         response.setBody("No files uploaded");
         return ;
     }
 
-    response.setStatusCode(200);
+    response.setStatusCode(HttpStatusCode::OK);
     response.setHeader("Content-Type", "text/plain");
     response.setBody("File(s) uploaded successfully");
 }
@@ -280,7 +279,7 @@ void Client::_handle_delete_request(const LocationRule& route) {
     response.setHeader("Content-Type", "application/json");
 
     if (queryParams.find("file") == queryParams.end()) {
-        response.setStatusCode(400);
+        response.setStatusCode(HttpStatusCode::BadRequest);
         response.setBody("{\"error\": \"Missing 'file' query parameter\"}");
         return ;
     }
@@ -288,18 +287,18 @@ void Client::_handle_delete_request(const LocationRule& route) {
     Path filepath(route.upload_dir.get());
     filepath.append(queryParams["file"]);
     if (!filepath.is_valid()) {
-        response.setStatusCode(400);
+        response.setStatusCode(HttpStatusCode::BadRequest);
         response.setBody("{\"error\": \"Invalid file path\"}");
         return ;
     }
 
     if (std::remove(filepath.get_path().c_str()) != 0) {
-        response.setStatusCode(404);
+        response.setStatusCode(HttpStatusCode::NotFound);
         response.setBody("{\"error\": \"File not found\"}");
         return ;
     }
 
-    response.setStatusCode(200);
+    response.setStatusCode(HttpStatusCode::OK);
     response.setBody("{\"message\": \"File deleted successfully\"}");
 }
 
@@ -309,18 +308,18 @@ void Client::process_request(const ServerConfig& config) {
 
     const LocationRule *route = config.routes.find(request.get_path());
     if (route == nullptr) {
-        response.setStatusCode(404);
+        response.setStatusCode(HttpStatusCode::NotFound);
         return ;
     }
     DEBUG("Route found: " << *route);
 
     if (!route->methods.is_allowed(request.get_method())) {
-        response.setStatusCode(405);
+        response.setStatusCode(HttpStatusCode::MethodNotAllowed);
         return ;
     }
 
     if (route->redirect.is_set()) {
-        response.setStatusCode(301);
+        response.setStatusCode(HttpStatusCode::MovedPermanently);
         response.setHeader("Location", route->redirect.get());
         return ;
     }

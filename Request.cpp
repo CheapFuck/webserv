@@ -169,9 +169,6 @@ bool Request::is_complete() const {
     // Headers not parsed yet; should be considered incomplete
     if (!_headers_parsed) return (false);
 
-    // Body exceeds maximum size; should be considered complete
-    if (!is_body_within_limits()) return (true);
-
     switch (_method) {
         case GET:
         case HEAD:
@@ -189,10 +186,10 @@ bool Request::is_complete() const {
 
 void Request::reset() {
     _buffer.clear();
-    _headers_dict.clear();
     _method = UNKNOWN_METHOD;
     _path.clear();
     _version.clear();
+    _headers_dict.clear();
     _headers_parsed = false;
     _content_length = 0;
 }

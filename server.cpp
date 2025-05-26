@@ -149,10 +149,9 @@ void Server::_handle_client_input(int fd, Client &client) {
 }
 
 void Server::_handle_client_output(int fd, Client &client) {
-	int response_code = client.send_response();
-	if (response_code == -1) {
+	if (!client.send_response()) {
 		ERROR("Failed to send response for client: " << fd);
-		close(fd);
+		_remove_client(client.get_socket());
 		return ;
 	}
 
