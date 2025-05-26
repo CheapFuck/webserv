@@ -17,7 +17,6 @@ enum Method {
 Method operator|(Method lhs, Method rhs);
 Method string_to_method(const std::string &str);
 std::string method_to_str(const Method &method);
-#include <string>
 
 enum class HttpStatusCode {
     // 1xx
