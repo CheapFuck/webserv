@@ -119,6 +119,12 @@ void CGI::setupEnvironment(const Request& request, const RouteConfig& route, con
     _env.clear();
     (void)route; // Unused parameter, but kept for consistency with the method signature
     // Standard CGI environment variables
+
+    std::string relativeScriptPath = "cgi-bin/test_cgi.php"; // or "test_cgi.php" depending on your routing
+    std::string documentRoot = "/sgoinfre/thivan-d/puinhoop/";  // your actual server document root
+_scriptPath = documentRoot + "/" + relativeScriptPath; // e.g. "cgi-bin/test_cgi.php"
+
+_env["SCRIPT_FILENAME"] = _scriptPath;  // now absolute path
     _env["REQUEST_METHOD"] = request.getMethod();
     _env["SCRIPT_NAME"] = request.getPath();
     _env["SCRIPT_FILENAME"] = _scriptPath;
