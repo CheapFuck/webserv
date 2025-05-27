@@ -1,13 +1,15 @@
 #include "config/rules/rules.hpp"
+#include "request.hpp"
+#include "client.hpp"
 #include "server.hpp"
 #include "print.hpp"
 
-#include <iostream>
-#include <exception>
+#include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <exception>
+#include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -41,8 +43,8 @@ Server::Server(const ServerConfig &config) :
 	_server_fd(-1),
 	_epoll_fd(-1) {
 
-	this->_setup_socket();
-	this->_setup_epoll();
+	this->_setupSocket();
+	this->_setupEpoll();
 	PRINT("Server " << _config.server_name.get() << " is running on port " << _config.port.get());
 }
 
@@ -53,7 +55,7 @@ Server::~Server() {
 		close(_epoll_fd);
 }
 
-void Server::_setup_socket() {
+void Server::_setupSocket() {
 	_server_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (_server_fd == -1)
 		throw ServerCreationException("Failed to create socket");
@@ -74,7 +76,7 @@ void Server::_setup_socket() {
 		throw ServerCreationException("Failed to listen on socket");
 }
 
-void Server::_setup_epoll() {
+void Server::_setupEpoll() {
 	_epoll_fd = epoll_create1(0);
 	if (_epoll_fd == -1)
 		throw ServerCreationException("Failed to create epoll instance");
@@ -89,7 +91,7 @@ void Server::_setup_epoll() {
 	}
 }
 
-void Server::_handle_new_connection() {
+void Server::_handleNewConnection() {
 	sockaddr_in client_address{};
 	socklen_t client_len = sizeof(client_address);
 	int client_fd = accept(_server_fd, (sockaddr *)&client_address, &client_len);
@@ -109,66 +111,65 @@ void Server::_handle_new_connection() {
 		throw ClientConnectionException("Failed to add client socket to epoll");
 	}
 
-	_clients.emplace(client_fd, Client(client_fd, _config));
+	_clients.emplace(client_fd, Client());
 	DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
 }
 
-void Server::_remove_client(int fd) {
+bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 	epoll_event event{};
+	event.events = events;
 	event.data.fd = fd;
-	if (epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, &event) == -1)
-		ERROR("Failed to remove client from epoll: " << fd);
+	if (epoll_ctl(_epoll_fd, operation, fd, &event) == -1) {
+		ERROR("Failed to modify epoll events for fd: " << fd);
+		return (false);
+	}
+	return (true);
+}
+
+void Server::_removeClient(int fd) {
+	_epollExecute(fd, EPOLL_CTL_DEL, 0);
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
 		ERROR("Client not found in _clients map: " << fd);
 		return ;
 	}
-	Client &client = it->second;
-	client.cleanup();
 	_clients.erase(it);
 	DEBUG("Client disconnected: " << fd);
 }
 
-void Server::_handle_client_input(int fd, Client &client) {
-	if (!client.read_request()) {
-		_remove_client(client.get_socket());
+void Server::_handleClientInput(int fd, Client &client) {
+	if (!client.read(fd)) {
+		_removeClient(fd);
 		return ;
 	}
 
-	if (client.request.is_complete()) {
-		epoll_event event{};
-		event.events = EPOLLOUT | EPOLLET;
-		event.data.fd = fd;
-		if (epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event) == -1) {
+	if (client.requestIsComplete()) {
+		if (!_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
 			ERROR("Failed to modify epoll event for client: " << fd);
-			_remove_client(client.get_socket());
+			_removeClient(fd);
 			return ;
 		}
-		client.process_request(_config);
+		client.processRequest(_config);
 	}
 }
 
-void Server::_handle_client_output(int fd, Client &client) {
-	if (!client.send_response()) {
+void Server::_handleClientOutput(int fd, Client &client) {
+	if (!client.sendResponse(fd)) {
 		ERROR("Failed to send response for client: " << fd);
-		_remove_client(client.get_socket());
+		_removeClient(fd);
 		return ;
 	}
 
-	if (client.is_response_complete()) {
-		epoll_event event{};
-		event.events = EPOLLIN | EPOLLET;
-		event.data.fd = fd;
-		if (epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event) == -1) {
-			ERROR("Failed to modify epoll event for client: " << fd);
-			_remove_client(client.get_socket());
-			return ;
-		}
-		client.reset();
+	if (!_epollExecute(fd, EPOLL_CTL_MOD, EPOLLIN | EPOLLET)) {
+		ERROR("Failed to modify epoll event for client: " << fd);
+		_removeClient(fd);
+		return ;
 	}
+
+	client.reset();
 }
 
-void Server::_handle_client_io(int fd, short revents) {
+void Server::_handleClientIo(int fd, short revents) {
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
 		ERROR("Client not found in _clients map: " << fd);
@@ -182,12 +183,12 @@ void Server::_handle_client_io(int fd, short revents) {
 	DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd);
 
 	if (revents & EPOLLIN)
-		_handle_client_input(fd, client);
+		_handleClientInput(fd, client);
 	else if (revents & EPOLLOUT)
-		_handle_client_output(fd, client);
+		_handleClientOutput(fd, client);
 	else if (revents & (EPOLLERR | EPOLLHUP)) {
 		ERROR("Error or hangup on client socket: " << fd);
-		_remove_client(fd);
+		_removeClient(fd);
 	}
 }
 
@@ -199,10 +200,10 @@ void Server::run_once() {
 		throw ServerCreationException("Failed to wait for epoll events");
 	for (int i = 0; i < event_count; ++i) {
 		if (events[i].data.fd == _server_fd) {
-			_handle_new_connection();
+			_handleNewConnection();
 		}
 		else {
-			_handle_client_io(events[i].data.fd, events[i].events);
+			_handleClientIo(events[i].data.fd, events[i].events);
 		}
 	}
 }

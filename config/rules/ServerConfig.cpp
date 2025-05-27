@@ -8,7 +8,7 @@ ServerConfig::ServerConfig(Object &object)
 	  error_pages(ErrorPageRule(object, true)),
 	  routes(RouteRules(object, true)) {};
 
-std::vector<ServerConfig> fetch_server_configs(Object &object) {
+std::vector<ServerConfig> fetchServerConfigs(Object &object) {
 	std::vector<ServerConfig> server_configs;
 
 	for (size_t i = 0; i < object.size(); ++i) {

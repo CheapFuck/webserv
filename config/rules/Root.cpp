@@ -27,11 +27,11 @@ inline const Path &RootRule::get() const {
 	return _root;
 }
 
-inline bool RootRule::is_set() const {
+inline bool RootRule::isSet() const {
 	return _is_set;
 }
 
 std::ostream& operator<<(std::ostream& os, const RootRule& rule) {
-	os << "RootRule(root: " << rule.get() << ", is_set: " << rule.is_set() << ")";
+	os << "RootRule(root: " << rule.get() << ", isSet: " << rule.isSet() << ")";
 	return os;
 }

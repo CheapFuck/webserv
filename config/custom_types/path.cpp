@@ -20,7 +20,7 @@ Path &Path::operator=(const Path &other) {
 	return *this;
 }
 
-Path Path::create_dummy() {
+Path Path::createDummy() {
 	return Path();
 }
 
@@ -39,7 +39,7 @@ Path &Path::append(const std::string &str) {
 	}
 }
 
-Path &Path::update_from_url(const std::string &route, const std::string &root) {
+Path &Path::updateFromUrl(const std::string &route, const std::string &root) {
 	size_t root_len = root.length();
 
 	_path.replace(0, route.length(), root);
@@ -63,17 +63,17 @@ Path &Path::pop() {
 	return *this;
 }
 
-Path Path::create_from_url(const std::string &url, const LocationRule &route) {
-	if (url.empty() || !route.root.is_set())
-		return Path::create_dummy();
+Path Path::createFromUrl(const std::string &url, const LocationRule &route) {
+	if (url.empty() || !route.root.isSet())
+		return Path::createDummy();
 
 	Path path(url);
-	path.update_from_url(route.get_path(), route.root.get().get_path());
+	path.updateFromUrl(route.getPath(), route.root.get().str());
 
 	return path;
 }
 
-std::string Path::get_filename() const {
+std::string Path::getFilename() const {
 	if (_path.empty()) return "";
 
 	size_t last_slash = _path.find_last_of('/');
@@ -83,15 +83,15 @@ std::string Path::get_filename() const {
 		return _path.substr(last_slash + 1);
 }
 
-bool Path::is_valid() const {
+bool Path::isValid() const {
 	return (_is_set && _path.find("..") == std::string::npos);
 }
 
-const std::string &Path::get_path() const {
+const std::string &Path::str() const {
 	return _path;
 }
 
 std::ostream &operator<<(std::ostream &os, const Path &path) {
-	os << "Path(path: " << path.get_path() << ", is_valid: " << path.is_valid() << ")";
+	os << "Path(path: " << path.str() << ", isValid: " << path.isValid() << ")";
 	return os;
 }

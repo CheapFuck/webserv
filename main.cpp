@@ -21,7 +21,7 @@ std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
     try {
         std::vector<Token> tokens = tokenize(configPath);
         Object raw_data = lexer(tokens);
-        return fetch_server_configs(raw_data);
+        return fetchServerConfigs(raw_data);
     }
     catch (const std::exception& e) {
         ERROR("Failed to load server configurations: " << e.what());

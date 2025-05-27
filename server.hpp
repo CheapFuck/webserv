@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/rules/rules.hpp"
+#include "request.hpp"
 #include "client.hpp"
 
 #include <map>
@@ -14,17 +15,17 @@ private:
 
 	std::map<int, Client> _clients;
 
-	void _setup_socket();
-	void _setup_epoll();
+	void _setupSocket();
+	void _setupEpoll();
 
-	void _handle_new_connection();
-	void _handle_client_io(int fd, short revents);
-	void _remove_client(Client &client);
-	void _remove_client(int fd);
+	bool _epollExecute(int fd, uint32_t operation, uint32_t events);
 
-	void _handle_client_input(int fd, Client &client);
-	void _handle_client_output(int fd, Client &client);
+	void _handleNewConnection();
+	void _handleClientIo(int fd, short revents);
+	void _removeClient(int fd);
 
+	void _handleClientInput(int fd, Client &client);
+	void _handleClientOutput(int fd, Client &client);
 
 public:
 	Server(const ServerConfig &config);

@@ -15,8 +15,10 @@ enum Method {
 #define ALL_METHODS (GET | POST | DELETE | PUT | HEAD | OPTIONS)
 
 Method operator|(Method lhs, Method rhs);
-Method string_to_method(const std::string &str);
-std::string method_to_str(const Method &method);
+Method stringToMethod(const std::string &str);
+std::string methodToStr(const Method &method);
+
+std::ostream &operator<<(std::ostream &os, const Method &method);
 
 enum class HttpStatusCode {
     // 1xx
@@ -92,5 +94,25 @@ enum class HttpStatusCode {
     NetworkAuthenticationRequired = 511
 };
 
-std::string get_status_code_as_str(HttpStatusCode code);
+std::string getStatusCodeAsStr(HttpStatusCode code);
 std::ostream &operator<<(std::ostream &os, HttpStatusCode code);
+
+enum class HeaderKey {
+    ContentType,
+    ContentLength,
+    Host,
+    UserAgent,
+    Accept,
+    AcceptEncoding,
+    AcceptLanguage,
+    Connection,
+    Cookie,
+    SetCookie,
+    Authorization,
+    Date,
+    Location,
+    Referer,
+};
+
+std::string headerKeyToString(HeaderKey key);
+std::ostream &operator<<(std::ostream &os, HeaderKey key);

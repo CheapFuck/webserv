@@ -27,11 +27,11 @@ inline const Path &UploadDirRule::get() const {
 	return _upload_dir;
 }
 
-inline bool UploadDirRule::is_set() const {
+inline bool UploadDirRule::isSet() const {
 	return _is_set;
 }
 
 std::ostream& operator<<(std::ostream& os, const UploadDirRule& rule) {
-	os << "UploadDirRule(upload_dir: " << rule.get() << ", is_set: " << rule.is_set() << ")";
+	os << "UploadDirRule(upload_dir: " << rule.get() << ", isSet: " << rule.isSet() << ")";
 	return os;
 }

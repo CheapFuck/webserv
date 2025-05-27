@@ -12,11 +12,11 @@ LocationRule::LocationRule(const std::string &path, const Object &obj)
 	  redirect(RedirectRule(obj, false)),
 	  cgi_paths(CGIRule(obj, false)) {}
 
-inline const std::string &LocationRule::get_path() const {
+inline const std::string &LocationRule::getPath() const {
 	return _path;
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule) {
-	os << "LocationRule(path: " << rule.get_path() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoindex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.cgi_paths << ")";
+	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoindex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.cgi_paths << ")";
 	return os;
 }

@@ -23,7 +23,7 @@ RouteRules::RouteRules(const Object &obj, bool required) : _routes({}) {
 		throw ConfigParsingException("Missing location rule");
 }
 
-inline const std::vector<LocationRule>& RouteRules::get_routes() const {
+inline const std::vector<LocationRule>& RouteRules::getRoutes() const {
 	return _routes;
 }
 
@@ -31,9 +31,9 @@ const LocationRule *RouteRules::find(const std::string &url) const {
 	std::pair<const LocationRule *, size_t> result = std::make_pair(nullptr, 0);
 
 	for (const LocationRule &route : _routes) {
-		if (url.starts_with(route.get_path())) {
-			size_t len = route.get_path().length();
-			if (!(url[len] == '/' || url[len] == '\0' || url[len] == '?' || route.get_path().back() == '/')) 
+		if (url.starts_with(route.getPath())) {
+			size_t len = route.getPath().length();
+			if (!(url[len] == '/' || url[len] == '\0' || url[len] == '?' || route.getPath().back() == '/')) 
 				continue;
 			if (!result.first || len > result.second) {
 				result.first = &route;
@@ -47,9 +47,9 @@ const LocationRule *RouteRules::find(const std::string &url) const {
 
 std::ostream& operator<<(std::ostream& os, const RouteRules& rules) {
 	os << "RouteRules(routes: [";
-	for (size_t i = 0; i < rules.get_routes().size(); ++i) {
-		os << rules.get_routes()[i];
-		if (i < rules.get_routes().size() - 1) os << ", ";
+	for (size_t i = 0; i < rules.getRoutes().size(); ++i) {
+		os << rules.getRoutes()[i];
+		if (i < rules.getRoutes().size() - 1) os << ", ";
 	}
 	os << "])";
 	return os;

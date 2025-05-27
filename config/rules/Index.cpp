@@ -37,13 +37,13 @@ inline const std::vector<std::string> &IndexRule::get() const {
 	return _index_pages;
 }
 
-inline bool IndexRule::is_set() const {
+inline bool IndexRule::isSet() const {
 	return !_index_pages.empty();
 }
 
 std::ostream& operator<<(std::ostream& os, const IndexRule& rule) {
-	if (!rule.is_set()) {
-		os << "IndexRule(is_set: false)";
+	if (!rule.isSet()) {
+		os << "IndexRule(isSet: false)";
 		return os;
 	}
 

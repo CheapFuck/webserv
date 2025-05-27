@@ -1,3 +1,4 @@
+#include "../print.hpp"
 #include "consts.hpp"
 
 #include <type_traits>
@@ -10,7 +11,7 @@ Method operator|(Method lhs, Method rhs) {
 	);
 }
 
-Method string_to_method(const std::string &str) {
+Method stringToMethod(const std::string &str) {
 	if (str == "GET") return GET;
 	if (str == "POST") return POST;
 	if (str == "DELETE") return DELETE;
@@ -20,7 +21,7 @@ Method string_to_method(const std::string &str) {
 	return UNKNOWN_METHOD;
 }
 
-std::string method_to_str(const Method &method) {
+std::string methodToStr(const Method &method) {
 	std::string str;
 
 	if (method & GET) str += "GET|";
@@ -36,11 +37,11 @@ std::string method_to_str(const Method &method) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Method& method) {
-	os << method_to_str(method);
+	os << methodToStr(method);
 	return os;
 }
 
-std::string get_status_code_as_str(HttpStatusCode code) {
+std::string getStatusCodeAsStr(HttpStatusCode code) {
     switch (code) {
         // 1xx
         case HttpStatusCode::Continue: return "Continue";
@@ -114,11 +115,41 @@ std::string get_status_code_as_str(HttpStatusCode code) {
         case HttpStatusCode::NotExtended: return "Not Extended";
         case HttpStatusCode::NetworkAuthenticationRequired: return "Network Authentication Required";
 
-        default: return "Unknown Status Code";
+        default:
+            ERROR("Unknown HTTP Status Code: " << static_cast<int>(code));
+            return "Unknown Status Code";
     }
 }
 
 std::ostream& operator<<(std::ostream& os, HttpStatusCode code) {
-	os << get_status_code_as_str(code);
+	os << getStatusCodeAsStr(code);
 	return os;
+}
+
+std::string headerKeyToString(HeaderKey key) {
+    switch (key) {
+        case HeaderKey::ContentType: return "Content-Type";
+        case HeaderKey::ContentLength: return "Content-Length";
+        case HeaderKey::Host: return "Host";
+        case HeaderKey::UserAgent: return "User-Agent";
+        case HeaderKey::Accept: return "Accept";
+        case HeaderKey::AcceptEncoding: return "Accept-Encoding";
+        case HeaderKey::AcceptLanguage: return "Accept-Language";
+        case HeaderKey::Connection: return "Connection";
+        case HeaderKey::Cookie: return "Cookie";
+        case HeaderKey::SetCookie: return "Set-Cookie";
+        case HeaderKey::Authorization: return "Authorization";
+        case HeaderKey::Date: return "Date";
+        case HeaderKey::Location: return "Location";
+        case HeaderKey::Referer: return "Referer";
+
+        default:
+            ERROR("Unknown Header Key: " << static_cast<int>(key));
+            return "Unknown Header Key";
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, HeaderKey key) {
+    os << headerKeyToString(key);
+    return os;
 }

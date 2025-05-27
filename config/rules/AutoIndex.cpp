@@ -35,11 +35,11 @@ inline bool AutoIndexRule::get() const {
 	return _autoindex;
 }
 
-inline bool AutoIndexRule::is_set() const {
+inline bool AutoIndexRule::isSet() const {
 	return _is_set;
 }
 
 std::ostream& operator<<(std::ostream& os, const AutoIndexRule& rule) {
-	os << "AutoIndexRule(autoindex: " << (rule.get() ? "on" : "off") << ", is_set: " << rule.is_set() << ")";
+	os << "AutoIndexRule(autoindex: " << (rule.get() ? "on" : "off") << ", isSet: " << rule.isSet() << ")";
 	return os;
 }

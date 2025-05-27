@@ -5,12 +5,20 @@ CXX := c++
 DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
-CXXDBFLAGS := $(CXXFLAGS) -g -fsanitize=address -DDEBUG_MODE
+CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address -DDEBUG_MODE
 
 SRCS := main.cpp \
-	Request.cpp \
+	request.cpp \
 	client.cpp \
 	server.cpp \
+	headers.cpp \
+	response.cpp \
+	methods.cpp \
+	requestline.cpp \
+	get.cpp \
+	post.cpp \
+	delete.cpp \
+	CGI.cpp \
 	Utils.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \
@@ -31,7 +39,6 @@ SRCS := main.cpp \
 	config/rules/Location.cpp \
 	config/rules/RouteRules.cpp \
 	config/rules/ServerConfig.cpp \
-	Response.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
 DEPS := $(OBJS:%.o=%.d)

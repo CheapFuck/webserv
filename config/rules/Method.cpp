@@ -17,7 +17,7 @@ MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METH
 			if (arg.type != STRING)
 				throw ConfigParsingException("Invalid method argument type");
 
-			Method method = string_to_method(arg.str);
+			Method method = stringToMethod(arg.str);
 			if (method == UNKNOWN_METHOD)
 				throw ConfigParsingException("Invalid method: " + arg.str);
 			if (method & _methods)
@@ -35,15 +35,15 @@ MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METH
 	}
 }
 
-bool MethodRule::is_allowed(Method method) const {
+bool MethodRule::isAllowed(Method method) const {
 	return _methods & method;
 }
 
-const Method& MethodRule::get_methods() const {
+const Method& MethodRule::getMethods() const {
 	return _methods;
 }
 
 std::ostream& operator<<(std::ostream& os, const MethodRule& rule) {
-	os << "MethodRule(methods: " << method_to_str(rule.get_methods()) << ")";
+	os << "MethodRule(methods: " << methodToStr(rule.getMethods()) << ")";
 	return os;
 }

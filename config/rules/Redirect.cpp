@@ -27,11 +27,11 @@ inline const std::string &RedirectRule::get() const {
 	return _redirect;
 }
 
-inline bool RedirectRule::is_set() const {
+inline bool RedirectRule::isSet() const {
 	return _is_set;
 }
 
 std::ostream& operator<<(std::ostream& os, const RedirectRule& rule) {
-	os << "RedirectRule(redirect: " << rule.get() << ", is_set: " << rule.is_set() << ")";
+	os << "RedirectRule(redirect: " << rule.get() << ", isSet: " << rule.isSet() << ")";
 	return os;
 }
