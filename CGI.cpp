@@ -471,23 +471,26 @@ bool CGI::parseOutput(const std::string& output, Response& response) {
     
     std::cout << "CGI: Parsing output (first 200 chars): " << output.substr(0, 200) << std::endl;
     
-    // Find the end of headers
-    size_t headerEnd = output.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        headerEnd = output.find("\n\n");
-        if (headerEnd == std::string::npos) {
-            // No headers, treat entire output as body
+    // Find the header/body separator and its length
+    size_t separatorPos = output.find("\r\n\r\n");
+    size_t separatorLength = 4;
+    
+    if (separatorPos == std::string::npos) {
+        separatorPos = output.find("\n\n");
+        separatorLength = 2;
+        
+        if (separatorPos == std::string::npos) {
+            // No headers found, treat entire output as body
             response.setStatusCode(200);
             response.setBody(output);
             return true;
         }
-        headerEnd += 2; // For \n\n
-    } else {
-        headerEnd += 4; // For \r\n\r\n
     }
     
-    // Parse headers
-    std::string headers = output.substr(0, headerEnd - (headerEnd > 2 ? 4 : 2));
+    // Extract headers and body
+    std::string headers = output.substr(0, separatorPos);
+    std::string body = output.substr(separatorPos + separatorLength);
+    
     std::istringstream headerStream(headers);
     std::string line;
     
@@ -505,8 +508,13 @@ bool CGI::parseOutput(const std::string& output, Response& response) {
             continue;
         }
         
+        std::cout << "Full header line: [" << line << "]\n";
+        std::string rawValue = line.substr(colonPos + 1);
+        std::cout << "Raw substring after colon: [" << rawValue << "]\n";
+        std::string value = Utils::trim(rawValue);
+        std::cout << "Trimmed value: [" << value << "]\n";
+
         std::string name = Utils::trim(line.substr(0, colonPos));
-        std::string value = Utils::trim(line.substr(colonPos + 1));
         
         std::cout << "CGI: Header - " << name << ": " << value << std::endl;
         
@@ -530,13 +538,12 @@ bool CGI::parseOutput(const std::string& output, Response& response) {
         response.setStatusCode(200);
     }
     
-    // Set body
-    if (headerEnd < output.length()) {
-        response.setBody(output.substr(headerEnd));
-    }
+    // Set response body
+    response.setBody(body);
     
     return true;
 }
+
 
 std::string CGI::getWorkingDirectory(const std::string& scriptPath) {
     size_t lastSlash = scriptPath.find_last_of('/');
