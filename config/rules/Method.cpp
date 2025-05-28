@@ -35,6 +35,8 @@ MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METH
 	}
 }
 
+/// @brief Check if a method is allowed by this rule
+/// @param method The HTTP method to check
 bool MethodRule::isAllowed(Method method) const {
 	return _methods & method;
 }

@@ -38,6 +38,10 @@ ErrorPageRule::ErrorPageRule(const Object &obj, bool required) :
 		throw ConfigParsingException("Invalid default error page path");
 }
 
+/// @brief Get an error page
+/// @param code The HTTP status code for which to retrieve the error page.
+/// @return A reference to the Path object representing the error page for the given code.
+/// If no specific page is set for the code, it returns the default error page (which may be empty).
 const Path &ErrorPageRule::getErrorPage(int code) const {
 	auto it = _error_pages.find(code);
 	if (it == _error_pages.end())

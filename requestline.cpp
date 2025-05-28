@@ -28,22 +28,22 @@ RequestLine &RequestLine::operator=(const RequestLine &other) {
 
 RequestLine::~RequestLine() {}
 
-/// Checks if the request line is valid.
+/// @brief Checks if the request line is valid.
 bool RequestLine::isValid() const {
     return (_method != UNKNOWN_METHOD && !_path.empty() && !_version.empty());
 }
 
-/// Returns the HTTP method of the request line.
+/// @brief Returns the HTTP method of the request line.
 inline const Method &RequestLine::getMethod() const {
     return _method;
 }
 
-/// Returns the path (url) of the request line.
+/// @brief Returns the path (url) of the request line.
 inline const std::string &RequestLine::getPath() const {
     return _path;
 }
 
-/// Returns the HTTP version of the request line.
+/// @brief Returns the HTTP version of the request line.
 inline const std::string &RequestLine::getVersion() const {
     return _version;
 }

@@ -45,12 +45,12 @@ Headers &Headers::operator=(const Headers &other) {
 
 Headers::~Headers() {}
 
-/// Checks if the headers map is empty.
+/// @brief Checks if the headers map is empty.
 inline bool Headers::isValid() const {
     return !_headers.empty();
 }
 
-/// Adds a new header or appends to an existing header with the same key.
+/// @brief Adds a new header or appends to an existing header with the same key.
 void Headers::add(const std::string &key, const std::string &value) {
     auto it = _headers.find(key);
     if (it != _headers.end())
@@ -59,7 +59,7 @@ void Headers::add(const std::string &key, const std::string &value) {
         _headers[key] = value;
 }
 
-/// Adds a new header or appends to an existing header with the same key.
+/// @brief Adds a new header or appends to an existing header with the same key.
 void Headers::add(HeaderKey key, const std::string &value) {
     auto it = _headers.find(headerKeyToString(key));
     if (it != _headers.end())

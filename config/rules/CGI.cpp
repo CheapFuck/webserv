@@ -25,6 +25,9 @@ const std::map<std::string, std::string> &CGIRule::getPaths() const {
 	return _cgi_paths;
 }
 
+/// @brief Get the path of the interpreter
+/// @param ext The file extension for which to get the CGI interpreter path
+/// @return A constant reference to the path of the CGI interpreter for the given extension
 const std::string &CGIRule::getPath(const std::string &ext) const {
 	std::map<std::string, std::string>::const_iterator iter = _cgi_paths.find(ext);
 	if (iter != _cgi_paths.end())
@@ -32,10 +35,13 @@ const std::string &CGIRule::getPath(const std::string &ext) const {
 	throw ConfigParsingException("CGI path not found for extension: " + ext);
 }
 
+/// @brief Check if the CGI rule is set
 bool CGIRule::isSet() const {
 	return !_cgi_paths.empty();
 }
 
+/// @brief Check if a CGI interpreter exists
+/// @param ext The file extension to check for a CGI interpreter
 bool CGIRule::exists(const std::string &ext) const {
 	return _cgi_paths.find(ext) != _cgi_paths.end();
 }

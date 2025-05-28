@@ -20,6 +20,7 @@ static bool _tryCreateResponseFromIndex(
         index_path.append(index_page);
         if (tryCreateResponseFromFile(index_path, response)) {
             DEBUG("Response created from index file: " << index_path.str());
+            response.setStatusCode(HttpStatusCode::OK);
             return (true);
         }
     }

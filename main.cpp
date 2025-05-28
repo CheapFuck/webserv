@@ -17,6 +17,9 @@ void signalHandler(int signum) {
     }
 }
 
+/// @brief Fetch server configurations
+/// @param configPath The file path to the configuration file
+/// @return A vector of ServerConfig objects
 std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
     try {
         std::vector<Token> tokens = tokenize(configPath);
@@ -29,6 +32,9 @@ std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
     }
 }
 
+/// @brief Spawn and run servers based on the provided configurations
+/// @param serverConfigs A vector of ServerConfig objects containing the server configurations
+/// @return 1 if either one of the servers failed to start, 0 otherwise
 int run_servers(const std::vector<ServerConfig>& serverConfigs) {
     std::vector<Server> servers;
     servers.reserve(serverConfigs.size());

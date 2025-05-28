@@ -23,10 +23,14 @@ RedirectRule::RedirectRule(const Object &obj, bool required) : _is_set(false) {
 		throw ConfigParsingException("Missing redirect rule");
 }
 
+/// @brief Get the redirect URL
+/// @return Either the redirect URL or an empty string if not set
 inline const std::string &RedirectRule::get() const {
 	return _redirect;
 }
 
+/// @brief Check if the redirect rule is set
+/// @return True if the redirect rule is set, false otherwise
 inline bool RedirectRule::isSet() const {
 	return _is_set;
 }

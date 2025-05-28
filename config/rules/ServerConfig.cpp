@@ -6,10 +6,14 @@ ServerConfig::ServerConfig(Object &object)
 	  server_name(ServerNameRule(object, true)),
 	  client_max_body_size(MaxBodySizeRule(object, true)),
 	  error_pages(ErrorPageRule(object, true)),
-	  routes(RouteRules(object, true)) {};
+	  routes(RouteRules(object, true)) {}
 
+/// @brief Fetches server configurations from the given object.
+/// @param object The root object returned by the lexer
+/// @return A vector of ServerConfig objects
 std::vector<ServerConfig> fetchServerConfigs(Object &object) {
 	std::vector<ServerConfig> server_configs;
+	server_configs.reserve(object.size());
 
 	for (size_t i = 0; i < object.size(); ++i) {
 		if (object[i].key != SERVER ||

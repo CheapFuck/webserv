@@ -55,6 +55,8 @@ Server::~Server() {
 		close(_epoll_fd);
 }
 
+/// @brief Set up the server socket
+/// @throws ServerCreationException if socket creation, binding, or listening fails
 void Server::_setupSocket() {
 	_server_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (_server_fd == -1)
@@ -76,6 +78,8 @@ void Server::_setupSocket() {
 		throw ServerCreationException("Failed to listen on socket");
 }
 
+/// @brief Set up the epoll instance and add the server socket to it
+/// @throws ServerCreationException if epoll creation or adding the server socket fails
 void Server::_setupEpoll() {
 	_epoll_fd = epoll_create1(0);
 	if (_epoll_fd == -1)
@@ -91,6 +95,8 @@ void Server::_setupEpoll() {
 	}
 }
 
+/// @brief Handle a new client connection by accepting it and adding it to the epoll instance.
+/// @throws ClientConnectionException if accepting the connection or setting it to non-blocking fails
 void Server::_handleNewConnection() {
 	sockaddr_in client_address{};
 	socklen_t client_len = sizeof(client_address);
@@ -115,6 +121,11 @@ void Server::_handleNewConnection() {
 	DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
 }
 
+/// @brief Modify the epoll events for a given file descriptor.
+/// @param fd The file descriptor to modify
+/// @param operation The operation to perform (EPOLL_CTL_ADD, EPOLL_CTL_MOD, or EPOLL_CTL_DEL)
+/// @param events The events to set for the file descriptor (EPOLLIN, EPOLLOUT, etc.)
+/// @return True if the operation was successful, false otherwise
 bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 	epoll_event event{};
 	event.events = events;
@@ -126,6 +137,8 @@ bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 	return (true);
 }
 
+/// @brief Remove a client from the server and the epoll instance.
+/// @param fd The file descriptor of the client to remove
 void Server::_removeClient(int fd) {
 	_epollExecute(fd, EPOLL_CTL_DEL, 0);
 	auto it = _clients.find(fd);
@@ -137,6 +150,9 @@ void Server::_removeClient(int fd) {
 	DEBUG("Client disconnected: " << fd);
 }
 
+/// @brief Handle client input by reading from the socket and processing the request.
+/// @param fd The file descriptor of the client socket
+/// @param client The Client object associated with the socket
 void Server::_handleClientInput(int fd, Client &client) {
 	if (!client.read(fd)) {
 		_removeClient(fd);
@@ -153,6 +169,9 @@ void Server::_handleClientInput(int fd, Client &client) {
 	}
 }
 
+/// @brief Handle client output by sending the response back to the client.
+/// @param fd The file descriptor of the client socket
+/// @param client The Client object associated with the socket
 void Server::_handleClientOutput(int fd, Client &client) {
 	if (!client.sendResponse(fd)) {
 		ERROR("Failed to send response for client: " << fd);
@@ -169,6 +188,10 @@ void Server::_handleClientOutput(int fd, Client &client) {
 	client.reset();
 }
 
+/// @brief Handle I/O events for a client socket.
+/// @details This function processes the events for a client socket based on the revents flags.
+/// @param fd The file descriptor of the client socket.
+/// @param revents The epoll events for the client socket.
 void Server::_handleClientIo(int fd, short revents) {
 	auto it = _clients.find(fd);
 	if (it == _clients.end()) {
@@ -192,6 +215,7 @@ void Server::_handleClientIo(int fd, short revents) {
 	}
 }
 
+/// @brief Entry point for the server, running it's event loop once.
 void Server::run_once() {
 	epoll_event events[64];
 

@@ -27,6 +27,9 @@ inline const std::vector<LocationRule>& RouteRules::getRoutes() const {
 	return _routes;
 }
 
+/// @brief Find the longest matching route for the given URL.
+/// @param url The URL to match against the routes.
+/// @return A pointer to the matching LocationRule, or nullptr if no match is found.
 const LocationRule *RouteRules::find(const std::string &url) const {
 	std::pair<const LocationRule *, size_t> result = std::make_pair(nullptr, 0);
 

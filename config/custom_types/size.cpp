@@ -37,6 +37,8 @@ Size &Size::operator=(const Size &other) {
 	return *this;
 }
 
+/// @brief Get the size value
+/// @return The size value in bytes
 size_t Size::get() const {
 	return _size;
 }
