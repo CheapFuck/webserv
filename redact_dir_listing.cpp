@@ -31,7 +31,7 @@ static void addRowToIndex(std::string& html,const std::string& fileName, const s
 	html.append(fileName);
 	html.append("\">");
 	html.append(fileName);
-	html.append("<\a></dt>");
+	html.append("</dt></a>");
 }
 
 static void addEntriesTable(std::string& html, const std::string& dir_path, const std::string& publicPath)
@@ -50,7 +50,7 @@ std::string redactDirectoryListing(const std::string& dir_path, const std::strin
 
 	addTopBoilerplate(html);
 	html.append("Index of ");
-	html.append(dir_path);	
+	html.append(publicPath);	
 	html.append("<br><br>");	
 	addEntriesTable(html, dir_path, publicPath);
 	addBotBoilerplate(html);
