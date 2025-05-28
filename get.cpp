@@ -4,6 +4,7 @@
 #include "print.hpp"
 #include "Utils.hpp"
 #include "CGI.hpp"
+#include "redact_dir_listing.cpp"
 
 #include <sys/stat.h>
 
@@ -33,11 +34,13 @@ static Response &_handleDirectoryListing(
     Response &response,
     const Path &filepath
 ) {
+	std::string responseBody;
     //TODO: Implement directory listing logic
     DEBUG("Handling directory listing for: " << filepath.str());
     response.setStatusCode(HttpStatusCode::OK);
     response.headers.replace(HeaderKey::ContentType, "text/html");
-    response.setBody("Not implemented yet: Directory listing for " + filepath.str());
+    responseBody = redactDirectoryListing(filepath.str());
+    response.setBody(responseBody);
     return (response);
 }
 
