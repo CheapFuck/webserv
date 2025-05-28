@@ -114,6 +114,7 @@ Response &PostMethod::processRequest(
     const ServerConfig &config,
     const LocationRule &route
 ) {
+    (void)config;
     DEBUG("Processing POST request for path: " << request.metadata.getPath());
 
     std::string content_type = request.headers.getHeader(HeaderKey::ContentType, "");
