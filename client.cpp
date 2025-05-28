@@ -83,6 +83,13 @@ Response &Client::processRequest(const ServerConfig &config) {
         return (response);
     }
 
+    if (request.getContentLength() > config.client_max_body_size.get()
+        || request.getBody().length() > config.client_max_body_size.get()) {
+        response.setStatusCode(HttpStatusCode::PayloadTooLarge);
+        DEBUG("Request body exceeds maximum size");
+        return response;
+    }
+
     if (route->redirect.isSet()) {
         response.setStatusCode(HttpStatusCode::MovedPermanently);
         response.headers.replace(HeaderKey::Location, route->redirect.get());

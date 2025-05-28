@@ -116,12 +116,6 @@ Response &PostMethod::processRequest(
 ) {
     DEBUG("Processing POST request for path: " << request.metadata.getPath());
 
-    if (request.getContentLength() > config.client_max_body_size.get()) {
-        response.setStatusCode(HttpStatusCode::PayloadTooLarge);
-        DEBUG("Request body exceeds maximum size");
-        return response;
-    }
-
     std::string content_type = request.headers.getHeader(HeaderKey::ContentType, "");
     if (content_type.empty()) {
         response.setStatusCode(HttpStatusCode::UnsupportedMediaType);
