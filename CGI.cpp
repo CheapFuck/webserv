@@ -96,10 +96,11 @@ void CGI::setupEnvironment(const Request& request, const LocationRule& route, co
     Path interpreterPathObj(documentRoot);
     interpreterPathObj.append(interpreterPath);
 
-    _env["SCRIPT_FILENAME"] = interpreterPathObj.str().c_str();
+    _env["SCRIPT_FILENAME"] = scriptPathObj.str();
+    // _env["SCRIPT_FILENAME"] = interpreterPathObj.str().c_str();
     _env["REQUEST_METHOD"] = methodToStr(request.metadata.getMethod());
     _env["SCRIPT_NAME"] = request.metadata.getPath();
-    _env["SCRIPT_FILENAME"] = interpreterPathObj.str().c_str();
+    // _env["SCRIPT_FILENAME"] = interpreterPathObj.str().c_str();
     _env["PATH_INFO"] = request.metadata.getPath();
     _env["PATH_TRANSLATED"] = interpreterPathObj.str().c_str();
     _env["REQUEST_URI"] = request.metadata.getPath();
