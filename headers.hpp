@@ -6,11 +6,9 @@
 #include <string>
 #include <map>
 
-
-
 class Headers {
 private:
-    std::map<std::string, std::string> _headers;
+    std::multimap<std::string, std::string> _headers;
 
 public:
     Headers();
@@ -28,7 +26,7 @@ public:
     const std::string &getHeader(HeaderKey key) const;
     const std::string &getHeader(HeaderKey key, const std::string &default_value) const;
 
-    const std::map<std::string, std::string>& getHeaders() const;
+    const std::multimap<std::string, std::string>& getHeaders() const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Headers &headers);

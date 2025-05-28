@@ -2,6 +2,7 @@
 
 #include "config/rules/rules.hpp"
 #include "request.hpp"
+#include "session.hpp"
 #include "client.hpp"
 
 #include <map>
@@ -9,6 +10,7 @@
 class Server {
 private:
 	ServerConfig _config;
+	UserSessionManager _sessionManager;
 
 	int _server_fd;
 	int _epoll_fd;
@@ -26,6 +28,7 @@ private:
 
 	void _handleClientInput(int fd, Client &client);
 	void _handleClientOutput(int fd, Client &client);
+	void _prepareRequestProcessing(Client &client);
 
 public:
 	Server(const ServerConfig &config);

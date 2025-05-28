@@ -19,6 +19,8 @@ SRCS := main.cpp \
 	post.cpp \
 	delete.cpp \
 	CGI.cpp \
+	cookie.cpp \
+	session.cpp \
 	Utils.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \

@@ -4,15 +4,17 @@
 #include <sys/socket.h>
 
 Request::Request(const Request &other)
-    : _buffer(other._buffer), metadata(other.metadata), headers(other.headers) {}
+    : _buffer(other._buffer), _cookies(other._cookies), metadata(other.metadata), headers(other.headers), session(other.session) {}
 
 Request &Request::operator=(const Request &other) {
     if (this != &other) {
         _buffer = other._buffer;
+        _cookies = other._cookies;
         _contentLength = other._contentLength;
         _headersParsed = other._headersParsed;
         metadata = other.metadata;
         headers = other.headers;
+        session = other.session;
     }
     return *this;
 }
@@ -49,6 +51,7 @@ bool Request::_fetch_config_from_headers() {
         _contentLength = 0;
     }
 
+    _cookies = Cookie::createAllFromHeader(headers.getHeader(HeaderKey::Cookie, ""));
     return (true);
 }
 
@@ -77,9 +80,6 @@ bool Request::_parse_request_headers() {
 bool Request::isComplete() const {
     if (!_headersParsed)
         return (false);
-    
-    DEBUG("Checking if request is complete for method: " << metadata.getMethod());
-    DEBUG("Buffer length: " << _buffer.length() << ", Content-Length: " << _contentLength);
     
     switch (metadata.getMethod()) {
         case Method::GET:

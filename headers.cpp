@@ -50,27 +50,20 @@ inline bool Headers::isValid() const {
     return !_headers.empty();
 }
 
-/// @brief Adds a new header or appends to an existing header with the same key.
+/// @brief Adds a new header.
 void Headers::add(const std::string &key, const std::string &value) {
-    auto it = _headers.find(key);
-    if (it != _headers.end())
-        it->second += ", " + value;
-    else
-        _headers[key] = value;
+    _headers.insert(std::make_pair(key, value));
 }
 
-/// @brief Adds a new header or appends to an existing header with the same key.
+/// @brief Adds a new header.
 void Headers::add(HeaderKey key, const std::string &value) {
-    auto it = _headers.find(headerKeyToString(key));
-    if (it != _headers.end())
-        it->second += ", " + value;
-    else
-        it->second = value;
+    _headers.insert(std::make_pair(headerKeyToString(key), value));
 }
 
-/// @brief Replaces the value of an existing header or adds a new header if it does not exist.
+/// @brief Replaces the value of an existing header - even if multiple headers have been set already.
 void Headers::replace(HeaderKey key, const std::string &value) {
-    _headers[headerKeyToString(key)] = value;
+    _headers.erase(headerKeyToString(key));
+    _headers.insert(std::make_pair(headerKeyToString(key), value));
 }
 
 /// @brief Retrieves the value of a header by its key. Throws if the key does not exist.
@@ -91,7 +84,7 @@ const std::string &Headers::getHeader(HeaderKey key, const std::string &default_
 }
 
 /// @brief Returns a constant reference to the internal headers map.
-const std::map<std::string, std::string> &Headers::getHeaders() const {
+const std::multimap<std::string, std::string> &Headers::getHeaders() const {
     return (_headers);
 }
 

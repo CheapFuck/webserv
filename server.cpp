@@ -1,5 +1,7 @@
 #include "config/rules/rules.hpp"
 #include "request.hpp"
+#include "session.hpp"
+#include "cookie.hpp"
 #include "client.hpp"
 #include "server.hpp"
 #include "print.hpp"
@@ -53,6 +55,7 @@ Server::~Server() {
 		close(_server_fd);
 	if (_epoll_fd != -1)
 		close(_epoll_fd);
+	_sessionManager.fullCleanup();
 }
 
 /// @brief Set up the server socket
@@ -150,6 +153,29 @@ void Server::_removeClient(int fd) {
 	DEBUG("Client disconnected: " << fd);
 }
 
+/// @brief Prepare the request processing for a client by attaching a session to the request.
+/// @param client The Client object associated with the request
+/// @details If no session cookie is found, a new session is created. If a session cookie is found,
+/// the session is retrieved or created based on the cookie value.
+void Server::_prepareRequestProcessing(Client &client) {
+	const Cookie *sessionCookie = Cookie::getCookie(client.request, SESSION_COOKIE_NAME);
+	if (!sessionCookie) {
+		DEBUG("No session cookie found for client; creating a new session");
+		client.request.session = _sessionManager.createNewSession();
+		if (!client.request.session)
+			ERROR("Failed to create a new session");
+		Cookie sessionCookie = Cookie::createSessionCookie(client.request.session->getSessionId());
+		client.response.headers.add(HeaderKey::SetCookie, sessionCookie.getHeaderInitializationString());
+		client.request.session->setData("Some testvalue", client.request.session->getSessionId());
+	} else
+		client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
+		DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
+
+	DEBUG("Object prt session: " << client.request.session);
+	DEBUG("Session ID for client: " << client.request.session->getSessionId());
+	client.request.session->updateLastAccessTime();
+}
+
 /// @brief Handle client input by reading from the socket and processing the request.
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
@@ -165,6 +191,7 @@ void Server::_handleClientInput(int fd, Client &client) {
 			_removeClient(fd);
 			return ;
 		}
+		_prepareRequestProcessing(client);
 		client.processRequest(_config);
 	}
 }
@@ -230,4 +257,6 @@ void Server::run_once() {
 			_handleClientIo(events[i].data.fd, events[i].events);
 		}
 	}
+
+	_sessionManager.cleanUpExpiredSessions();
 }
