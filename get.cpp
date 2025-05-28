@@ -31,11 +31,13 @@ static bool _tryCreateResponseFromIndex(
 /// @brief Handles a directory listing request by creating a response with a
 /// directory listing HTML page.
 static Response &_handleDirectoryListing(
+    const Request &request,
     Response &response,
     const Path &filepath
 ) {
 	std::string responseBody;
-    //TODO: Implement directory listing logic
+    Path url(request.metadata.getPath());
+    url.append("your_filename.whatever");
     DEBUG("Handling directory listing for: " << filepath.str());
     response.setStatusCode(HttpStatusCode::OK);
     response.headers.replace(HeaderKey::ContentType, "text/html");
@@ -46,6 +48,7 @@ static Response &_handleDirectoryListing(
 
 /// @brief Handles a GET request for a directory.
 static Response &handleDirectoryRequest(
+    const Request &request,
     Response &response,
     const LocationRule &route,
     const Path &filepath
@@ -57,7 +60,7 @@ static Response &handleDirectoryRequest(
     }
 
     if (route.autoindex.get())
-        return (_handleDirectoryListing(response, filepath));
+        return (_handleDirectoryListing(request, response, filepath));
     DEBUG("Autoindex not enabled for directory: " << filepath.str());
     response.setStatusCode(HttpStatusCode::Forbidden);
     return (response);
@@ -115,7 +118,7 @@ Response &GetMethod::processRequest(
     PathStat path_stat{};
     if (stat(filepath.str().c_str(), &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
         DEBUG("Request path is a directory: " << filepath.str());
-        return handleDirectoryRequest(response, route, filepath);
+        return handleDirectoryRequest(request, response, route, filepath);
     } else if (route.cgi_paths.isSet() && tryCgiExecution(request, route, config, response))
         return (response);
 
