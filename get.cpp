@@ -50,15 +50,13 @@ static Response &handleDirectoryRequest(
         if (_tryCreateResponseFromIndex(response, filepath, route.index))
             return (response);
         DEBUG("No index file found in directory: " << filepath.str());
-        response.setStatusCode(HttpStatusCode::NotFound);
-        return (response);
-    } else {
-        if (route.autoindex.get())
-            return (_handleDirectoryListing(response, filepath));
-        DEBUG("Autoindex not enabled for directory: " << filepath.str());
-        response.setStatusCode(HttpStatusCode::Forbidden);
-        return (response);
     }
+
+    if (route.autoindex.get())
+        return (_handleDirectoryListing(response, filepath));
+    DEBUG("Autoindex not enabled for directory: " << filepath.str());
+    response.setStatusCode(HttpStatusCode::Forbidden);
+    return (response);
 }
 
 static bool tryCgiExecution(
