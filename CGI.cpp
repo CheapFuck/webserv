@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <cstring>
 #include <cstdlib>
+#include <unistd.h>   // for getcwd
+#include <limits.h>   // for PATH_MAX
 
 CGI::CGI() {
 }
@@ -86,7 +88,18 @@ void CGI::setupEnvironment(const Request& request, const LocationRule& route, co
     // Standard CGI environment variables
 
     // std::string relativeScriptPath = "cgi-bin/test_cgi.php"; // or "test_cgi.php" depending on your routing
-    std::string documentRoot = "/home/jbakker/Documents/programming/codam/webserv/";  // your actual server document root
+    // std::string documentRoot = "/home/jbakker/Documents/programming/codam/webserv/";  // your actual server document root
+    char cwd[PATH_MAX];
+if (getcwd(cwd, sizeof(cwd)) == nullptr) {
+    perror("getcwd() error");
+    // handle error or fallback
+}
+std::string currentDir(cwd);
+
+// Assuming your config root is relative like "var/www/cgi-bin"
+// std::string configRoot = "var/www/cgi-bin";  
+
+std::string documentRoot = currentDir + "/" ; //+ configRoot;
 // _scriptPath = documentRoot + "/" + interpreterPath; // e.g. "cgi-bin/test_cgi.php"
     Path scriptPathObj(documentRoot);
     scriptPathObj.append(Path::createFromUrl(request.metadata.getPath(), route).str());
