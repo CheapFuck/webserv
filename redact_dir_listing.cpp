@@ -15,26 +15,36 @@ static void addBotBoilerplate(std::string& html)
 	html.append("</html>");
 }
 
-static void addRowToIndex(std::string& html,const std::filesystem::directory_entry& e)
+// static void addRowToIndex(std::string& html,const std::filesystem::directory_entry& e)
+// {
+// 	html.append("<dt><a href=\"");
+// 	html.append(e.path());
+// 	html.append("\">");
+// 	html.append(e.path().filename());
+// 	html.append("<\a></dt>");
+// }
+
+static void addRowToIndex(std::string& html,const std::string& fileName, const std::string& publicPath)
 {
 	html.append("<dt><a href=\"");
-	html.append(e.path());
+	html.append(publicPath);
+	html.append(fileName);
 	html.append("\">");
-	html.append(e.path().filename());
+	html.append(fileName);
 	html.append("<\a></dt>");
 }
 
-static void addEntriesTable(std::string& html, const std::string& dir_path)
+static void addEntriesTable(std::string& html, const std::string& dir_path, const std::string& publicPath)
 {
 	html.append("<dl>");
 	for (const auto & entry : std::filesystem::directory_iterator(dir_path))
 	{
-		addRowToIndex(html, entry);
+		addRowToIndex(html, entry.path().filename(), publicPath);
 	}
 	html.append("</dl>");
 }
 
-std::string redactDirectoryListing(const std::string& dir_path)
+std::string redactDirectoryListing(const std::string& dir_path, const std::string& publicPath)
 {
 	std::string html;
 
@@ -42,7 +52,7 @@ std::string redactDirectoryListing(const std::string& dir_path)
 	html.append("Index of ");
 	html.append(dir_path);	
 	html.append("<br><br>");	
-	addEntriesTable(html, dir_path);
+	addEntriesTable(html, dir_path, publicPath);
 	addBotBoilerplate(html);
 	return (html);
 }

@@ -36,12 +36,13 @@ static Response &_handleDirectoryListing(
     const Path &filepath
 ) {
 	std::string responseBody;
-    Path url(request.metadata.getPath());
-    url.append("your_filename.whatever");
+    // Path url(request.metadata.getPath());
+    // url.append("your_filename.whatever");
+	// std::cout << "Hibud:\n" << url;
     DEBUG("Handling directory listing for: " << filepath.str());
     response.setStatusCode(HttpStatusCode::OK);
     response.headers.replace(HeaderKey::ContentType, "text/html");
-    responseBody = redactDirectoryListing(filepath.str());
+    responseBody = redactDirectoryListing(filepath.str(), request.metadata.getPath());
     response.setBody(responseBody);
     return (response);
 }
