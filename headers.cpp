@@ -9,9 +9,19 @@
 
 Headers::Headers() {}
 
+static std::string removePortFromHostValue(const std::string& value)
+{
+    std::size_t pos = value.find(":");
+
+    if (pos == std::string::npos)
+        return (value);
+    return (value.substr(0, pos));
+}
+
 Headers::Headers(std::istringstream &source) {
     std::string line;
     bool first_line = true;
+    constexpr std::string_view host_string = "Host";
 
     while (std::getline(source, line, '\n')) {
         line = Utils::trim(line);
@@ -30,6 +40,8 @@ Headers::Headers(std::istringstream &source) {
 
         std::string key = Utils::trim(line.substr(0, colon));
         std::string value = Utils::trim(line.substr(colon + 1));
+        if (key == host_string)
+            value = removePortFromHostValue(value);
         add(key, value);
     }
 }
