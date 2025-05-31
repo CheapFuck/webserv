@@ -70,7 +70,7 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     const LocationRule *route = config.routes.find(request.metadata.getPath());
-    if (route == nullptr) {
+    if (route == nullptr || request.headers.getHeader(HeaderKey::Host) != config.server_name.get()) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
     }
