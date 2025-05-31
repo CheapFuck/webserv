@@ -42,8 +42,10 @@ public:
 
 Server::Server(const ServerConfig &config) :
 	_config(config),
+	_sessionManager(),
 	_server_fd(-1),
-	_epoll_fd(-1) {
+	_epoll_fd(-1),
+	_clients() {
 
 	this->_setupSocket();
 	this->_setupEpoll();
@@ -169,7 +171,7 @@ void Server::_prepareRequestProcessing(Client &client) {
 		client.request.session->setData("Some testvalue", client.request.session->getSessionId());
 	} else
 		client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
-		DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
+	DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
 
 	DEBUG("Object prt session: " << client.request.session);
 	DEBUG("Session ID for client: " << client.request.session->getSessionId());
