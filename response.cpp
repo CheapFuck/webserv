@@ -41,6 +41,7 @@ void Response::setStatusCode(HttpStatusCode code) {
 /// @param body The body content to set for the response.
 void Response::setBody(const std::string& body) {
     _body = body;
+    _body_set = true;
     headers.replace(HeaderKey::ContentLength, std::to_string(body.length()));
 }
 
@@ -59,6 +60,12 @@ HttpStatusCode Response::getStatusCode() const {
 /// @brief Returns the body of the response.
 const std::string& Response::getBody() const {
     return _body;
+}
+
+void Response::setDefaultBody() {
+    if (_body_set == true)
+        return ;
+    setBody(getDefaultBodyForCode(_statusCode));
 }
 
 /// @brief Sends the response to the client.

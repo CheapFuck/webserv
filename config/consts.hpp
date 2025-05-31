@@ -97,6 +97,86 @@ enum class HttpStatusCode {
 std::string getStatusCodeAsStr(HttpStatusCode code);
 std::ostream &operator<<(std::ostream &os, HttpStatusCode code);
 
+constexpr const char* getDefaultBodyForCode(HttpStatusCode code)
+{
+    switch(code)
+    {
+        case HttpStatusCode::Continue: return "Oh good heavens, Continue!!!";
+        case HttpStatusCode::SwitchingProtocols: return "Oh good heavens, SwitchingProtocols!!!";
+        case HttpStatusCode::Processing: return "Oh good heavens, Processing!!!";
+        case HttpStatusCode::EarlyHints: return "Oh good heavens, EarlyHints!!!";
+
+        // 2xx
+        case HttpStatusCode::OK: return "Oh good heavens, OK!!!";
+        case HttpStatusCode::Created: return "Oh good heavens, Created!!!";
+        case HttpStatusCode::Accepted: return "Oh good heavens, Accepted!!!";
+        case HttpStatusCode::NonAuthoritativeInformation: return "Oh good heavens, NonAuthoritativeInformation!!!";
+        case HttpStatusCode::NoContent: return "Oh good heavens, NoContent!!!";
+        case HttpStatusCode::ResetContent: return "Oh good heavens, ResetContent!!!";
+        case HttpStatusCode::PartialContent: return "Oh good heavens, PartialContent!!!";
+        case HttpStatusCode::MultiStatus: return "Oh good heavens, MultiStatus!!!";
+        case HttpStatusCode::AlreadyReported: return "Oh good heavens, AlreadyReported!!!";
+        case HttpStatusCode::IMUsed: return "Oh good heavens, IMUsed!!!";
+
+        // 3xx
+        case HttpStatusCode::MultipleChoices: return "Oh good heavens, MultipleChoices!!!";
+        case HttpStatusCode::MovedPermanently: return "Oh good heavens, MovedPermanently!!!";
+        case HttpStatusCode::Found: return "Oh good heavens, Found!!!";
+        case HttpStatusCode::SeeOther: return "Oh good heavens, SeeOther!!!";
+        case HttpStatusCode::NotModified: return "Oh good heavens, NotModified!!!";
+        case HttpStatusCode::UseProxy: return "Oh good heavens, UseProxy!!!";
+        case HttpStatusCode::TemporaryRedirect: return "Oh good heavens, TemporaryRedirect!!!";
+        case HttpStatusCode::PermanentRedirect: return "Oh good heavens, PermanentRedirect!!!";
+
+        // 4xx
+        case HttpStatusCode::BadRequest: return "Oh good heavens, BadRequest!!!";
+        case HttpStatusCode::Unauthorized: return "Oh good heavens, Unauthorized!!!";
+        case HttpStatusCode::PaymentRequired: return "Oh good heavens, PaymentRequired!!!";
+        case HttpStatusCode::Forbidden: return "Oh good heavens, Forbidden!!!";
+        case HttpStatusCode::NotFound: return "Oh good heavens, NotFound!!!";
+        case HttpStatusCode::MethodNotAllowed: return "Oh good heavens, MethodNotAllowed!!!";
+        case HttpStatusCode::NotAcceptable: return "Oh good heavens, NotAcceptable!!!";
+        case HttpStatusCode::ProxyAuthenticationRequired: return "Oh good heavens, ProxyAuthenticationRequired!!!";
+        case HttpStatusCode::RequestTimeout: return "Oh good heavens, RequestTimeout!!!";
+        case HttpStatusCode::Conflict: return "Oh good heavens, Conflict!!!";
+        case HttpStatusCode::Gone: return "Oh good heavens, Gone!!!";
+        case HttpStatusCode::LengthRequired: return "Oh good heavens, LengthRequired!!!";
+        case HttpStatusCode::PreconditionFailed: return "Oh good heavens, PreconditionFailed!!!";
+        case HttpStatusCode::PayloadTooLarge: return "Oh good heavens, PayloadTooLarge!!!";
+        case HttpStatusCode::URITooLong: return "Oh good heavens, URITooLong!!!";
+        case HttpStatusCode::UnsupportedMediaType: return "Oh good heavens, UnsupportedMediaType!!!";
+        case HttpStatusCode::RangeNotSatisfiable: return "Oh good heavens, RangeNotSatisfiable!!!";
+        case HttpStatusCode::ExpectationFailed: return "Oh good heavens, ExpectationFailed!!!";
+        case HttpStatusCode::ImATeapot: return "Oh good heavens, ImATeapot!!!";
+        case HttpStatusCode::MisdirectedRequest: return "Oh good heavens, MisdirectedRequest!!!";
+        case HttpStatusCode::UnprocessableEntity: return "Oh good heavens, UnprocessableEntity!!!";
+        case HttpStatusCode::Locked: return "Oh good heavens, Locked!!!";
+        case HttpStatusCode::FailedDependency: return "Oh good heavens, FailedDependency!!!";
+        case HttpStatusCode::TooEarly: return "Oh good heavens, TooEarly!!!";
+        case HttpStatusCode::UpgradeRequired: return "Oh good heavens, UpgradeRequired!!!";
+        case HttpStatusCode::PreconditionRequired: return "Oh good heavens, PreconditionRequired!!!";
+        case HttpStatusCode::TooManyRequests: return "Oh good heavens, TooManyRequests!!!";
+        case HttpStatusCode::RequestHeaderFieldsTooLarge: return "Oh good heavens, RequestHeaderFieldsTooLarge!!!";
+        case HttpStatusCode::UnavailableForLegalReasons: return "Oh good heavens, UnavailableForLegalReasons!!!";
+
+            // 5xx
+        case HttpStatusCode::InternalServerError: return "Oh good heavens, InternalServerError!!!";
+        case HttpStatusCode::NotImplemented: return "Oh good heavens, NotImplemented!!!";
+        case HttpStatusCode::BadGateway: return "Oh good heavens, BadGateway!!!";
+        case HttpStatusCode::ServiceUnavailable: return "Oh good heavens, ServiceUnavailable!!!";
+        case HttpStatusCode::GatewayTimeout: return "Oh good heavens, GatewayTimeout!!!";
+        case HttpStatusCode::HTTPVersionNotSupported: return "Oh good heavens, HTTPVersionNotSupported!!!";
+        case HttpStatusCode::VariantAlsoNegotiates: return "Oh good heavens, VariantAlsoNegotiates!!!";
+        case HttpStatusCode::InsufficientStorage: return "Oh good heavens, InsufficientStorage!!!";
+        case HttpStatusCode::LoopDetected: return "Oh good heavens, LoopDetected!!!";
+        case HttpStatusCode::NotExtended: return "Oh good heavens, NotExtended!!!";
+        case HttpStatusCode::NetworkAuthenticationRequired: return "Oh good heavens, NetworkAuthenticationRequired!!!";
+        default: return "Oh good heavens, How did you get here?!!!!";
+    }
+}
+
+
+
 enum class HeaderKey {
     ContentType,
     ContentLength,

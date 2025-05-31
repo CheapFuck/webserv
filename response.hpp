@@ -9,6 +9,7 @@ class Response {
 private:
     HttpStatusCode _statusCode;
     std::string _body;
+    bool _body_set = false;
 
 public:
     Headers headers;
@@ -24,6 +25,7 @@ public:
     void setStatusCode(HttpStatusCode code);
     void setBody(const std::string& body);
     void setDefaultHeaders();
+    void setDefaultBody();
 
     HttpStatusCode getStatusCode() const;
     const char *getProtocol() const;
