@@ -40,8 +40,8 @@ public:
 	}
 };
 
-Server::Server(const ServerConfig &config) :
-	_config(config),
+Server::Server(const std::vector<ServerConfig> &configs) :
+	_configs(configs),
 	_sessionManager(),
 	_server_fd(-1),
 	_epoll_fd(-1),
@@ -49,10 +49,31 @@ Server::Server(const ServerConfig &config) :
 
 	this->_setupSocket();
 	this->_setupEpoll();
-	PRINT("Server " << _config.server_name.get() << " is running on port " << _config.port.get());
+	PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
 }
 
-Server::~Server() {
+Server::Server(const Server &other) :
+	_configs(other._configs),
+	_sessionManager(other._sessionManager),
+	_server_fd(other._server_fd),
+	_epoll_fd(other._epoll_fd),
+	_clients(other._clients) {}
+
+Server &Server::operator=(const Server &other) {
+	if (this != &other) {
+		_configs = other._configs;
+		_sessionManager = other._sessionManager;
+		_server_fd = other._server_fd;
+		_epoll_fd = other._epoll_fd;
+		_clients = other._clients;
+	}
+	return *this;
+}
+
+Server::~Server() {}
+
+/// @brief Clean up the server resources, closing sockets and cleaning up sessions.
+void Server::cleanUp() {
 	if (_server_fd != -1)
 		close(_server_fd);
 	if (_epoll_fd != -1)
@@ -74,7 +95,7 @@ void Server::_setupSocket() {
 	sockaddr_in address{};
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(_config.port.get());
+	address.sin_port = htons(_configs[0].port.get());
 
 	if (bind(_server_fd, (sockaddr *)&address, sizeof(address)) == -1)
 		throw ServerCreationException("Failed to bind socket");
@@ -166,8 +187,9 @@ void Server::_prepareRequestProcessing(Client &client) {
 		client.request.session = _sessionManager.createNewSession();
 		if (!client.request.session)
 			ERROR("Failed to create a new session");
-		Cookie sessionCookie = Cookie::createSessionCookie(client.request.session->getSessionId());
-		client.response.headers.add(HeaderKey::SetCookie, sessionCookie.getHeaderInitializationString());
+		client.response.headers.add(HeaderKey::SetCookie,
+			Cookie::createSessionCookie(client.request.session->getSessionId())
+			.getHeaderInitializationString());
 		client.request.session->setData("Some testvalue", client.request.session->getSessionId());
 	} else
 		client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
@@ -176,6 +198,21 @@ void Server::_prepareRequestProcessing(Client &client) {
 	DEBUG("Object prt session: " << client.request.session);
 	DEBUG("Session ID for client: " << client.request.session->getSessionId());
 	client.request.session->updateLastAccessTime();
+}
+
+/// @brief Fetch the server configuration for a request based on the Host header
+/// @param request The Request object containing the headers
+/// @return A reference to the ServerConfig object that matches the Host header | 
+/// or the first config if no direct match was found
+ServerConfig &Server::_loadRequestConfig(Request &request) {
+	for (ServerConfig &config : _configs) {
+		if (config.server_name.get() == request.headers.getHeader(HeaderKey::Host, "")) {
+			DEBUG("Found matching server for request: " << config.server_name.get());
+			return (config);
+		}
+	}
+	DEBUG("No matching server found for request, using default: " << _configs[0].server_name.get());
+	return _configs[0];
 }
 
 /// @brief Handle client input by reading from the socket and processing the request.
@@ -194,7 +231,7 @@ void Server::_handleClientInput(int fd, Client &client) {
 			return ;
 		}
 		_prepareRequestProcessing(client);
-		client.processRequest(_config);
+		client.processRequest(_loadRequestConfig(client.request));
 	}
 }
 
@@ -245,7 +282,7 @@ void Server::_handleClientIo(int fd, short revents) {
 }
 
 /// @brief Entry point for the server, running it's event loop once.
-void Server::run_once() {
+void Server::runOnce() {
 	epoll_event events[64];
 
 	int event_count = epoll_wait(_epoll_fd, events, 64, 0);

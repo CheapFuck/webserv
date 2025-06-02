@@ -9,7 +9,7 @@
 
 class Server {
 private:
-	ServerConfig _config;
+	std::vector<ServerConfig> _configs;
 	UserSessionManager _sessionManager;
 
 	int _server_fd;
@@ -29,10 +29,14 @@ private:
 	void _handleClientInput(int fd, Client &client);
 	void _handleClientOutput(int fd, Client &client);
 	void _prepareRequestProcessing(Client &client);
+	ServerConfig& _loadRequestConfig(Request &request);
 
 public:
-	Server(const ServerConfig &config);
+	Server(const std::vector<ServerConfig> &configs);
+	Server(const Server &other);
+	Server &operator=(const Server &other);
 	~Server();
 
-	void run_once();
+	void cleanUp();
+	void runOnce();
 };
