@@ -9,9 +9,19 @@
 
 Headers::Headers() {}
 
+static std::string removePortFromHostValue(const std::string& value)
+{
+    std::size_t pos = value.find(":");
+
+    if (pos == std::string::npos)
+        return (value);
+    return (value.substr(0, pos));
+}
+
 Headers::Headers(std::istringstream &source) {
     std::string line;
     bool first_line = true;
+    constexpr std::string_view host_string = "Host";
 
     while (std::getline(source, line, '\n')) {
         line = Utils::trim(line);
@@ -30,6 +40,8 @@ Headers::Headers(std::istringstream &source) {
 
         std::string key = Utils::trim(line.substr(0, colon));
         std::string value = Utils::trim(line.substr(colon + 1));
+        if (key == host_string)
+            value = removePortFromHostValue(value);
         add(key, value);
     }
 }
@@ -62,8 +74,9 @@ void Headers::add(HeaderKey key, const std::string &value) {
 
 /// @brief Replaces the value of an existing header - even if multiple headers have been set already.
 void Headers::replace(HeaderKey key, const std::string &value) {
-    _headers.erase(headerKeyToString(key));
-    _headers.insert(std::make_pair(headerKeyToString(key), value));
+    std::string keyStr = headerKeyToString(key);
+    _headers.erase(keyStr);
+    _headers.insert(std::make_pair(keyStr, value));
 }
 
 /// @brief Retrieves the value of a header by its key. Throws if the key does not exist.

@@ -29,6 +29,7 @@ bool Client::requestIsComplete() const {
 /// @brief Sends the response to the client.
 /// @return Returns true if the response was sent successfully, false otherwise.
 bool Client::sendResponse(int fd) {
+    response.setDefaultBody();
     return response.sendToClient(fd);
 }
 
@@ -70,7 +71,7 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     const LocationRule *route = config.routes.find(request.metadata.getPath());
-    if (route == nullptr) {
+    if (route == nullptr || request.headers.getHeader(HeaderKey::Host) != config.server_name.get()) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
     }

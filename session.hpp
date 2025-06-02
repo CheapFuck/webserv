@@ -6,20 +6,20 @@
 
 #define SESSION_ID_LENGTH 32
 #define SESSION_COOKIE_NAME "sessionId"
+#define SESSION_STORAGE_FOLDER "var/sessions/"
 
 #define SESSION_COOKIE_MAX_AGE 3600
 
 class UserSession {
 private:
-time_t _lastAccessTime;
-std::string _sessionId;
-std::map<std::string, std::string> _data;
+	time_t _lastAccessTime;
+	std::string _sessionId;
+	std::map<std::string, std::string> _data;
 
 public:
-	int personal_counter = 0;
-
 	UserSession() = default;
 	UserSession(const std::string &sessionId);
+	UserSession(time_t lastAccessTime, const std::string &sessionId, const std::map<std::string, std::string> &data);
 	UserSession(const UserSession &other) = default;
 	UserSession &operator=(const UserSession &other) = default;
 	~UserSession() = default;
@@ -31,7 +31,8 @@ public:
 	inline void updateLastAccessTime() { _lastAccessTime = time(nullptr); }
 	inline time_t getLastAccessTime() const { return _lastAccessTime; }
 
-	static UserSession defaultUserSession;
+	std::string generateStorableString() const;
+	static UserSession *fromStorableString(const std::string &data);
 };
 
 class UserSessionManager {
@@ -47,5 +48,6 @@ public:
 	UserSession *getOrCreateSession(const std::string &sessionId);
 	UserSession *createNewSession();
 	void cleanUpExpiredSessions();
-	void fullCleanup();
+	void loadFromPort(int port);
+	void fullCleanup(int port);
 };

@@ -15,12 +15,12 @@ static void addBotBoilerplate(std::string& html)
 	html.append("</html>");
 }
 
-static void addTimeToRowEntry(std::string& html, const std::filesystem::directory_entry& e)
+static void addTimeToRowEntry(std::string& html, const std::filesystem::directory_entry& entry)
 {
 	std::filesystem::file_time_type ftime;
 	try
 	{
-		ftime = std::filesystem::last_write_time(e);
+		ftime = std::filesystem::last_write_time(entry);
 	}
 	catch(const std::filesystem::filesystem_error& e)
 	{

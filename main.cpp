@@ -3,6 +3,8 @@
 #include <exception>
 #include <iostream>
 #include <signal.h>
+#include <vector>
+#include <map>
 
 #include "print.hpp"
 #include "server.hpp"
@@ -32,26 +34,39 @@ std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
     }
 }
 
+/// @brief Free up resources for running servers to freely exit the program
+/// @param servers A vector of Server objects to clean up
+void handleServersCleanup(std::vector<Server> &servers) {
+    for (Server& server : servers)
+        server.cleanUp();
+}
+
 /// @brief Spawn and run servers based on the provided configurations
 /// @param serverConfigs A vector of ServerConfig objects containing the server configurations
 /// @return 1 if either one of the servers failed to start, 0 otherwise
 int run_servers(const std::vector<ServerConfig>& serverConfigs) {
-    std::vector<Server> servers;
-    servers.reserve(serverConfigs.size());
-
+    std::map<int, std::vector<ServerConfig>> portToCOnfigs;
     for (const ServerConfig& config : serverConfigs) {
+        if (portToCOnfigs.find(config.port.get()) == portToCOnfigs.end())
+            portToCOnfigs[config.port.get()] = std::vector<ServerConfig>();
+        portToCOnfigs[config.port.get()].push_back(config);
+    }
+
+    std::vector<Server> servers;
+    for (const std::pair<int, std::vector<ServerConfig>> entry : portToCOnfigs) {
         try {
-            servers.emplace_back(config);
+            servers.emplace_back(entry.second);
         } catch (const std::exception& e) {
-            ERROR("Error creating server: " << e.what());
-            return 1;
+            ERROR("Error creating server for port " << entry.first << ": " << e.what());
+            handleServersCleanup(servers);
+            return (1);
         }
     }
 
     while (!servers.empty() && !g_quit) {
         for (size_t i = 0; i < servers.size(); ++i) {
             try {
-                servers[i].run_once();
+                servers[i].runOnce();
             } catch (const std::exception& e) {
                 ERROR("Error running server: " << e.what());
                 servers.erase(servers.begin() + i);
@@ -60,6 +75,7 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
         }
     }
 
+    handleServersCleanup(servers);
     return (0);
 }
 
