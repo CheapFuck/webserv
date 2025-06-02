@@ -22,7 +22,7 @@ public:
     ~Client() = default;
 
     bool read(int fd);
-    bool sendResponse(int fd);
+    bool sendResponse(int fd, ServerConfig& using_conf);
     bool requestIsComplete() const;
     Response &processRequest(const ServerConfig &config);
 

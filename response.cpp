@@ -1,4 +1,6 @@
 #include "config/consts.hpp"
+#include "config/rules/rules.hpp"
+#include "methods.hpp"
 #include "response.hpp"
 #include "headers.hpp"
 #include "print.hpp"
@@ -63,10 +65,21 @@ const std::string& Response::getBody() const {
     return _body;
 }
 
-void Response::setDefaultBody() {
+void Response::setDefaultBody(ServerConfig& config) {
+	std::map<int,Path> error_templates;
+	int error_int;
     if (_body_set == true)
-        return ;
-    setBody(getDefaultBodyForCode(_statusCode));
+		return ;
+
+	error_int = static_cast<int>(_statusCode);
+	error_templates = config.error_pages.getErrorPages();
+	if (error_templates.find(error_int) == error_templates.end())
+    	setBody(getDefaultBodyForCode(_statusCode));
+	else if (tryCreateResponseFromFile(error_templates[error_int], *this) == false)
+	{
+		std::cout << "Sunhappiness -- Sunhappiness -- Sunhappiness -- Sunhappiness --  \n\n";
+		setBody(getDefaultBodyForCode(_statusCode));
+	}
 }
 
 /// @brief Sends the response to the client.

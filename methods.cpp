@@ -75,7 +75,7 @@ bool tryCreateResponseFromFile(const Path &filepath, Response &response) {
     std::ifstream file(filepath.str(), std::ios::binary);
 
     if (!file) {
-        DEBUG("File not found: " << filepath.str());
+        DEBUG("File not here22 found: " << filepath.str());
         return (false);
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/consts.hpp"
+#include "config/rules/rules.hpp"
 #include "headers.hpp"
 
 #include <string>
@@ -25,7 +26,7 @@ public:
     void setStatusCode(HttpStatusCode code);
     void setBody(const std::string& body);
     void setDefaultHeaders();
-    void setDefaultBody();
+    void setDefaultBody(ServerConfig& config);
 
     HttpStatusCode getStatusCode() const;
     const char *getProtocol() const;

@@ -5,7 +5,7 @@ ServerConfig::ServerConfig(Object &object)
 	: port(PortRule(object, true)),
 	  server_name(ServerNameRule(object, true)),
 	  client_max_body_size(MaxBodySizeRule(object, true)),
-	  error_pages(ErrorPageRule(object, true)),
+	  error_pages(ErrorPageRule(object, false)),
 	  routes(RouteRules(object, true)) {}
 
 /// @brief Fetches server configurations from the given object.

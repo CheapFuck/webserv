@@ -185,7 +185,7 @@ void Server::_prepareRequestProcessing(Client &client) {
 	const Cookie *sessionCookie = Cookie::getCookie(client.request, SESSION_COOKIE_NAME);
 	if (!sessionCookie) {
 		DEBUG("No session cookie found for client; creating a new session");
-		client.request.session = _sessionManager.createNewSession();
+		client.request.session = !client.request.session ? _sessionManager.createNewSession() : client.request.session;
 		if (!client.request.session)
 			ERROR("Failed to create a new session");
 		client.response.headers.add(HeaderKey::SetCookie,
@@ -240,7 +240,7 @@ void Server::_handleClientInput(int fd, Client &client) {
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
 void Server::_handleClientOutput(int fd, Client &client) {
-	if (!client.sendResponse(fd)) {
+	if (!client.sendResponse(fd, _loadRequestConfig(client.request))) {
 		ERROR("Failed to send response for client: " << fd);
 		_removeClient(fd);
 		return ;

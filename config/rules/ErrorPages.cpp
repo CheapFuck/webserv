@@ -10,17 +10,13 @@ ErrorPageRule::ErrorPageRule(const Object &obj, bool required) :
 
 		int rule_size = rule.arguments.size();
 
-		if (rule_size < 1)
+		if (rule_size < 2)
 			throw ConfigParsingException("Invalid error page rule");
 		if (rule.arguments[rule_size - 1].type != STRING)
 			throw ConfigParsingException("Invalid error page argument type");
 		
-		Path path(rule.arguments[rule_size - 1].str);
-		if (rule_size == 1) {
-			_default_page = path;
-			continue;
-		}
-
+		Path path(((RootRule) obj).get().str() + rule.arguments[rule_size - 1].str);
+		std::cout << "@@@#### @@ @" << path << "\n\n";
 		for (const Argument &arg : rule.arguments) {
 			if (arg.type != STRING)
 				throw ConfigParsingException("Invalid error page argument type");
@@ -29,7 +25,7 @@ ErrorPageRule::ErrorPageRule(const Object &obj, bool required) :
 			if (code < 100 || code > 599)
 				throw ConfigParsingException("Error page code out of range: " + arg.str);
 
-			_error_pages[code] = Path(path);
+			_error_pages[code] = path;
 			if (--rule_size == 1) break;
 		}
 	}
