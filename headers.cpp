@@ -74,8 +74,9 @@ void Headers::add(HeaderKey key, const std::string &value) {
 
 /// @brief Replaces the value of an existing header - even if multiple headers have been set already.
 void Headers::replace(HeaderKey key, const std::string &value) {
-    _headers.erase(headerKeyToString(key));
-    _headers.insert(std::make_pair(headerKeyToString(key), value));
+    std::string keyStr = headerKeyToString(key);
+    _headers.erase(keyStr);
+    _headers.insert(std::make_pair(keyStr, value));
 }
 
 /// @brief Retrieves the value of a header by its key. Throws if the key does not exist.
