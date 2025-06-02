@@ -1,11 +1,12 @@
 #include "session.hpp"
+#include "Utils.hpp"
 #include "print.hpp"
 
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <random>
-
-/// @brief Defines a dummy object which can be used as a default session.
-UserSession UserSession::defaultUserSession = UserSession("default_session");
+#include <string>
 
 /// @brief Generates a random session ID consisting of alphanumeric characters.
 /// @return A string representing the session ID, which is 32 characters long.
@@ -26,6 +27,9 @@ static std::string generateSessionId() {
 
 UserSession::UserSession(const std::string &sessionId) : _sessionId(sessionId) {}
 
+UserSession::UserSession(time_t lastAccessTime, const std::string &sessionId, const std::map<std::string, std::string> &data)
+	: _lastAccessTime(lastAccessTime), _sessionId(sessionId), _data(data) {}
+
 /// @brief Returns the value associated with the given key in the session data.
 /// @param key The key for which the value is requested.
 /// @param defaultValue The value to return if the key does not exist in the session data.
@@ -35,6 +39,58 @@ const std::string &UserSession::getData(const std::string &key, const std::strin
 	if (it != _data.end())
 		return it->second;
 	return defaultValue;
+}
+
+
+/// @brief Generates a storable string representation of the UserSession.
+std::string UserSession::generateStorableString() const {
+	std::ostringstream oss;
+	oss << _sessionId << "|" << _lastAccessTime;
+
+	for (const auto &pair : _data) {
+		oss << "|" << pair.first.length() << ";" << pair.first << pair.second.length() << ";" << pair.second;
+	}
+
+	return oss.str();
+}
+
+/// @brief Creates a UserSession from a storable string representation.
+UserSession *UserSession::fromStorableString(const std::string &data) {
+	std::istringstream iss(data);
+	std::string sessionId;
+	time_t lastAccessTime;
+	std::map<std::string, std::string> sessionData;
+
+	try {
+		if (!std::getline(iss, sessionId, '|'))
+			throw std::runtime_error("Invalid storable string format");
+		std::string lastAccessTimeStr;
+		if (!std::getline(iss, lastAccessTimeStr, '|'))
+			throw std::runtime_error("Invalid storable string format");
+		lastAccessTime = static_cast<time_t>(std::stoul(lastAccessTimeStr));
+
+		std::string keyValuePair;
+		while (std::getline(iss, keyValuePair, '|') && !keyValuePair.empty()) {
+			size_t semicolonKeyPos = keyValuePair.find(';');
+			if (semicolonKeyPos == std::string::npos)
+				throw std::runtime_error("Invalid session format");
+
+			size_t keyLen = std::stoul(keyValuePair);
+			size_t keyEndIdx = semicolonKeyPos + keyLen;
+			size_t valueLen = std::stoul(keyValuePair.c_str() + keyEndIdx + 1);
+			size_t semicolonValuePos = keyValuePair.find(';', keyEndIdx + 1);
+			if (semicolonValuePos == std::string::npos || keyValuePair.length() != semicolonValuePos + valueLen + 1)
+				throw std::runtime_error("Invalid session format");
+			
+			std::string key = keyValuePair.substr(semicolonKeyPos + 1, keyLen);
+			std::string value = keyValuePair.substr(semicolonValuePos + 1, valueLen);
+			sessionData[key] = value;
+		}
+	} catch (...) {
+		return (nullptr);
+	}
+
+	return new UserSession(lastAccessTime, sessionId, sessionData);
 }
 
 /// @brief Creates a new UserSession with a unique session ID.
@@ -76,10 +132,43 @@ void UserSessionManager::cleanUpExpiredSessions() {
 	}
 }
 
-/// @brief Cleans up all sessions in the session manager.
-void UserSessionManager::fullCleanup() {
+/// @brief Cleans up all sessions in the session manager and saves them to a file for the specified port.
+void UserSessionManager::fullCleanup(int port) {
+	std::ofstream sessionFile(SESSION_STORAGE_FOLDER + std::to_string(port));
+	if (!sessionFile.is_open()) {
+		ERROR("Failed to open session storage file for port " << port);
+		ERROR("No sessions will be stored for this port");
+	}
+
 	for (auto &pair : _sessions) {
+		if (sessionFile.is_open()) {
+			std::string storableString = pair.second->generateStorableString();
+			sessionFile << storableString << std::endl;
+		}
 		delete pair.second;
 	}
 	_sessions.clear();
+	sessionFile.close();
+	DEBUG("Cleaned up all sessions and saved to port " << port);
+}
+
+/// @brief Loads sessions from a file for the specified port.
+void UserSessionManager::loadFromPort(int port) {
+	std::ifstream sessionFile(SESSION_STORAGE_FOLDER + std::to_string(port));
+	if (!sessionFile.is_open()) {
+		DEBUG("Failed to open session storage file for port " << port);
+		DEBUG("Defaulting with a clean session manager");
+		return;
+	}
+
+	std::string line;
+	while (std::getline(sessionFile, line)) {
+		UserSession *session = UserSession::fromStorableString(line);
+		if (session)
+			_sessions[session->getSessionId()] = session;
+		else
+			ERROR("Failed to parse session from line: " << line);
+	}
+	sessionFile.close();
+	DEBUG("Loaded " << _sessions.size() << " sessions from port " << port);
 }

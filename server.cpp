@@ -49,6 +49,7 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 
 	this->_setupSocket();
 	this->_setupEpoll();
+	_sessionManager.loadFromPort(_configs[0].port.get());
 	PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
 }
 
@@ -78,7 +79,7 @@ void Server::cleanUp() {
 		close(_server_fd);
 	if (_epoll_fd != -1)
 		close(_epoll_fd);
-	_sessionManager.fullCleanup();
+	_sessionManager.fullCleanup(_configs[0].port.get());
 }
 
 /// @brief Set up the server socket
