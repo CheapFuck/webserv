@@ -101,8 +101,10 @@ UserSession *UserSessionManager::createNewSession() {
 
 	do {
 		std::string sessionId = generateSessionId();
-		if (_sessions.find(sessionId) == _sessions.end())
-			return new UserSession(sessionId);
+		if (_sessions.find(sessionId) == _sessions.end()) {
+			_sessions[sessionId] = new UserSession(sessionId);
+			return _sessions[sessionId];
+		}
 	} while (++attempts < 100);
 
 	return (nullptr);
