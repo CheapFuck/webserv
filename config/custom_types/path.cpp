@@ -107,6 +107,38 @@ bool Path::isValid() const {
 	return (_is_set && _path.find("..") == std::string::npos);
 }
 
+/// @brief Check if the path exists in the filesystem.
+/// @return True if the path exists, false otherwise.
+bool Path::exists() const {
+	try {
+		return std::filesystem::exists(_path);
+	} catch (const std::filesystem::filesystem_error &e) {
+		ERROR("Filesystem error: " << e.what());
+		return (false);
+	} catch (const std::exception &e) {
+		ERROR("Exception: " << e.what());
+		return (false);
+	}
+}
+
+/// @brief Validate the permissions of the path.
+/// @param requiredPerms The required permissions to check against.
+/// @return True if the path has the required permissions, false otherwise.
+bool Path::validatePermissions(std::filesystem::perms requiredPerms) const {
+	if (!exists()) return false;
+
+	try {
+		std::filesystem::perms perms = std::filesystem::status(_path).permissions();
+		return (perms & requiredPerms) == requiredPerms;
+	} catch (const std::filesystem::filesystem_error &e) {
+		ERROR("Filesystem error: " << e.what());
+		return false;
+	} catch (const std::exception &e) {
+		ERROR("Exception: " << e.what());
+		return false;
+	}
+}
+
 /// @brief Get the string representation of the path.
 /// @return A constant reference to the path string.
 const std::string &Path::str() const {

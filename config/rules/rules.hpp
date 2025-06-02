@@ -3,6 +3,7 @@
 #include "../config.hpp"
 #include "../consts.hpp"
 
+#include <filesystem>
 #include <vector>
 #include <map>
 
@@ -46,19 +47,24 @@ private:
 	bool _is_set;
 	
 public:
-	Path(const std::string &str);
-	Path(const Path &other);
 	Path();
+	Path(const Path &other);
+	Path(const std::string &str);
 	Path &operator=(const Path &other);
 
 	Path &append(const std::string &str);
 	Path &pop();
 	Path &updateFromUrl(const std::string &route, const std::string &root);
+
 	std::string getFilename() const;
+	const std::string &str() const;
+
 	static Path createFromUrl(const std::string &url, const LocationRule &route);
 	static Path createDummy();
-	const std::string &str() const;
+
 	bool isValid() const;
+	bool exists() const;
+	bool validatePermissions(std::filesystem::perms requiredPerms) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Path& path);
