@@ -18,12 +18,13 @@ static std::string get_time_as_readable_string() {
 Response::Response() : _statusCode(HttpStatusCode::OK), _body(""), headers() {}
 
 Response::Response(const Response& other) 
-    : _statusCode(other._statusCode), _body(other._body), headers(other.headers) {}
+    : _statusCode(other._statusCode), _body(other._body), _body_set(other._body_set), headers(other.headers) {}
 
 Response& Response::operator=(const Response& other) {
     if (this != &other) {
         _statusCode = other._statusCode;
         _body = other._body;
+        _body_set = other._body_set;
         headers = other.headers;
     }
     return *this;
