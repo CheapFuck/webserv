@@ -6,6 +6,7 @@ DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
 CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address -DDEBUG_MODE
+MAKEFLAGS += -j $(shell nproc)
 
 SRCS := main.cpp \
 	request.cpp \
