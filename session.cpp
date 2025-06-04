@@ -97,6 +97,7 @@ UserSession *UserSession::fromStorableString(const std::string &data) {
 /// @return A UserSession object initialized with a unique session ID.
 /// @throws std::runtime_error if a unique session ID cannot be generated after multiple attempts.
 UserSession *UserSessionManager::createNewSession() {
+	return (nullptr);
 	size_t attempts = 0;
 
 	do {
@@ -114,6 +115,7 @@ UserSession *UserSessionManager::createNewSession() {
 /// @param sessionId The session ID to look for or create a new session with.
 /// @return A reference to the UserSession associated with the given session ID.
 UserSession *UserSessionManager::getOrCreateSession(const std::string &sessionId) {
+	return (nullptr);
 	auto it = _sessions.find(sessionId);
 	if (it != _sessions.end())
 		return _sessions[sessionId];
