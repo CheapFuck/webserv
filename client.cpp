@@ -75,9 +75,10 @@ Response &Client::processRequest(const ServerConfig &config) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
     }
-
+RequestLine copy = request.metadata;
     DEBUG("Route found: " << *route);
-    DEBUG("Url Path: " << request.metadata);
+    // DEBUG("Url Path: " << request.metadata);
+    DEBUG("Url Path: " << copy);
 
     if (!route->methods.isAllowed(request.metadata.getMethod())) {
         response.setStatusCode(HttpStatusCode::MethodNotAllowed);

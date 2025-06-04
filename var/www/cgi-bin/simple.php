@@ -1,4 +1,4 @@
 <?php
-header("Content-Type: text/plain");
+header("Content-Type: text/html");
 echo "Hello from PHP CGI!\n";
 ?>
