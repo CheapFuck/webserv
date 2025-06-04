@@ -124,14 +124,16 @@ UserSession *UserSessionManager::getOrCreateSession(const std::string &sessionId
 
 /// @brief Cleans up expired sessions from the session manager.
 void UserSessionManager::cleanUpExpiredSessions() {
-	time_t currentTime = time(nullptr);
+    time_t currentTime = time(nullptr);
 
-	for (auto it = _sessions.begin(); it != _sessions.end(); ++it) {
-		if (it->second->getLastAccessTime() + SESSION_COOKIE_MAX_AGE < currentTime) {
-			delete it->second;
-			_sessions.erase(it);
-		}
-	}
+    for (auto it = _sessions.begin(); it != _sessions.end(); ) {
+        if (it->second->getLastAccessTime() + SESSION_COOKIE_MAX_AGE < currentTime) {
+            delete it->second;
+            it = _sessions.erase(it);  // erase returns the next valid iterator
+        } else {
+            ++it;
+        }
+    }
 }
 
 /// @brief Cleans up all sessions in the session manager and saves them to a file for the specified port.
