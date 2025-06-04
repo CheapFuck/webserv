@@ -304,25 +304,45 @@ void Server::_removeClient(int fd) {
 /// @details If no session cookie is found, a new session is created. If a session cookie is found,
 /// the session is retrieved or created based on the cookie value.
 void Server::_prepareRequestProcessing(Client &client) {
-	const Cookie *sessionCookie = Cookie::getCookie(client.request, SESSION_COOKIE_NAME);
-	if (!sessionCookie) {
-		DEBUG("No session cookie found for client; creating a new session");
-		client.request.session = !client.request.session ? _sessionManager.createNewSession() : client.request.session;
-		if (!client.request.session)
-			ERROR("Failed to create a new session");
-		client.response.headers.add(HeaderKey::SetCookie,
-			Cookie::createSessionCookie(client.request.session->getSessionId())
-			.getHeaderInitializationString());
-		client.request.session->setData("Some testvalue", client.request.session->getSessionId());
-	} else
-		client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
-	DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
+    // Get the session cookie from the client's request
+    const Cookie *sessionCookie = Cookie::getCookie(client.request, SESSION_COOKIE_NAME);
+    
+    if (!sessionCookie) {
+        DEBUG("No session cookie found for client; creating a new session");
 
-	DEBUG("Object prt session: " << client.request.session);
-	DEBUG("Session ID for client: " << client.request.session->getSessionId());
-	client.request.session->updateLastAccessTime();
+        // If there's no session cookie, create a new session and associate it with the client's request
+        if (!client.request.session) {
+            client.request.session = _sessionManager.createNewSession();
+            if (!client.request.session) {
+                ERROR("Failed to create a new session");
+                return;  // Exit early if session creation fails
+            }
+        }
+
+        // Add the session cookie to the response headers
+        client.response.headers.add(HeaderKey::SetCookie,
+            Cookie::createSessionCookie(client.request.session->getSessionId())
+            .getHeaderInitializationString());
+
+        // Set some test data on the session
+        client.request.session->setData("Some testvalue", client.request.session->getSessionId());
+    } else {
+        // If the session cookie is found, try to get or create the session
+        client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
+    }
+
+    // Ensure that we have a valid session object before proceeding
+    if (client.request.session) {
+        DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
+        DEBUG("Object ptr session: " << client.request.session);
+        DEBUG("Session ID for client: " << client.request.session->getSessionId());
+
+        // Update the session's last access time
+        client.request.session->updateLastAccessTime();
+    } else {
+        ERROR("Failed to retrieve a valid session for client.");
+    }
 }
-
 /// @brief Fetch the server configuration for a request based on the Host header
 /// @param request The Request object containing the headers
 /// @return A reference to the ServerConfig object that matches the Host header | 
