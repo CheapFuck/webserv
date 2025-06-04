@@ -23,6 +23,7 @@ SRCS := main.cpp \
 	cookie.cpp \
 	session.cpp \
 	Utils.cpp \
+	thread-pool.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \
 	config/consts.cpp \

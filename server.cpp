@@ -5,7 +5,12 @@
 #include "client.hpp"
 #include "server.hpp"
 #include "print.hpp"
-
+#include "CGI.hpp"
+#include "Utils.hpp"
+#include "thread-pool.hpp"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -14,72 +19,189 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <thread>
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct epoll_event epoll_event;
 
 class ServerCreationException : public std::exception {
 private:
-	std::string _message;
+    std::string _message;
 
 public:
-	ServerCreationException(const std::string &message) : _message(message) {}
-	const char *what() const noexcept override {
-		return _message.c_str();
-	}
+    ServerCreationException(const std::string &message) : _message(message) {}
+    const char *what() const noexcept override {
+        return _message.c_str();
+    }
 };
 
 class ClientConnectionException : public std::exception {
 private:
-	std::string _message;
+    std::string _message;
 
 public:
-	ClientConnectionException(const std::string &message) : _message(message) {}
-	const char *what() const noexcept override {
-		return _message.c_str();
-	}
+    ClientConnectionException(const std::string &message) : _message(message) {}
+    const char *what() const noexcept override {
+        return _message.c_str();
+    }
 };
 
 Server::Server(const std::vector<ServerConfig> &configs) :
-	_configs(configs),
-	_sessionManager(),
-	_server_fd(-1),
-	_epoll_fd(-1),
-	_clients() {
+    _configs(configs),
+    _sessionManager(),
+    _server_fd(-1),
+    _epoll_fd(-1),
+    _clients(),
+    _activeCGIs(),
+    _threadPool(new ThreadPool(std::thread::hardware_concurrency())) {  // Use hardware concurrency for thread count
 
-	this->_setupSocket();
-	this->_setupEpoll();
-	_sessionManager.loadFromPort(_configs[0].port.get());
-	PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
+    this->_setupSocket();
+    this->_setupEpoll();
+    _sessionManager.loadFromPort(_configs[0].port.get());
+    PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
 }
 
 Server::Server(const Server &other) :
-	_configs(other._configs),
-	_sessionManager(other._sessionManager),
-	_server_fd(other._server_fd),
-	_epoll_fd(other._epoll_fd),
-	_clients(other._clients) {}
+    _configs(other._configs),
+    _sessionManager(other._sessionManager),
+    _server_fd(other._server_fd),
+    _epoll_fd(other._epoll_fd),
+    _clients(other._clients),
+    _activeCGIs(other._activeCGIs),
+    _threadPool(new ThreadPool(std::thread::hardware_concurrency())) {}
 
 Server &Server::operator=(const Server &other) {
-	if (this != &other) {
-		_configs = other._configs;
-		_sessionManager = other._sessionManager;
-		_server_fd = other._server_fd;
-		_epoll_fd = other._epoll_fd;
-		_clients = other._clients;
-	}
-	return *this;
+    if (this != &other) {
+        _configs = other._configs;
+        _sessionManager = other._sessionManager;
+        _server_fd = other._server_fd;
+        _epoll_fd = other._epoll_fd;
+        _clients = other._clients;
+        _activeCGIs = other._activeCGIs;
+        _threadPool.reset(new ThreadPool(std::thread::hardware_concurrency()));
+    }
+    return *this;
 }
 
-Server::~Server() {}
+Server::~Server() {
+    // Clean up active CGI processes
+    for (auto& pair : _activeCGIs) {
+        delete pair.second;
+    }
+}
 
 /// @brief Clean up the server resources, closing sockets and cleaning up sessions.
 void Server::cleanUp() {
-	if (_server_fd != -1)
-		close(_server_fd);
-	if (_epoll_fd != -1)
-		close(_epoll_fd);
-	_sessionManager.fullCleanup(_configs[0].port.get());
+    // Clean up CGI processes first
+    for (auto& pair : _activeCGIs) {
+        delete pair.second;
+    }
+    _activeCGIs.clear();
+    
+    if (_server_fd != -1)
+        close(_server_fd);
+    if (_epoll_fd != -1)
+        close(_epoll_fd);
+    _sessionManager.fullCleanup(_configs[0].port.get());
+}
+
+
+/// @brief Handle client input by reading from the socket and processing the request.
+/// @param fd The file descriptor of the client socket
+/// @param client The Client object associated with the socket
+// void Server::_handleClientInput(int fd, Client &client) {
+//     if (!client.read(fd)) {
+//         _removeClient(fd);
+//         return;
+//     }
+
+//     if (client.requestIsComplete()) {
+//         // Process the request asynchronously
+//         _processRequestAsync(fd, client);
+//     }
+// }
+
+/// @brief Process a client request asynchronously using the thread pool
+/// @param fd The client file descriptor
+/// @param client The client object
+// void Server::_processRequestAsync(int fd, Client &client) {
+// 	(void)client;
+//     // Capture necessary data for the lambda
+//     auto processTask = [this, fd]() {
+//         auto clientIt = this->_clients.find(fd);
+//         if (clientIt == this->_clients.end()) {
+//             return;
+//         }
+        
+//         Client& client = clientIt->second;
+        
+//         this->_prepareRequestProcessing(client);
+//         ServerConfig& config = this->_loadRequestConfig(client.request);
+        
+//         // Check if this request should be handled by CGI
+//         const LocationRule* route = config.routes.find(client.request.metadata.getPath());
+//         if (!route) {
+//             client.response.setStatusCode(HttpStatusCode::NotFound);
+//         } else if (this->shouldUseCGI(client.request, *route)) {
+//             // Start CGI execution
+//             if (!this->_startCGIExecution(fd, client, *route, config)) {
+//                 client.response.setStatusCode(HttpStatusCode::InternalServerError);
+//                 if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+//                     this->_removeClient(fd);
+//                 }
+//             }
+//             // CGI is now running, response will be handled when CGI completes
+//         } else {
+//             // Handle normal request processing
+//             client.processRequest(config);
+//             if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+//                 ERROR("Failed to modify epoll event for client: " << fd);
+//                 this->_removeClient(fd);
+//                 return;
+//             }
+//         }
+//     };
+    
+//     // Enqueue the task to the thread pool
+//     _threadPool->enqueue(processTask);
+// }
+
+
+
+/// @brief Start CGI execution for a client request
+/// @param fd The client file descriptor
+/// @param client The client object
+/// @param route The location rule that matched
+/// @param config The server configuration
+/// @return True if CGI was started successfully, false otherwise
+bool Server::_startCGIExecution(int fd, Client &client, const LocationRule &route, const ServerConfig &config) {
+    DEBUG("Starting CGI execution for client: " << fd);
+    
+    CGI* cgi = new CGI();
+    
+    if (cgi->startExecution(client.request, route, config)) {
+        _activeCGIs[fd] = cgi;
+        
+        // Add CGI file descriptors to epoll
+        std::vector<int> cgiFds = cgi->getFileDescriptors();
+        for (int cgiFd : cgiFds) {
+            epoll_event event{};
+            event.events = EPOLLIN | EPOLLOUT | EPOLLET;
+            event.data.fd = cgiFd;
+            if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, cgiFd, &event) == -1) {
+                ERROR("Failed to add CGI fd to epoll: " << cgiFd);
+            } else {
+                DEBUG("Added CGI fd to epoll: " << cgiFd);
+            }
+        }
+        
+        DEBUG("Started CGI for client: " << fd);
+        return true;
+    } else {
+        delete cgi;
+        ERROR("Failed to start CGI for client: " << fd);
+        return false;
+    }
 }
 
 /// @brief Set up the server socket
@@ -220,22 +342,17 @@ ServerConfig &Server::_loadRequestConfig(Request &request) {
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
 void Server::_handleClientInput(int fd, Client &client) {
-	if (!client.read(fd)) {
-		_removeClient(fd);
-		return ;
-	}
+    if (!client.read(fd)) {
+        _removeClient(fd);
+        return;
+    }
 
-	if (client.requestIsComplete()) {
-		if (!_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
-			ERROR("Failed to modify epoll event for client: " << fd);
-			_removeClient(fd);
-			return ;
-		}
-		_prepareRequestProcessing(client);
-		client.processRequest(_loadRequestConfig(client.request));
-	}
+    if (client.requestIsComplete()) {
+        DEBUG("Request complete, starting async processing for fd: " << fd);
+        // Process the request asynchronously
+        _processRequestAsync(fd, client);
+    }
 }
-
 /// @brief Handle client output by sending the response back to the client.
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
@@ -282,21 +399,380 @@ void Server::_handleClientIo(int fd, short revents) {
 	}
 }
 
+/// @brief Handle CGI file descriptor events
+/// @param fd The CGI file descriptor
+/// @param revents The epoll events
+void Server::_handleCGIIo(int fd, short revents) {
+    DEBUG("CGI I/O event on fd: " << fd << " events: " << revents);
+    DEBUG_IF(revents & EPOLLIN, "CGI EPOLLIN event on fd: " << fd);
+    DEBUG_IF(revents & EPOLLOUT, "CGI EPOLLOUT event on fd: " << fd);
+    DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "CGI EPOLLERR or EPOLLHUP event on fd: " << fd);
+    
+    // Since CGI file descriptors are non-blocking and managed by the CGI class,
+    // we don't need to do much here. The updateCGIProcesses() method will
+    // handle the actual reading/writing when it's called in the main loop.
+    
+    // However, if there's an error or hangup, we should log it
+    if (revents & EPOLLERR) {
+        ERROR("CGI file descriptor error on fd: " << fd);
+    }
+    
+    if (revents & EPOLLHUP) {
+        DEBUG("CGI file descriptor hangup on fd: " << fd << " (this might be normal)");
+    }
+    
+    // The actual CGI I/O processing happens in _updateCGIProcesses()
+    // which is called in the main event loop
+}
+
+// /// @brief Determine if a request should use CGI based on the location rule
+// /// @param request The client request
+// /// @param route The location rule
+// /// @return True if CGI should be used
+// bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
+//     DEBUG("Checking if request should use CGI: " << request.metadata.getPath());
+    
+//     if (!route.cgi_paths.isSet()) {
+//         DEBUG("CGI paths not set for route");
+//         return false;
+//     }
+    
+//     // Check if the file extension matches a CGI interpreter
+//     std::string path = request.metadata.getPath();
+//     std::string extension = Utils::getFileExtension(path);
+//     DEBUG("File extension: " << extension);
+    
+//     if (!route.cgi_paths.exists(extension)) {
+//         DEBUG("No CGI interpreter found for extension: " << extension);
+//         return false;
+//     }
+    
+//     // Verify the file exists and is executable
+//     Path requestPath = Path::createFromUrl(request.metadata.getPath(), route);
+//     if (!requestPath.isValid()) {
+//         DEBUG("Invalid request path for CGI: " << requestPath.str());
+//         return false;
+//     }
+    
+//     struct stat statBuf;
+//     if (stat(requestPath.str().c_str(), &statBuf) != 0) {
+//         DEBUG("CGI: Script not found: " << requestPath.str());
+//         return false;
+//     }
+    
+//     // Check if it's a regular file (not a directory)
+//     if (!S_ISREG(statBuf.st_mode)) {
+//         DEBUG("CGI: Path is not a regular file: " << requestPath.str());
+//         return false;
+//     }
+    
+//     // Check if it's executable
+//     if (!(statBuf.st_mode & S_IXUSR)) {
+//         DEBUG("CGI: Script not executable: " << requestPath.str());
+//         return false;
+//     }
+    
+//     DEBUG("CGI: Request SHOULD use CGI - " << path << " with extension " << extension);
+//     return true;
+// }
+
+/// @brief Process a client request asynchronously using the thread pool
+/// @param fd The client file descriptor
+/// @param client The client object
+void Server::_processRequestAsync(int fd, Client &client) {
+	(void)client;  // Suppress unused variable warning
+    // Capture necessary data for the lambda
+    auto processTask = [this, fd]() {
+        auto clientIt = this->_clients.find(fd);
+        if (clientIt == this->_clients.end()) {
+            return;
+        }
+        
+        Client& client = clientIt->second;
+        
+        this->_prepareRequestProcessing(client);
+        ServerConfig& config = this->_loadRequestConfig(client.request);
+        
+        // Find the matching route
+        const LocationRule* route = config.routes.find(client.request.metadata.getPath());
+        if (!route) {
+            client.response.setStatusCode(HttpStatusCode::NotFound);
+            if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                this->_removeClient(fd);
+            }
+            return;
+        }
+        
+        // Check if this request should be handled by CGI BEFORE processing the request
+        if (this->shouldUseCGI(client.request, *route)) {
+            DEBUG("Starting CGI execution for request: " << client.request.metadata.getPath());
+            // Start CGI execution
+            if (!this->_startCGIExecution(fd, client, *route, config)) {
+                ERROR("Failed to start CGI execution");
+                client.response.setStatusCode(HttpStatusCode::InternalServerError);
+                if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                    this->_removeClient(fd);
+                }
+            }
+            // CGI is now running, response will be handled when CGI completes
+            // Don't call processRequest() for CGI requests
+            return;
+        }
+        
+        // Handle normal request processing (non-CGI)
+        DEBUG("Processing non-CGI request: " << client.request.metadata.getPath());
+        client.processRequest(config);
+        if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+            ERROR("Failed to modify epoll event for client: " << fd);
+            this->_removeClient(fd);
+            return;
+        }
+    };
+    
+    // Enqueue the task to the thread pool
+    _threadPool->enqueue(processTask);
+}
+
+// /// @brief Determine if a request should use CGI based on the location rule
+// /// @param request The client request
+// /// @param route The location rule
+// /// @return True if CGI should be used
+// bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
+//     DEBUG("Checking if request should use CGI: " << request.metadata.getPath());
+    
+//     if (!route.cgi_paths.isSet()) {
+//         DEBUG("CGI paths not set for route");
+//         return false;
+//     }
+    
+//     // Check if the file extension matches a CGI interpreter
+//     std::string path = request.metadata.getPath();
+//     std::string extension = Utils::getFileExtension(path);
+//     DEBUG("File extension: " << extension);
+    
+//     if (!route.cgi_paths.exists(extension)) {
+//         DEBUG("No CGI interpreter found for extension: " << extension);
+//         return false;
+//     }
+    
+//     DEBUG("Found CGI interpreter for extension: " << extension << " -> " << route.cgi_paths.getPath(extension));
+    
+//     // Verify the file exists and is executable
+//     Path requestPath = Path::createFromUrl(request.metadata.getPath(), route);
+//     if (!requestPath.isValid()) {
+//         DEBUG("Invalid request path for CGI: " << requestPath.str());
+//         return false;
+//     }
+    
+//     DEBUG("CGI script path: " << requestPath.str());
+    
+//     struct stat statBuf;
+//     if (stat(requestPath.str().c_str(), &statBuf) != 0) {
+//         DEBUG("CGI: Script not found: " << requestPath.str());
+//         return false;
+//     }
+    
+//     // Check if it's a regular file (not a directory)
+//     if (!S_ISREG(statBuf.st_mode)) {
+//         DEBUG("CGI: Path is not a regular file: " << requestPath.str());
+//         return false;
+//     }
+    
+//     // Check if it's executable
+//     if (!(statBuf.st_mode & S_IXUSR)) {
+//         DEBUG("CGI: Script not executable: " << requestPath.str());
+//         return false;
+//     }
+    
+//     DEBUG("CGI: Request SHOULD use CGI - " << path << " with extension " << extension);
+//     return true;
+// }
+
+
+
+/// @brief Determine if a request should use CGI based on the location rule
+/// @param request The client request
+/// @param route The location rule
+/// @return True if CGI should be used
+bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
+    DEBUG("Checking if request should use CGI: " << request.metadata.getPath());
+    
+    if (!route.cgi_paths.isSet()) {
+        DEBUG("CGI paths not set for route");
+        return false;
+    }
+    
+    // Check if the file extension matches a CGI interpreter
+    std::string path = request.metadata.getPath();
+    std::string extension = Utils::getFileExtension(path);
+    DEBUG("File extension: " << extension);
+    
+    if (!route.cgi_paths.exists(extension)) {
+        DEBUG("No CGI interpreter found for extension: " << extension);
+        return false;
+    }
+    
+    DEBUG("Found CGI interpreter for extension: " << extension << " -> " << route.cgi_paths.getPath(extension));
+    
+    // Verify the file exists and is executable
+    Path requestPath = Path::createFromUrl(request.metadata.getPath(), route);
+    if (!requestPath.isValid()) {
+        DEBUG("Invalid request path for CGI: " << requestPath.str());
+        return false;
+    }
+    
+    DEBUG("CGI script path: " << requestPath.str());
+    
+    struct stat statBuf;
+    if (stat(requestPath.str().c_str(), &statBuf) != 0) {
+        DEBUG("CGI: Script not found: " << requestPath.str());
+        return false;
+    }
+    
+    // Check if it's a regular file (not a directory)
+    if (!S_ISREG(statBuf.st_mode)) {
+        DEBUG("CGI: Path is not a regular file: " << requestPath.str());
+        return false;
+    }
+    
+    // Check if it's executable
+    if (!(statBuf.st_mode & S_IXUSR)) {
+        DEBUG("CGI: Script not executable: " << requestPath.str());
+        return false;
+    }
+    
+    DEBUG("CGI: Request SHOULD use CGI - " << path << " with extension " << extension);
+    return true;
+}
+
+
+/// @brief Update all active CGI processes and handle completed ones
+void Server::_updateCGIProcesses() {
+    std::vector<int> toRemove;
+    
+    // DEBUG("Updating " << _activeCGIs.size() << " active CGI processes");
+    
+    for (auto& pair : _activeCGIs) {
+        int clientFd = pair.first;
+        CGI* cgi = pair.second;
+        
+        // DEBUG("Checking CGI status for client: " << clientFd);
+        CGI::Status status = cgi->updateExecution();
+        
+        switch (status) {
+            case CGI::Status::FINISHED: {
+                DEBUG("CGI finished for client: " << clientFd);
+                auto clientIt = _clients.find(clientFd);
+                if (clientIt != _clients.end()) {
+                    Client& client = clientIt->second;
+                    
+                    if (cgi->getResponse(client.response)) {
+                        DEBUG("CGI completed successfully for client: " << clientFd);
+                        DEBUG("CGI response status: " << static_cast<int>(client.response.getStatusCode()));
+                        DEBUG("CGI response body length: " << client.response.getBody().length());
+                        
+                        // Switch client to output mode
+                        if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                            ERROR("Failed to modify epoll event for client: " << clientFd);
+                            _removeClient(clientFd);
+                        }
+                    } else {
+                        ERROR("Failed to get CGI response for client: " << clientFd);
+                        client.response.setStatusCode(HttpStatusCode::InternalServerError);
+                        if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                            _removeClient(clientFd);
+                        }
+                    }
+                } else {
+                    ERROR("Client not found for finished CGI: " << clientFd);
+                }
+                toRemove.push_back(clientFd);
+                break;
+            }
+            case CGI::Status::ERROR: {
+                ERROR("CGI error for client: " << clientFd);
+                auto clientIt = _clients.find(clientFd);
+                if (clientIt != _clients.end()) {
+                    Client& client = clientIt->second;
+                    client.response.setStatusCode(HttpStatusCode::InternalServerError);
+                    client.response.setBody("<html><body><h1>500 Internal Server Error</h1><p>CGI script execution failed.</p></body></html>");
+                    client.response.headers.replace(HeaderKey::ContentType, "text/html");
+                    if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                        _removeClient(clientFd);
+                    }
+                }
+                toRemove.push_back(clientFd);
+                break;
+            }
+            case CGI::Status::TIMEOUT: {
+                ERROR("CGI timeout for client: " << clientFd);
+                auto clientIt = _clients.find(clientFd);
+                if (clientIt != _clients.end()) {
+                    Client& client = clientIt->second;
+                    client.response.setStatusCode(HttpStatusCode::RequestTimeout);
+                    client.response.setBody("<html><body><h1>408 Request Timeout</h1><p>CGI script execution timed out.</p></body></html>");
+                    client.response.headers.replace(HeaderKey::ContentType, "text/html");
+                    if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                        _removeClient(clientFd);
+                    }
+                }
+                toRemove.push_back(clientFd);
+                break;
+            }
+            case CGI::Status::RUNNING:
+                // Continue running
+                // DEBUG("CGI still running for client: " << clientFd);
+                break;
+        }
+    }
+    
+    // Clean up finished CGIs
+    for (int clientFd : toRemove) {
+        DEBUG("Cleaning up CGI for client: " << clientFd);
+        auto cgiIt = _activeCGIs.find(clientFd);
+        if (cgiIt != _activeCGIs.end()) {
+            // Remove CGI file descriptors from epoll
+            std::vector<int> cgiFds = cgiIt->second->getFileDescriptors();
+            for (int cgiFd : cgiFds) {
+                _epollExecute(cgiFd, EPOLL_CTL_DEL, 0);
+                DEBUG("Removed CGI fd from epoll: " << cgiFd);
+            }
+            
+            delete cgiIt->second;
+            _activeCGIs.erase(cgiIt);
+            DEBUG("CGI cleanup completed for client: " << clientFd);
+        }
+    }
+    
+    if (!toRemove.empty()) {
+        DEBUG("Cleaned up " << toRemove.size() << " CGI processes");
+    }
+}
+
 /// @brief Entry point for the server, running it's event loop once.
 void Server::runOnce() {
-	epoll_event events[64];
+    epoll_event events[64];
 
-	int event_count = epoll_wait(_epoll_fd, events, 64, 0);
-	if (event_count == -1)
-		throw ServerCreationException("Failed to wait for epoll events");
-	for (int i = 0; i < event_count; ++i) {
-		if (events[i].data.fd == _server_fd) {
-			_handleNewConnection();
-		}
-		else {
-			_handleClientIo(events[i].data.fd, events[i].events);
-		}
-	}
+    int event_count = epoll_wait(_epoll_fd, events, 64, 0);
+    if (event_count == -1)
+        throw ServerCreationException("Failed to wait for epoll events");
+        
+    for (int i = 0; i < event_count; ++i) {
+        int fd = events[i].data.fd;
+        
+        if (fd == _server_fd) {
+            _handleNewConnection();
+        } else if (_clients.find(fd) != _clients.end()) {
+            // Client socket event
+            _handleClientIo(fd, events[i].events);
+        } else {
+            // Might be a CGI file descriptor
+            _handleCGIIo(fd, events[i].events);
+        }
+    }
 
-	_sessionManager.cleanUpExpiredSessions();
+    // Update CGI processes (this handles the actual CGI I/O)
+    _updateCGIProcesses();
+    
+    _sessionManager.cleanUpExpiredSessions();
 }
