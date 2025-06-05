@@ -673,11 +673,16 @@ void Server::_updateCGIProcesses() {
     // DEBUG("Updating " << _activeCGIs.size() << " active CGI processes");
     
     for (auto& pair : _activeCGIs) {
-        int clientFd = pair.first;
-        CGI* cgi = pair.second;
-        
-        // DEBUG("Checking CGI status for client: " << clientFd);
-        CGI::Status status = cgi->updateExecution();
+ int clientFd = pair.first;
+    CGI* cgi = pair.second;
+
+    if (!cgi) {
+        std::cerr << "[ERROR] Null CGI pointer for client " << clientFd << std::endl;
+        toRemove.push_back(clientFd);
+        continue;
+    }
+
+    CGI::Status status = cgi->updateExecution();
         
         switch (status) {
             case CGI::Status::FINISHED: {
