@@ -1,7 +1,8 @@
 NAME := webserv
 DBNAME := $(NAME)_db
 
-CXX := c++
+# CXX := c++
+CXX := clang++-12  # or g++-12
 DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
@@ -49,6 +50,8 @@ DEPS := $(OBJS:%.o=%.d)
 DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
 
 all: $(NAME)
+	@$(CXX) --version
+
 
 $(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)
@@ -79,6 +82,8 @@ debug: $(DBNAME)
 $(DBNAME): $(DBOBJS)
 	$(CXX) $(CXXDBFLAGS) -o $(DBNAME) $(DBOBJS)
 	@echo "\033[1;32m./$(DBNAME) created!\033[0m"
+	@$(CXX) --version
+
 
 
 $(DBDIR)%.o: %.cpp
