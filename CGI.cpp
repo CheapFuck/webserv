@@ -130,15 +130,20 @@ bool CGI::startExecution(const Request& request, const LocationRule& route, cons
         }
         
         // Set up environment
+        std::vector<std::string> envStrings;
         std::vector<char*> envp;
-        for (std::map<std::string, std::string>::const_iterator it = _env.begin(); 
-             it != _env.end(); ++it) {
-            std::string envVar = it->first + "=" + it->second;
-            char* envStr = new char[envVar.length() + 1];
-            strcpy(envStr, envVar.c_str());
-            envp.push_back(envStr);
+
+        for (const auto& pair : _env) {
+            envStrings.push_back(pair.first + "=" + pair.second);
         }
-        envp.push_back(NULL);
+        for (size_t i = 0; i < envStrings.size(); ++i) {
+            envp.push_back(const_cast<char*>(envStrings[i].c_str()));
+        }
+        envp.push_back(nullptr);
+
+        // Use envp for execve or similar
+        // No manual delete needed for envStrings, since std::string manages memory.
+
         
         // Prepare arguments
         std::vector<char*> argv;
