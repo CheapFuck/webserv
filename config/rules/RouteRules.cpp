@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-RouteRules::RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required) : _routes({}) {
-	(void)defaultLocation;
+RouteRules::RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required) {
+	_defaultLocation = defaultLocation;
 
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing location rule");
@@ -43,7 +43,9 @@ const LocationRule *RouteRules::find(const std::string &url) const {
 		}
 	}
 
-	return result.first;
+	if (!result.first)
+		return (&_defaultLocation);
+	return (result.first);
 }
 
 std::ostream& operator<<(std::ostream& os, const RouteRules& rules) {

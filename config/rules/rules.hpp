@@ -228,10 +228,15 @@ public:
 class RouteRules {
 private:
 	std::vector<LocationRule> _routes;
+	LocationRule _defaultLocation;
 
 public:
 	RouteRules() = default;
 	RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required = false);
+	RouteRules(const RouteRules &other) = default;
+	RouteRules &operator=(const RouteRules &other) = default;
+	~RouteRules() = default;
+
 	const std::vector<LocationRule> &getRoutes() const;
 	const LocationRule *find(const std::string &url) const;
 };
