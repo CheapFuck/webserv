@@ -2,7 +2,7 @@ NAME := webserv
 DBNAME := $(NAME)_db
 
 # CXX := c++
-CXX := clang++-12  # or g++-12
+CXX := c++ # or g++-12
 DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
@@ -17,6 +17,7 @@ SRCS := main.cpp \
 	response.cpp \
 	methods.cpp \
 	requestline.cpp \
+	sessionManager.cpp \
 	get.cpp \
 	post.cpp \
 	delete.cpp \
@@ -52,9 +53,8 @@ DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
 all: $(NAME)
 	@$(CXX) --version
 
-
 $(NAME): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS) -lz
 	@echo "\033[1;32m./$(NAME) created!\033[0m"
 
 $(DIR)%.o: %.cpp
@@ -80,11 +80,9 @@ rerun: fclean run
 debug: $(DBNAME)
 
 $(DBNAME): $(DBOBJS)
-	$(CXX) $(CXXDBFLAGS) -o $(DBNAME) $(DBOBJS)
+	$(CXX) $(CXXDBFLAGS) -o $(DBNAME) $(DBOBJS) -lz
 	@echo "\033[1;32m./$(DBNAME) created!\033[0m"
 	@$(CXX) --version
-
-
 
 $(DBDIR)%.o: %.cpp
 	@mkdir -p $(dir $@)
