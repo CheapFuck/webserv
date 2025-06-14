@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include "config/rules/rules.hpp"
+#include "sessionManager.hpp"
 #include "session.hpp"
 #include "client.hpp"
 #include "CGI.hpp"

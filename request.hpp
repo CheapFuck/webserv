@@ -26,7 +26,7 @@ private:
 public:
     RequestLine metadata;
     Headers headers;
-    UserSession *session;
+    std::shared_ptr<UserSession> session;
 
     Request() = default;
     Request(const Request &other);

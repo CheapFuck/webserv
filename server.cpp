@@ -48,7 +48,7 @@ public:
 
 Server::Server(const std::vector<ServerConfig> &configs) :
     _configs(configs),
-    _sessionManager(),
+    _sessionManager("sessions" + std::to_string(configs[0].port.get())),
     _server_fd(-1),
     _epoll_fd(-1),
     _clients(),
@@ -57,7 +57,6 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 
     this->_setupSocket();
     this->_setupEpoll();
-    _sessionManager.loadFromPort(_configs[0].port.get());
     PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
 }
 
@@ -102,7 +101,7 @@ void Server::cleanUp() {
         close(_server_fd);
     if (_epoll_fd != -1)
         close(_epoll_fd);
-    _sessionManager.fullCleanup(_configs[0].port.get());
+    _sessionManager.shutdown();
 }
 
 
@@ -328,7 +327,7 @@ void Server::_prepareRequestProcessing(Client &client) {
         client.request.session->setData("Some testvalue", client.request.session->getSessionId());
     } else {
         // If the session cookie is found, try to get or create the session
-        client.request.session = _sessionManager.getOrCreateSession(sessionCookie->getValue());
+        client.request.session = _sessionManager.getOrCreateNewSession(sessionCookie->getValue());
     }
 
     // Ensure that we have a valid session object before proceeding
@@ -388,6 +387,10 @@ void Server::_handleClientOutput(int fd, Client &client) {
 		_removeClient(fd);
 		return ;
 	}
+
+    if (client.request.session) {
+        _sessionManager.storeSession(*client.request.session);
+    }
 
 	client.reset();
 }
@@ -673,16 +676,16 @@ void Server::_updateCGIProcesses() {
     // DEBUG("Updating " << _activeCGIs.size() << " active CGI processes");
     
     for (auto& pair : _activeCGIs) {
- int clientFd = pair.first;
-    CGI* cgi = pair.second;
+        int clientFd = pair.first;
+        CGI* cgi = pair.second;
 
-    if (!cgi) {
-        std::cerr << "[ERROR] Null CGI pointer for client " << clientFd << std::endl;
-        toRemove.push_back(clientFd);
-        continue;
-    }
+        if (!cgi) {
+            std::cerr << "[ERROR] Null CGI pointer for client " << clientFd << std::endl;
+            toRemove.push_back(clientFd);
+            continue;
+        }
 
-    CGI::Status status = cgi->updateExecution();
+        CGI::Status status = cgi->updateExecution();
         
         switch (status) {
             case CGI::Status::FINISHED: {

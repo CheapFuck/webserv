@@ -36,7 +36,7 @@ std::string Cookie::getHeaderInitializationString() const {
 /// @return A vector of Cookie objects parsed from the header value.
 std::vector<Cookie> Cookie::createAllFromHeader(const std::string &header_value) {
 	std::vector<Cookie> cookies;
-	
+
 	std::vector<std::string> split = Utils::split(header_value, ';');
 	for (const std::string &cookie_str : split) {
 		size_t eq_pos = cookie_str.find('=');
@@ -58,7 +58,7 @@ Cookie Cookie::createSessionCookie(const std::string &sessionId) {
 	Cookie cookie;
 	cookie.setName(SESSION_COOKIE_NAME)
 		  .setValue(sessionId)
-		  .setMaxAge(SESSION_COOKIE_MAX_AGE);
+		  .setMaxAge(SESSION_MAX_STORAGE_AGE);
 	return (cookie);
 }
 
