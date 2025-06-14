@@ -31,6 +31,7 @@ SRCS := main.cpp \
 	config/consts.cpp \
 	config/custom_types/size.cpp \
 	config/custom_types/path.cpp \
+	config/rules/rules.cpp \
 	config/rules/MaxBodySize.cpp \
 	config/rules/ServerName.cpp \
 	config/rules/Port.cpp \
