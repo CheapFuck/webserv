@@ -10,8 +10,8 @@
 #include <map>
 
 #define SESSION_ID_LENGTH 32
-#define SESSION_MAX_CACHE_AGE 60 // 5 minutes
-#define SESSION_MAX_STORAGE_AGE 120 // 7 days
+#define SESSION_MAX_CACHE_AGE 300 // 5 minutes
+#define SESSION_MAX_STORAGE_AGE 604800 // 7 days
 #define SESSION_CLEANUP_INTERVAL 10 // seconds
 #define SESSION_COOKIE_NAME "webservSessionId"
 

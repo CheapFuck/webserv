@@ -194,7 +194,7 @@ void UserSessionManager::cleanUpExpiredSessions() {
             _deleteSession(it);
 			it = _currentSessions.erase(it);
         } 
-		else if (it->second.lastAccessTime + SESSION_MAX_CACHE_AGE < currentTime) {
+		else if (it->second.lastAccessTime + SESSION_MAX_CACHE_AGE < currentTime && it->second.sessionPtr) {
 			DEBUG("Session " << it->first << " is still valid but will be cleaned up from cache");
 			DEBUG("Session last access time: " << it->second.lastAccessTime << ", current time: " << currentTime);
 			DEBUG((it->second.lastAccessTime + SESSION_MAX_CACHE_AGE) << " < " << currentTime);
