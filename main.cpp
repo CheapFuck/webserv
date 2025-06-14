@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <vector>
 #include <map>
+#include <unistd.h>
 
 #include "print.hpp"
 #include "server.hpp"
@@ -63,16 +64,11 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
         }
     }
 
-    while (!servers.empty() && !g_quit) {
-        for (size_t i = 0; i < servers.size(); ++i) {
-            try {
-                servers[i].runOnce();
-            } catch (const std::exception& e) {
-                ERROR("Error running server: " << e.what());
-                servers.erase(servers.begin() + i);
-                break;
-            }
-        }
+    while (!g_quit) {
+        for (Server& server : servers)
+            server.runOnce();
+        // Optionally sleep for a short time to avoid busy-waiting
+        usleep(1000); // 1ms
     }
 
     handleServersCleanup(servers);
