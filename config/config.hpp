@@ -15,9 +15,7 @@ private:
 	std::string _message;
 };
 
-struct Rule;
-
-typedef std::vector<Rule> Object;
+struct	Rule;
 
 enum TokenType {
 	UNKNOWN_TOKEN = 0,
@@ -52,6 +50,9 @@ enum Key {
 	UPLOAD_DIR = 1 << 11,
 	CGI_PASS = 1 << 12,
 };
+
+typedef std::map<Key, std::vector<Rule>> Object;
+typedef std::vector<Rule> Rules;
 
 enum ArgumentType {
 	STRING = 1 << 0,

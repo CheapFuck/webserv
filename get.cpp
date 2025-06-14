@@ -56,7 +56,7 @@ static Response &handleDirectoryRequest(
         DEBUG("No index file found in directory: " << filepath.str());
     }
 
-    if (route.autoindex.get())
+    if (route.autoIndex.get())
         return (_handleDirectoryListing(request, response, filepath));
     DEBUG("Autoindex not enabled for directory: " << filepath.str());
     response.setStatusCode(HttpStatusCode::Forbidden);

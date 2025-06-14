@@ -1,36 +1,52 @@
+#include "../../print.hpp"
 #include "rules.hpp"
-#include <iostream>
 
-ServerConfig::ServerConfig(Object &object)
-	: port(PortRule(object, true)),
-	  server_name(ServerNameRule(object, true)),
-	  client_max_body_size(MaxBodySizeRule(object, true)),
-	  error_pages(ErrorPageRule(object, false)),
-	  routes(RouteRules(object, true)) {}
+#include <functional>
+#include <iostream>
+#include <map>
+
+ServerConfig::ServerConfig(Object &object) {
+	defaultLocation = LocationRule("", object, false);
+
+	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
+		{LISTEN, [this](const Rules &rules) { port = PortRule(rules, true); }},
+		{SERVER_NAME, [this](const Rules &rules) { serverName = ServerNameRule(rules, false); }},
+		{MAX_BODY_SIZE, [this](const Rules &rules) { clientMaxBodySize = MaxBodySizeRule(rules, true); }},
+		{ERROR_PAGE, [this](const Rules &rules) { errorPages = ErrorPageRule(rules, false); }},
+		{LOCATION, [this](Rules &rules) { routes = RouteRules(rules, defaultLocation, false); }}
+	};
+
+	extractRules(object, ruleParsers, true);
+	DEBUG(*this);
+}
 
 /// @brief Fetches server configurations from the given object.
 /// @param object The root object returned by the lexer
 /// @return A vector of ServerConfig objects
 std::vector<ServerConfig> fetchServerConfigs(Object &object) {
-	std::vector<ServerConfig> server_configs;
-	server_configs.reserve(object.size());
+	std::vector<ServerConfig> serverConfigs;
 
-	for (size_t i = 0; i < object.size(); ++i) {
-		if (object[i].key != SERVER ||
-			object[i].arguments.size() != 1 ||
-			object[i].arguments[0].type != OBJECT)
-			throw ConfigParsingException("Invalid server configuration");
-		server_configs.push_back(ServerConfig(object[i].arguments[0].rules));
-	}
-	return server_configs;
+	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
+		{SERVER, [&serverConfigs](Rules &rules) { 
+			for (Rule & rule : rules) {
+				if (rule.arguments.size() != 1 || rule.arguments[0].type != OBJECT)
+					throw ConfigParsingException("Invalid server rule");
+				serverConfigs.push_back(ServerConfig(rule.arguments[0].rules));
+			}
+		 }},
+	};
+
+	extractRules(object, ruleParsers, true);
+	return (serverConfigs);
 }
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
 	os << config.port << std::endl;
-	os << config.server_name << std::endl;
-	os << config.client_max_body_size << std::endl;
-	os << config.error_pages << std::endl;
+	os << config.serverName << std::endl;
+	os << config.clientMaxBodySize << std::endl;
+	os << config.errorPages << std::endl;
 	os << config.routes << std::endl;
+	os << "Default Location: " << config.defaultLocation << std::endl;
 
 	return os;
 }

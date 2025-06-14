@@ -3,24 +3,21 @@
 #include <string.h>
 #include <iostream>
 
-ServerNameRule::ServerNameRule(const Object &obj, bool required) {
-	int count = 0;
+ServerNameRule::ServerNameRule(const Rules &rules, bool required) {
+	if (rules.empty() && required)
+		throw ConfigParsingException("Missing server name rule");
+	
+	if (rules.size() > 1)
+		throw ConfigParsingException("Multiple server name rules found");
 
-	for (const Rule &rule : obj) {
-		if (rule.key != SERVER_NAME) continue;
-
+	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
 			throw ConfigParsingException("Invalid server name rule");
 		if (rule.arguments[0].type != STRING)
 			throw ConfigParsingException("Invalid server name argument type");
-		if (++count > 1)
-			throw ConfigParsingException("Duplicate server name rule");
 
 		_server_name = std::string(rule.arguments[0].str);
 	}
-
-	if (count == 0 && required)
-		throw ConfigParsingException("Missing server name rule");
 }
 
 inline std::string ServerNameRule::get() const {

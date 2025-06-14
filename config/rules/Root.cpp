@@ -2,25 +2,22 @@
 
 #include <iostream>
 
-RootRule::RootRule(const Object &obj, bool required) : _is_set(false) {
-	int count = 0;
+RootRule::RootRule(const Rules &rules, bool required) : _is_set(false) {
+	if (rules.empty() && required)
+		throw ConfigParsingException("Missing root rule");
+	
+	if (rules.size() > 1)
+		throw ConfigParsingException("Multiple root rules found");
 
-	for (const Rule &rule : obj) {
-		if (rule.key != ROOT) continue;
-
+	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
 			throw ConfigParsingException("Invalid root rule");
 		if (rule.arguments[0].type != STRING)
 			throw ConfigParsingException("Invalid root argument type");
-		if (++count > 1)
-			throw ConfigParsingException("Duplicate root rule");
 
 		_root = Path(rule.arguments[0].str);
 		_is_set = true;
 	}
-
-	if (count == 0 && required)
-		throw ConfigParsingException("Missing root rule");
 }
 
 inline const Path &RootRule::get() const {

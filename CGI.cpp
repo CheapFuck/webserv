@@ -62,12 +62,12 @@ bool CGI::startExecution(const Request& request, const LocationRule& route, cons
     std::string extention = Utils::getFileExtension(requestPath.str());
     DEBUG("CGI: File extension: " << extention);
 
-    if (!route.cgi_paths.exists(extention)) {
+    if (!route.cgiPaths.exists(extention)) {
         DEBUG("CGI: No CGI interpreter found for extension: " << extention);
         return false;
     }
 
-    _interpreter = route.cgi_paths.getPath(extention);
+    _interpreter = route.cgiPaths.getPath(extention);
     DEBUG("CGI: Using interpreter: " << _interpreter);
 
     struct stat interpreterStat;
@@ -335,7 +335,7 @@ void CGI::setupEnvironment(const Request& request, const LocationRule& route, co
     _env["PATH_INFO"] = request.metadata.getPath();
     _env["PATH_TRANSLATED"] = interpreterPathObj.str().c_str();
     _env["REQUEST_URI"] = request.metadata.getPath();
-    _env["SERVER_NAME"] = server.server_name.get().empty() ? "Whatever" : server.server_name.get();
+    _env["SERVER_NAME"] = server.serverName.get().empty() ? "Whatever" : server.serverName.get();
     _env["SERVER_PORT"] = Utils::intToString(server.port.get());
     _env["SERVER_PROTOCOL"] = Response::protocol;
     _env["SERVER_SOFTWARE"] = "webserv/1.0";

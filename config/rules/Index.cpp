@@ -2,14 +2,14 @@
 
 #include <iostream>
 
-IndexRule::IndexRule(const Object &obj, bool required) {
-	int rule_count = 0;
+IndexRule::IndexRule(const Rules &rules, bool required) {
+	if (rules.empty() && required)
+		throw ConfigParsingException("Missing index rule");
+	
+	if (rules.size() > 1)
+		throw ConfigParsingException("Multiple index rules found");
 
-	for (const Rule &rule : obj) {
-		if (rule.key != INDEX) continue;
-		if (++rule_count > 1)
-			throw ConfigParsingException("Duplicate index rule");
-
+	for (const Rule &rule : rules) {
 		if (rule.arguments.size() < 1)
 			throw ConfigParsingException("Invalid index rule");
 
@@ -19,9 +19,6 @@ IndexRule::IndexRule(const Object &obj, bool required) {
 			_index_pages.push_back(std::string(arg.str));
 		}
 	}
-
-	if (_index_pages.empty() && required)
-		throw ConfigParsingException("Missing index rule");
 }
 
 IndexRule::IndexRule(const IndexRule &other) : _index_pages(other._index_pages) {}

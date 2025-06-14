@@ -71,7 +71,7 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     const LocationRule *route = config.routes.find(request.metadata.getPath());
-    if (route == nullptr || request.headers.getHeader(HeaderKey::Host) != config.server_name.get()) {
+    if (route == nullptr || request.headers.getHeader(HeaderKey::Host) != config.serverName.get()) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
     }
@@ -85,8 +85,8 @@ RequestLine copy = request.metadata;
         return (response);
     }
 
-    if (request.getContentLength() > config.client_max_body_size.get()
-        || request.getBody().length() > config.client_max_body_size.get()) {
+    if (request.getContentLength() > config.clientMaxBodySize.get()
+        || request.getBody().length() > config.clientMaxBodySize.get()) {
         response.setStatusCode(HttpStatusCode::PayloadTooLarge);
         DEBUG("Request body exceeds maximum size");
         return response;

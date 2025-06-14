@@ -57,7 +57,7 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 
     this->_setupSocket();
     this->_setupEpoll();
-    PRINT("Server " << _configs[0].server_name.get() << " is running on port " << _configs[0].port.get());
+    PRINT("Server " << _configs[0].serverName.get() << " is running on port " << _configs[0].port.get());
 }
 
 Server::Server(const Server &other) :
@@ -348,12 +348,12 @@ void Server::_prepareRequestProcessing(Client &client) {
 /// or the first config if no direct match was found
 ServerConfig &Server::_loadRequestConfig(Request &request) {
 	for (ServerConfig &config : _configs) {
-		if (config.server_name.get() == request.headers.getHeader(HeaderKey::Host, "")) {
-			DEBUG("Found matching server for request: " << config.server_name.get());
+		if (config.serverName.get() == request.headers.getHeader(HeaderKey::Host, "")) {
+			DEBUG("Found matching server for request: " << config.serverName.get());
 			return (config);
 		}
 	}
-	DEBUG("No matching server found for request, using default: " << _configs[0].server_name.get());
+	DEBUG("No matching server found for request, using default: " << _configs[0].serverName.get());
 	return _configs[0];
 }
 
@@ -620,7 +620,7 @@ void Server::_processRequestAsync(int fd, Client &client) {
 bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
     DEBUG("Checking if request should use CGI: " << request.metadata.getPath());
     
-    if (!route.cgi_paths.isSet()) {
+    if (!route.cgiPaths.isSet()) {
         DEBUG("CGI paths not set for route");
         return false;
     }
@@ -630,12 +630,12 @@ bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
     std::string extension = Utils::getFileExtension(path);
     DEBUG("File extension: " << extension);
     
-    if (!route.cgi_paths.exists(extension)) {
+    if (!route.cgiPaths.exists(extension)) {
         DEBUG("No CGI interpreter found for extension: " << extension);
         return false;
     }
     
-    DEBUG("Found CGI interpreter for extension: " << extension << " -> " << route.cgi_paths.getPath(extension));
+    DEBUG("Found CGI interpreter for extension: " << extension << " -> " << route.cgiPaths.getPath(extension));
     
     // Verify the file exists and is executable
     Path requestPath = Path::createFromUrl(request.metadata.getPath(), route);

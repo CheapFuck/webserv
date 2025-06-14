@@ -26,9 +26,13 @@ std::ostream& operator<<(std::ostream& os, const Rule& rule) {
 
 std::ostream& operator<<(std::ostream& os, const Object& object) {
 	os << "Object(rules: [";
-	for (size_t i = 0; i < object.size(); ++i) {
-		os << object[i];
-		if (i < object.size() - 1) os << ", ";
+	for (const auto &[key, rules] : object) {
+		os << "Key: " << key << ", Rules: [";
+		for (const auto &rule : rules) {
+			os << rule;
+		}
+		os << "]}";
+		if (std::next(object.find(key)) != object.end()) os << ", ";
 	}
 	os << "])";
 	return os;
@@ -60,8 +64,14 @@ static Key get_rule_key(const std::string &str) {
 static Object parse_object(std::vector<Token> &tokens, size_t &i, TokenType end_token) {
 	Object rules;
 
-	while (tokens[i].type != end_token)
-		rules.push_back(parse_rule(tokens, i));
+	while (tokens[i].type != end_token) {
+		Rule rule = parse_rule(tokens, i);
+		auto it = rules.find(rule.key);
+		if (it != rules.end())
+			it->second.push_back(rule);
+		else 
+			rules[rule.key] = {rule};
+	}
 
 	++i;
 	return rules;

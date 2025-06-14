@@ -4,12 +4,10 @@
 
 #include <iostream>
 
-MethodRule::MethodRule(const Object &obj, bool required) : _methods(UNKNOWN_METHOD) {
+MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD) {
 	bool found = false;
 
-	for (const Rule &rule : obj) {
-		if (rule.key != ALLOWED_METHODS) continue;
-
+	for (const Rule &rule : rules) {
 		if (rule.arguments.size() < 1)
 			throw ConfigParsingException("Invalid allowed methods rule");
 

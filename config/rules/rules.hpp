@@ -3,6 +3,8 @@
 #include "../config.hpp"
 #include "../consts.hpp"
 
+#include <unordered_map>
+#include <functional>
 #include <vector>
 #include <map>
 
@@ -28,8 +30,6 @@ class ServerConfig;
 class Size {
 private:
 	size_t _size;
-
-	void _loadSize(const std::string &str);
 
 public:
 	Size(const std::string &str);
@@ -71,7 +71,8 @@ private:
 	int _port;
 
 public:
-	PortRule(const Object &obj, bool required = true);
+	PortRule() = default;
+	PortRule(const Rules &rules, bool required = true);
 	int get() const;
 };
 
@@ -80,7 +81,8 @@ private:
 	std::string _server_name;
 
 public:
-	ServerNameRule(const Object &obj, bool required = false);
+	ServerNameRule() = default;
+	ServerNameRule(const Rules &rules, bool required = false);
 	std::string get() const;
 };
 
@@ -89,21 +91,25 @@ private:
 	Size _size;
 
 public:
-	MaxBodySizeRule(const Object &obj, bool required = true);
+	MaxBodySizeRule() = default;
+	MaxBodySizeRule(const Rules &rules, bool required = true);
 	size_t get() const;
 };
 
 class CGIRule {
 private:
-	std::map<std::string, std::string> _cgi_paths;
+	std::map<std::string, std::string> _cgiPaths;
 
 public:
-	CGIRule(const Object &obj, bool required = false);
+	CGIRule() = default;
+	CGIRule(const Rules &rules, bool required = false);
 	const std::map<std::string, std::string> &getPaths() const;
 	const std::string &getPath(const std::string &ext) const;
 
 	bool isSet() const;
 	bool exists(const std::string &ext) const;
+
+	void updateFromDefault(const CGIRule &defaultRule);
 };
 
 class ErrorPageRule {
@@ -112,19 +118,26 @@ private:
 	Path _default_page;
 
 public:
-	ErrorPageRule(const Object &obj, bool required = false);
+	ErrorPageRule() = default;
+	ErrorPageRule(const Rules &rules, bool required = false);
 	const Path &getErrorPage(int code) const;
 	const std::map<int, Path> &getErrorPages() const;
+
+	void updateFromDefault(const ErrorPageRule &defaultRule);
 };
 
 class MethodRule {
 private:
 	Method _methods;
+	bool _is_set;
 
 public:
-	MethodRule(const Object &obj, bool required = false);
+	MethodRule() = default;
+	MethodRule(const Rules &rules, bool required = false);
 	bool isAllowed(Method method) const;
 	const Method &getMethods() const;
+
+	inline bool isSet() const { return _is_set; };
 };
 
 class RootRule {
@@ -133,7 +146,8 @@ private:
 	bool _is_set;
 
 public:
-	RootRule(const Object &obj, bool required = false);
+	RootRule() = default;
+	RootRule(const Rules &rules, bool required = false);
 	const Path &get() const;
 	bool isSet() const;
 };
@@ -143,7 +157,8 @@ private:
 	std::vector<std::string> _index_pages;
 
 public:
-	IndexRule(const Object &obj, bool required = false);
+	IndexRule() = default;
+	IndexRule(const Rules &rules, bool required = false);
 	IndexRule(const IndexRule &other);
 	IndexRule &operator=(const IndexRule &other);
 	const std::vector<std::string> &get() const;
@@ -156,7 +171,8 @@ private:
 	bool _is_set;
 
 public:
-	AutoIndexRule(const Object &obj, bool required = false);
+	AutoIndexRule() = default;
+	AutoIndexRule(const Rules &rules, bool required = false);
 	bool get() const;
 	bool isSet() const;
 };
@@ -167,7 +183,8 @@ private:
 	bool _is_set;
 
 public:
-	UploadDirRule(const Object &obj, bool required = false);
+	UploadDirRule() = default;
+	UploadDirRule(const Rules &rules, bool required = false);
 	const Path &get() const;
 	bool isSet() const;
 };
@@ -178,7 +195,8 @@ private:
 	bool _is_set;
 
 public:
-	RedirectRule(const Object &obj, bool required = false);
+	RedirectRule() = default;
+	RedirectRule(const Rules &rules, bool required = false);
 	const std::string &get() const;
 	bool isSet() const;
 };
@@ -191,12 +209,19 @@ public:
 	MethodRule methods;
 	RootRule root;
 	UploadDirRule upload_dir;
-	AutoIndexRule autoindex;
+	AutoIndexRule autoIndex;
 	IndexRule index;
 	RedirectRule redirect;
-	CGIRule cgi_paths;
+	ErrorPageRule errorPages;
+	CGIRule cgiPaths;
 
-	LocationRule(const std::string &path, const Object &obj);
+	LocationRule() = default;
+	LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty);
+	LocationRule(const LocationRule &other) = default;
+	LocationRule &operator=(const LocationRule &other) = default;
+	~LocationRule() = default;
+	
+	void adjustFromDefault(const LocationRule &defaultLocation);
 	const std::string &getPath() const;
 };
 
@@ -205,7 +230,8 @@ private:
 	std::vector<LocationRule> _routes;
 
 public:
-	RouteRules(const Object &obj, bool required = false);
+	RouteRules() = default;
+	RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required = false);
 	const std::vector<LocationRule> &getRoutes() const;
 	const LocationRule *find(const std::string &url) const;
 };
@@ -213,15 +239,18 @@ public:
 class ServerConfig {
 public:
 	PortRule port;
-	ServerNameRule server_name;
-	MaxBodySizeRule client_max_body_size;
-	ErrorPageRule error_pages;
+	ServerNameRule serverName;
+	MaxBodySizeRule clientMaxBodySize;
+	ErrorPageRule errorPages;
 	RouteRules routes;
+	LocationRule defaultLocation;
 
+	ServerConfig() = default;
 	ServerConfig(Object &object);
 };
 
 std::vector<ServerConfig> fetchServerConfigs(Object &object);
+void extractRules(Object &object, const std::unordered_map<Key, std::function<void(Rules &)>> &ruleParsers, bool throwOnNonEmptyReturn);
 
 std::ostream& operator<<(std::ostream& os, const PortRule& rule);
 std::ostream& operator<<(std::ostream& os, const ServerNameRule& rule);

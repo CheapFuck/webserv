@@ -72,7 +72,7 @@ void Response::setDefaultBody(ServerConfig& config) {
 		return ;
 
 	error_int = static_cast<int>(_statusCode);
-	error_templates = config.error_pages.getErrorPages();
+	error_templates = config.errorPages.getErrorPages();
 	if (error_templates.find(error_int) == error_templates.end())
     	setBody(getDefaultBodyForCode(_statusCode));
 	else if (tryCreateResponseFromFile(error_templates[error_int], *this) == false)
