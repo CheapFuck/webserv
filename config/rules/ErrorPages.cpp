@@ -8,7 +8,7 @@ ErrorPageRule::ErrorPageRule(const Rules &rules, bool required) :
 		throw ConfigParsingException("Missing error page rule");
 
 	for (const Rule &rule : rules) {
-		int rule_size = rule.arguments.size();
+		size_t rule_size = rule.arguments.size();
 
 		if (rule_size < 2)
 			throw ConfigParsingException("Invalid error page rule");

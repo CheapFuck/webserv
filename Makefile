@@ -2,11 +2,11 @@ NAME := webserv
 DBNAME := $(NAME)_db
 
 # CXX := c++
-CXX := c++ # or g++-12
+CXX := c++# or g++-12
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -Wall -Wextra -Werror -std=c++20 -MMD
-CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address -DDEBUG_MODE
+CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -Wshadow -std=c++20 -MMD
+CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS
 MAKEFLAGS += -j $(shell nproc)
 
 SRCS := main.cpp \

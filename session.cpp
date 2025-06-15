@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <cstring>
 #include <fstream>
 #include <random>
 #include <string>
@@ -126,14 +127,17 @@ std::shared_ptr<UserSession> UserSession::load(const std::string &sessionId, con
 
 	offset += sizeof(MAGIC);
 
-	uint32_t version = BUFFER_READ(buffer, offset, uint32_t);
+	uint32_t version;
+	BUFFER_READ(buffer, offset, uint32_t, version);
 	if (version != VERSION) {
 		ERROR("Unsupported session version: " << version << " in session data for " << sessionId);
 		return (nullptr);
 	}
 
-	size_t mapSize = BUFFER_READ(buffer, offset, size_t);
-	time_t lastAccessTime = BUFFER_READ(buffer, offset, time_t);
+	size_t mapSize;
+	BUFFER_READ(buffer, offset, size_t, mapSize);
+	time_t lastAccessTime;
+	BUFFER_READ(buffer, offset, time_t, lastAccessTime);
 
 	std::map<std::string, std::string> data;
 
@@ -143,8 +147,10 @@ std::shared_ptr<UserSession> UserSession::load(const std::string &sessionId, con
 			return (nullptr);
 		}
 
-		size_t keyLen = BUFFER_READ(buffer, offset, size_t);
-		size_t valueLen = BUFFER_READ(buffer, offset, size_t);
+		size_t keyLen;
+		BUFFER_READ(buffer, offset, size_t, keyLen);
+		size_t valueLen;
+		BUFFER_READ(buffer, offset, size_t, valueLen);
 		if (offset + keyLen + valueLen > buffer.size()) {
 			ERROR("Buffer overflow while reading session data for " << sessionId);
 			return (nullptr);

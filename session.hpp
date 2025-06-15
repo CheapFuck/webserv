@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,9 +18,11 @@
 
 #define BUFFER_INSERT(buffer, data) \
 	buffer.insert(buffer.end(), reinterpret_cast<const char *>(&data), reinterpret_cast<const char *>(&data) + sizeof(data))
-#define BUFFER_READ(buffer, offset, type) \
-	*reinterpret_cast<const type *>(buffer.data() + offset); \
-	offset += sizeof(type)
+#define BUFFER_READ(buffer, offset, type, out) \
+	do {                                         \
+		std::memcpy(&(out), buffer.data() + offset, sizeof(type)); \
+		offset += sizeof(type);                  \
+	} while (0)
 
 constexpr char MAGIC[] = "2r66XJwfcQSTkl";
 constexpr uint32_t VERSION = 1;

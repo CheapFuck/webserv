@@ -505,14 +505,7 @@ void Server::_handleCGIIo(int fd, short revents) {
 void Server::_processRequestAsync(int fd, Client &client) {
 	(void)client;  // Suppress unused variable warning
     // Capture necessary data for the lambda
-    auto processTask = [this, fd]() {
-        auto clientIt = this->_clients.find(fd);
-        if (clientIt == this->_clients.end()) {
-            return;
-        }
-        
-        Client& client = clientIt->second;
-        
+    auto processTask = [this, fd, &client]() {
         this->_prepareRequestProcessing(client);
         ServerConfig& config = this->_loadRequestConfig(client.request);
         
