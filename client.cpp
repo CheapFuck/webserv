@@ -71,14 +71,13 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     const LocationRule *route = config.routes.find(request.metadata.getPath());
-    if (route == nullptr || request.headers.getHeader(HeaderKey::Host) != config.serverName.get()) {
+    if (route == nullptr) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
     }
-RequestLine copy = request.metadata;
+
     DEBUG("Route found: " << *route);
-    // DEBUG("Url Path: " << request.metadata);
-    DEBUG("Url Path: " << copy);
+    DEBUG("Url Path: " << request.metadata);
 
     if (!route->methods.isAllowed(request.metadata.getMethod())) {
         response.setStatusCode(HttpStatusCode::MethodNotAllowed);
