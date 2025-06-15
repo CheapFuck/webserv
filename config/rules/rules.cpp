@@ -11,13 +11,11 @@
 /// @param throwOnNonEmptyReturn If true, throws an exception if there are any unexpected keys left in the object after parsing.
 /// @throws ConfigParsingException if an unexpected key is found in the object or if there are any remaining keys after parsing.
 void extractRules(Object &object, const std::unordered_map<Key, std::function<void(Rules &)>> &ruleParsers, bool throwOnNonEmptyReturn) {
-    for (auto &[key, rules] : object) {
-        auto it = ruleParsers.find(key);
-        if (it != ruleParsers.end()) {
-            it->second(rules);
-            object.erase(key);
-        } else if (throwOnNonEmptyReturn) {
-            throw ConfigParsingException("Unexpected key in configuration: " + std::to_string(key));
+    for (auto &[key, rules] : ruleParsers) {
+        auto it = object.find(key);
+        if (it != object.end()) {
+            rules(it->second);
+            object.erase(it);
         }
     }
 
