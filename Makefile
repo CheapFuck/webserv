@@ -19,13 +19,13 @@ SRCS := main.cpp \
 	requestline.cpp \
 	sessionManager.cpp \
 	get.cpp \
+	timer.cpp \
 	post.cpp \
 	delete.cpp \
 	CGI.cpp \
 	cookie.cpp \
 	session.cpp \
 	Utils.cpp \
-	thread-pool.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \
 	config/consts.cpp \

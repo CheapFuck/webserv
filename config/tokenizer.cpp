@@ -23,7 +23,7 @@ std::ostream& operator<<(std::ostream& os, const Token& token) {
 	return os;
 }
 
-TokenType get_token_type(const char *str, size_t &i, bool advance = true) {
+TokenType getTokenType(const char *str, size_t &i, bool advance = true) {
 	static const std::pair<const char *, TokenType> tokens[] = {
 		{"{",  BRACE_OPEN},
 		{"}", BRACE_CLOSE},
@@ -51,39 +51,40 @@ TokenType get_token_type(const char *str, size_t &i, bool advance = true) {
 	return STR;
 }
 
-Token whitespace_token(const char *str, size_t &i) {
-	while (get_token_type(str, i, false) == WHITESPACE) ++i;
-	return Token{WHITESPACE, ""};
+std::string getWhitespaceTokenValue(const char *str, size_t &i) {
+	while (getTokenType(str, i, false) == WHITESPACE) ++i;
+	return "";
 }
 
-Token comment_token(const char *str, size_t &i) {
+std::string getCommentTokenValue(const char *str, size_t &i) {
 	size_t start = i;
 	while (str[i] && str[i] != '\n') ++i;
-	return Token{COMMENT, std::string(str + start, (i++) - start)};
+	return (std::string(str + start, (i++) - start));
 }
 
-Token string_token(const char *str, size_t &i) {
+std::string getStringTokenValue(const char *str, size_t &i) {
 	size_t start = i - 1;
-	while (get_token_type(str, i, false) == STR) ++i;
-	return Token{STR, std::string(str + start, i - start)};
+	while (getTokenType(str, i, false) == STR) ++i;
+	return (std::string(str + start, i - start));
 }
 
 Token get_next_token(const char *str, size_t &i) {
-	TokenType type = get_token_type(str, i);
+	int filePos = i;
+	TokenType type = getTokenType(str, i);
 
 	switch (type) {
 		case WHITESPACE:
-			return whitespace_token(str, i);
+			return Token{type, getWhitespaceTokenValue(str, i), filePos};
 		case COMMENT:
-			return comment_token(str, i);
+			return Token{type, getCommentTokenValue(str, i), filePos};
 		case STR:
-			return string_token(str, i);
+			return Token{type, getStringTokenValue(str, i), filePos};
 		case BRACE_OPEN:
 		case BRACE_CLOSE:
 		case SEMICOLON:
 		case END:
 		default:
-			return Token{type, ""};
+			return Token{type, "", filePos};
 	}
 }
 

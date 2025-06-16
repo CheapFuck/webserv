@@ -98,7 +98,7 @@ public:
 
 class CGIRule {
 private:
-	std::map<std::string, std::string> _cgiPaths;
+	bool _is_set;
 
 public:
 	CGIRule();
@@ -106,10 +106,9 @@ public:
 	const std::map<std::string, std::string> &getPaths() const;
 	const std::string &getPath(const std::string &ext) const;
 
-	bool isSet() const;
-	bool exists(const std::string &ext) const;
-
-	void updateFromDefault(const CGIRule &defaultRule);
+	inline bool isSet() const {
+		return _is_set;
+	}
 };
 
 class ErrorPageRule {
@@ -213,14 +212,14 @@ public:
 	IndexRule index;
 	RedirectRule redirect;
 	ErrorPageRule errorPages;
-	CGIRule cgiPaths;
+	CGIRule CGI;
 
 	LocationRule();
 	LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty);
 	LocationRule(const LocationRule &other) = default;
 	LocationRule &operator=(const LocationRule &other) = default;
 	~LocationRule() = default;
-	
+
 	void adjustFromDefault(const LocationRule &defaultLocation);
 	const std::string &getPath() const;
 };

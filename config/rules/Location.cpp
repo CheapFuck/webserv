@@ -4,7 +4,7 @@
 #include <functional>
 #include <iostream>
 
-LocationRule::LocationRule() : _path(), methods(), root(), upload_dir(), autoIndex(), index(), redirect(), errorPages(), cgiPaths() {}
+LocationRule::LocationRule() : _path(), methods(), root(), upload_dir(), autoIndex(), index(), redirect(), errorPages(), CGI() {}
 
 LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
@@ -15,7 +15,7 @@ LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNon
 		{INDEX, [this](const Rules &rules) { index = IndexRule(rules, false); }},
 		{REDIRECT, [this](const Rules &rules) { redirect = RedirectRule(rules, false); }},
 		{ERROR_PAGE, [this](const Rules &rules) { errorPages = ErrorPageRule(rules, false); }},
-		{CGI_PASS, [this](const Rules &rules) { cgiPaths = CGIRule(rules, false); }}
+		{CGI_PASS, [this](const Rules &rules) { CGI = CGIRule(rules, false); }}
 	};
 
 	_path = path;
@@ -35,7 +35,8 @@ void LocationRule::adjustFromDefault(const LocationRule &defaultLocation) {
 		index = defaultLocation.index;
 	if (!redirect.isSet() && defaultLocation.redirect.isSet())
 		redirect = defaultLocation.redirect;
-	cgiPaths.updateFromDefault(defaultLocation.cgiPaths);
+	if (!CGI.isSet())
+		CGI = defaultLocation.CGI;
 	errorPages.updateFromDefault(defaultLocation.errorPages);
 }
 
@@ -44,6 +45,6 @@ inline const std::string &LocationRule::getPath() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule) {
-	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.cgiPaths << ")";
+	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.CGI << ")";
 	return os;
 }

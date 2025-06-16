@@ -5,11 +5,12 @@
 #include "sessionManager.hpp"
 #include "session.hpp"
 #include "client.hpp"
+#include "timer.hpp"
 #include "CGI.hpp"
-#include "thread-pool.hpp"
+
 #include <vector>
-#include <map>
 #include <memory>
+#include <map>
 
 // Free function to check if a file descriptor is valid (open)
 bool is_fd_valid(int fd);
@@ -30,11 +31,8 @@ private:
     UserSessionManager _sessionManager;
     int _server_fd;
     int _epoll_fd;
-    std::map<int, std::shared_ptr<Client>> _clients;
-    std::map<int, CGI*> _activeCGIs;  // Map client fd to CGI instance
-    
-    // Thread pool for handling blocking operations
-    std::unique_ptr<ThreadPool> _threadPool;
+    Timer _timer;
+    std::map<int, Client> _clients;
 
     // Socket and epoll setup
     void _setupSocket();
@@ -46,12 +44,11 @@ private:
     void _removeClient(int fd);
 
     // Request processing
-    void _prepareRequestProcessing(std::shared_ptr<Client> client);
     ServerConfig &_loadRequestConfig(Request &request);
 
     // I/O handling
-    void _handleClientInput(int fd, std::shared_ptr<Client> client);
-    void _handleClientOutput(int fd, std::shared_ptr<Client> client);
+    void _handleClientInput(int fd, Client &client);
+    void _handleClientOutput(int fd, Client &client);
     void _handleClientIo(int fd, short revents);
     void _handleCGIIo(int fd, short revents);
 
@@ -60,8 +57,6 @@ private:
     void _updateCGIProcesses();
     bool _clientHasActiveCGI(int fd) const;
     bool shouldUseCGI(const Request& request, const LocationRule& route);
-    // Asynchronous request processing
-    void _processRequestAsync(int fd, std::shared_ptr<Client> client);
 };
 
 #endif // SERVER_HPP

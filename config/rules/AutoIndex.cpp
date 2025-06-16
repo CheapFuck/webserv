@@ -14,18 +14,24 @@ AutoIndexRule::AutoIndexRule(const Rules &rules, bool required) : _autoindex(tru
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
 			throw ConfigParsingException("Invalid autoindex rule");
-		if (rule.arguments[0].type != STRING)
+		if (rule.arguments[0].type != KEYWORD)
 			throw ConfigParsingException("Invalid autoindex argument type");
 
-		std::string arg = rule.arguments[0].str;
-		if (arg == "on") {
-			_autoindex = true;
-			_is_set = true;
-		} else if (arg == "off") {
-			_autoindex = false;
-			_is_set = true;
-		} else {
-			throw ConfigParsingException("Invalid autoindex value: " + arg);
+		switch (rule.arguments[0].keyword) {
+			case ON:
+			case TRUE:
+			case ENABLE:
+				_autoindex = true;
+				_is_set = true;
+				break;
+			case OFF:
+			case FALSE:
+			case DISABLE:
+				_autoindex = false;
+				_is_set = true;
+				break;
+			default:
+				throw ConfigParsingException("Invalid autoindex keyword: " + rule.arguments[0].str);
 		}
 	}
 }

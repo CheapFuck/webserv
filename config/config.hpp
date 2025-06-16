@@ -28,11 +28,15 @@ enum TokenType {
 	END = 1 << 6,
 };
 
-#define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | SEMICOLON | END))
-
-struct Token {
-	TokenType type;
-	std::string value;
+enum Keyword {
+	NO_KEYWORD = 0,
+	ON = 1 << 0,
+	OFF = 1 << 1,
+	TRUE = 1 << 2,
+	FALSE = 1 << 3,
+	DEFAULT = 1 << 4,
+	ENABLE = 1 << 5,
+	DISABLE = 1 << 6,
 };
 
 enum Key {
@@ -51,17 +55,27 @@ enum Key {
 	CGI_PASS = 1 << 12,
 };
 
+#define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | SEMICOLON | KEYWORD | END))
+
+struct Token {
+	TokenType type;
+	std::string value;
+	int filePos;
+};
+
 typedef std::map<Key, std::vector<Rule>> Object;
 typedef std::vector<Rule> Rules;
 
 enum ArgumentType {
 	STRING = 1 << 0,
 	OBJECT = 1 << 1,
+	KEYWORD = 1 << 2,
 };
 
 struct Argument {
 	ArgumentType type;
 	std::string str;
+	Keyword keyword;
 	Object rules;
 };
 

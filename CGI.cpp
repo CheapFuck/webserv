@@ -87,14 +87,6 @@ bool CGI::startExecution(const Request& request, const LocationRule& route, cons
     std::string extention = Utils::getFileExtension(requestPath.str());
     DEBUG("CGI: File extension: " << extention);
 
-    if (!route.cgiPaths.exists(extention)) {
-        DEBUG("CGI: No CGI interpreter found for extension: " << extention);
-        return false;
-    }
-
-    _interpreter = route.cgiPaths.getPath(extention);
-    DEBUG("CGI: Using interpreter: " << _interpreter);
-
     struct stat interpreterStat;
     if (stat(_interpreter.c_str(), &interpreterStat) != 0) {
         DEBUG("CGI: Interpreter not found: " << _interpreter);
@@ -439,6 +431,8 @@ void CGI::setupEnvironment(const Request& request, const LocationRule& route, co
     } else {
         _env["CONTENT_LENGTH"] = "0";
     }
+
+    _env["HTTP_SESSION_FILE"] = request.session ? ("../../../sessions8080/" + request.session->getSessionId() + ".json") : "";
 
     // HTTP headers as environment variables
     std::string host = request.headers.getHeader(HeaderKey::Host, "");

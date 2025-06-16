@@ -6,7 +6,7 @@
 
 MethodRule::MethodRule() : _methods(UNKNOWN_METHOD), _is_set(false) {}
 
-MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD) {
+MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD), _is_set(false) {
 	bool found = false;
 
 	for (const Rule &rule : rules) {

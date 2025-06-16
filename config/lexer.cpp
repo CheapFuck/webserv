@@ -38,8 +38,8 @@ std::ostream& operator<<(std::ostream& os, const Object& object) {
 	return os;
 }
 
-static Key get_rule_key(const std::string &str) {
-	static const std::map<std::string, Key> key_map = {
+static Key getRuleKey(const Token &token) {
+	static const std::map<std::string, Key> keyMap = {
 		{"server", SERVER},
 		{"listen", LISTEN},
 		{"server_name", SERVER_NAME},
@@ -52,12 +52,29 @@ static Key get_rule_key(const std::string &str) {
 		{"location", LOCATION},
 		{"allowed_methods", ALLOWED_METHODS},
 		{"upload_store", UPLOAD_DIR},
-		{"cgi_pass", CGI_PASS}
+		{"cgi", CGI_PASS}
 	};
 
-	auto it = key_map.find(str);
-	if (it == key_map.end())
-		throw ConfigParsingException("Unknown key: " + str);
+	auto it = keyMap.find(token.value);
+	if (it == keyMap.end())
+		throw ConfigParsingException("Unknown key: " + token.value);
+	return it->second;
+}
+
+static Keyword getKeyword(const std::string &str) {
+	static const std::map<std::string, Keyword> keywordMap = {
+		{"on", ON},
+		{"off", OFF},
+		{"true", TRUE},
+		{"false", FALSE},
+		{"default", DEFAULT},
+		{"enable", ENABLE},
+		{"disable", DISABLE}
+	};
+
+	auto it = keywordMap.find(str);
+	if (it == keywordMap.end())
+		return (NO_KEYWORD);
 	return it->second;
 }
 
@@ -81,7 +98,7 @@ static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
 	if (tokens[i].type != STR)
 		throw ConfigParsingException("Expected a string token");
 
-	Rule rule {get_rule_key(tokens[i++].value), {}};
+	Rule rule {getRuleKey(tokens[i++]), {}};
 
 	while (true) {
 		if (tokens[i].type == SEMICOLON) {
@@ -91,12 +108,16 @@ static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
 
 		else if (tokens[i].type == BRACE_OPEN) {
 			++i;
-			rule.arguments.push_back({OBJECT, "", parse_object(tokens, i, BRACE_CLOSE)});
+			rule.arguments.push_back({OBJECT, "", NO_KEYWORD, parse_object(tokens, i, BRACE_CLOSE)});
 			break;
 		}
 
 		else if (tokens[i].type == STR) {
-			rule.arguments.push_back({STRING, std::string(tokens[i].value), {}});
+			Keyword keyword = getKeyword(tokens[i].value);
+			if (keyword != NO_KEYWORD)
+				rule.arguments.push_back({KEYWORD, std::string(tokens[i].value), keyword, {}});
+			else
+				rule.arguments.push_back({STRING, std::string(tokens[i].value), {}, {}});
 			++i;
 		}
 

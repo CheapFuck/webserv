@@ -172,12 +172,8 @@ bool UserSessionManager::sessionHasCurrentReferences(const std::string &sessionI
 
 /// @brief Cleans up expired sessions from the session manager.
 void UserSessionManager::cleanUpExpiredSessions() {
-    time_t currentTime = time(nullptr);
-
-	if (_lastCleanupTime + SESSION_CLEANUP_INTERVAL > currentTime)
-		return ;
+	time_t currentTime = time(nullptr);
 	_lastCleanupTime = currentTime;
-
 	DEBUG("Cleaning up expired sessions");
 
     for (auto it = _currentSessions.begin(); it != _currentSessions.end(); ) {
