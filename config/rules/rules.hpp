@@ -118,7 +118,7 @@ private:
 	Path _default_page;
 
 public:
-	ErrorPageRule() = default;
+	ErrorPageRule();
 	ErrorPageRule(const Rules &rules, bool required = false);
 	const Path &getErrorPage(int code) const;
 	const std::map<int, Path> &getErrorPages() const;
