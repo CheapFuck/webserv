@@ -1,5 +1,8 @@
 import time
 
-print("Hello world from Python CGI script!")
+output = []
+output.append("Hello world from Python CGI script!")
 time.sleep(10)
-print("This is a test CGI script.")
+output.append("This is a test CGI script.")
+
+print("\n".join(output))
