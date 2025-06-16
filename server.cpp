@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <thread>
+#include <memory>
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct epoll_event epoll_event;
@@ -51,7 +52,7 @@ Server::Server(const std::vector<ServerConfig> &configs) :
     _sessionManager("sessions" + std::to_string(configs[0].port.get())),
     _server_fd(-1),
     _epoll_fd(-1),
-    _clients(),
+    _clients(), // std::map<int, std::shared_ptr<Client>>
     _activeCGIs(),
     _threadPool(new ThreadPool(std::thread::hardware_concurrency())) {  // Use hardware concurrency for thread count
 
@@ -246,27 +247,27 @@ void Server::_setupEpoll() {
 /// @brief Handle a new client connection by accepting it and adding it to the epoll instance.
 /// @throws ClientConnectionException if accepting the connection or setting it to non-blocking fails
 void Server::_handleNewConnection() {
-	sockaddr_in client_address{};
-	socklen_t client_len = sizeof(client_address);
-	int client_fd = accept(_server_fd, (sockaddr *)&client_address, &client_len);
-	if (client_fd == -1)
-		throw ClientConnectionException("Failed to accept new connection");
-	
-	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1) {
-		close(client_fd);
-		throw ClientConnectionException("Failed to set client socket to non-blocking");
-	}
+    sockaddr_in client_address{};
+    socklen_t client_len = sizeof(client_address);
+    int client_fd = accept(_server_fd, (sockaddr *)&client_address, &client_len);
+    if (client_fd == -1)
+        throw ClientConnectionException("Failed to accept new connection");
+    
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1) {
+        close(client_fd);
+        throw ClientConnectionException("Failed to set client socket to non-blocking");
+    }
 
-	epoll_event event{};
-	event.events = EPOLLIN | EPOLLET;
-	event.data.fd = client_fd;
-	if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-		close(client_fd);
-		throw ClientConnectionException("Failed to add client socket to epoll");
-	}
+    epoll_event event{};
+    event.events = EPOLLIN | EPOLLET;
+    event.data.fd = client_fd;
+    if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+        close(client_fd);
+        throw ClientConnectionException("Failed to add client socket to epoll");
+    }
 
-	_clients.emplace(client_fd, Client());
-	DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
+    _clients.emplace(client_fd, std::make_shared<Client>());
+    DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
 }
 
 /// @brief Modify the epoll events for a given file descriptor.
@@ -278,66 +279,83 @@ bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 	epoll_event event{};
 	event.events = events;
 	event.data.fd = fd;
-	if (epoll_ctl(_epoll_fd, operation, fd, &event) == -1) {
-		ERROR("Failed to modify epoll events for fd: " << fd);
-		return (false);
+	int result = epoll_ctl(_epoll_fd, operation, fd, &event);
+	if (result == -1) {
+        if (errno == EBADF) {
+            DEBUG("epoll_ctl: fd " << fd << " is already closed (EBADF) during operation " << operation << ", events: " << events);
+        } else {
+            ERROR("Failed to modify epoll events for fd: " << fd << ", operation: " << operation << ", events: " << events << ", errno: " << errno << " (" << strerror(errno) << ")");
+        }
+		return false;
 	}
-	return (true);
+	DEBUG("epoll_ctl success for fd: " << fd << ", operation: " << operation << ", events: " << events);
+	return true;
 }
 
 /// @brief Remove a client from the server and the epoll instance.
 /// @param fd The file descriptor of the client to remove
 void Server::_removeClient(int fd) {
-	_epollExecute(fd, EPOLL_CTL_DEL, 0);
-	auto it = _clients.find(fd);
-	if (it == _clients.end()) {
-		ERROR("Client not found in _clients map: " << fd);
-		return ;
-	}
-	_clients.erase(it);
-	DEBUG("Client disconnected: " << fd);
+    DEBUG("[REMOVECLIENT] Called for fd: " << fd << " (about to close)");
+    // If this client has an active CGI, log and clean up
+    auto cgiIt = _activeCGIs.find(fd);
+    if (cgiIt != _activeCGIs.end()) {
+        DEBUG("[REMOVECLIENT] Client " << fd << " has active CGI, cleaning up CGI instance.");
+    }
+    // Only try to remove from epoll and close if fd is valid
+    if (fd != -1) {
+        _epollExecute(fd, EPOLL_CTL_DEL, 0);
+        DEBUG("[REMOVECLIENT] Actually closing fd: " << fd);
+        close(fd);
+    }
+    auto it = _clients.find(fd);
+    if (it == _clients.end()) {
+        ERROR("Client not found in _clients map: " << fd);
+        return ;
+    }
+    _clients.erase(it); // shared_ptr will clean up if no other references
+    DEBUG("Client disconnected: " << fd);
 }
 
 /// @brief Prepare the request processing for a client by attaching a session to the request.
 /// @param client The Client object associated with the request
 /// @details If no session cookie is found, a new session is created. If a session cookie is found,
 /// the session is retrieved or created based on the cookie value.
-void Server::_prepareRequestProcessing(Client &client) {
+void Server::_prepareRequestProcessing(std::shared_ptr<Client> client) {
     // Get the session cookie from the client's request
-    const Cookie *sessionCookie = Cookie::getCookie(client.request, SESSION_COOKIE_NAME);
+    const Cookie *sessionCookie = Cookie::getCookie(client->request, SESSION_COOKIE_NAME);
     
     if (!sessionCookie) {
         DEBUG("No session cookie found for client; creating a new session");
 
         // If there's no session cookie, create a new session and associate it with the client's request
-        if (!client.request.session) {
-            client.request.session = _sessionManager.createNewSession();
-            if (!client.request.session) {
+        if (!client->request.session) {
+            client->request.session = _sessionManager.createNewSession();
+            if (!client->request.session) {
                 ERROR("Failed to create a new session");
                 return;  // Exit early if session creation fails
             }
         }
 
         // Add the session cookie to the response headers
-        client.response.headers.add(HeaderKey::SetCookie,
-            Cookie::createSessionCookie(client.request.session->getSessionId())
+        client->response.headers.add(HeaderKey::SetCookie,
+            Cookie::createSessionCookie(client->request.session->getSessionId())
             .getHeaderInitializationString());
 
         // Set some test data on the session
-        client.request.session->setData("Some testvalue", client.request.session->getSessionId());
+        client->request.session->setData("Some testvalue", client->request.session->getSessionId());
     } else {
         // If the session cookie is found, try to get or create the session
-        client.request.session = _sessionManager.getOrCreateNewSession(sessionCookie->getValue());
+        client->request.session = _sessionManager.getOrCreateNewSession(sessionCookie->getValue());
     }
 
     // Ensure that we have a valid session object before proceeding
-    if (client.request.session) {
-        DEBUG("Session storage thingy with value " << client.request.session->getData("Some testvalue"));
-        DEBUG("Object ptr session: " << client.request.session);
-        DEBUG("Session ID for client: " << client.request.session->getSessionId());
+    if (client->request.session) {
+        DEBUG("Session storage thingy with value " << client->request.session->getData("Some testvalue"));
+        DEBUG("Object ptr session: " << client->request.session);
+        DEBUG("Session ID for client: " << client->request.session->getSessionId());
 
         // Update the session's last access time
-        client.request.session->updateLastAccessTime();
+        client->request.session->updateLastAccessTime();
     } else {
         ERROR("Failed to retrieve a valid session for client.");
     }
@@ -360,13 +378,13 @@ ServerConfig &Server::_loadRequestConfig(Request &request) {
 /// @brief Handle client input by reading from the socket and processing the request.
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
-void Server::_handleClientInput(int fd, Client &client) {
-    if (!client.read(fd)) {
+void Server::_handleClientInput(int fd, std::shared_ptr<Client> client) {
+    if (!client->read(fd)) {
         _removeClient(fd);
         return;
     }
 
-    if (client.requestIsComplete()) {
+    if (client->requestIsComplete()) {
         DEBUG("Request complete, starting async processing for fd: " << fd);
         // Process the request asynchronously
         _processRequestAsync(fd, client);
@@ -375,24 +393,24 @@ void Server::_handleClientInput(int fd, Client &client) {
 /// @brief Handle client output by sending the response back to the client.
 /// @param fd The file descriptor of the client socket
 /// @param client The Client object associated with the socket
-void Server::_handleClientOutput(int fd, Client &client) {
-	if (!client.sendResponse(fd, _loadRequestConfig(client.request))) {
-		ERROR("Failed to send response for client: " << fd);
-		_removeClient(fd);
-		return ;
-	}
-
-	if (!_epollExecute(fd, EPOLL_CTL_MOD, EPOLLIN | EPOLLET)) {
-		ERROR("Failed to modify epoll event for client: " << fd);
-		_removeClient(fd);
-		return ;
-	}
-
-    if (client.request.session) {
-        _sessionManager.storeSession(*client.request.session);
+void Server::_handleClientOutput(int fd, std::shared_ptr<Client> client) {
+    if (!client->sendResponse(fd, _loadRequestConfig(client->request))) {
+        ERROR("Failed to send response for client: " << fd);
+        _removeClient(fd);
+        return ;
     }
 
-	client.reset();
+    if (!_epollExecute(fd, EPOLL_CTL_MOD, EPOLLIN | EPOLLET)) {
+        ERROR("Failed to modify epoll event for client: " << fd);
+        _removeClient(fd);
+        return ;
+    }
+
+    if (client->request.session) {
+        _sessionManager.storeSession(*client->request.session);
+    }
+
+    client->reset();
 }
 
 /// @brief Handle I/O events for a client socket.
@@ -400,26 +418,30 @@ void Server::_handleClientOutput(int fd, Client &client) {
 /// @param fd The file descriptor of the client socket.
 /// @param revents The epoll events for the client socket.
 void Server::_handleClientIo(int fd, short revents) {
-	auto it = _clients.find(fd);
-	if (it == _clients.end()) {
-		ERROR("Client not found in _clients map: " << fd);
-		return ;
-	}
-	Client &client = it->second;
+    if (revents & (EPOLLERR | EPOLLHUP)) {
+        DEBUG("[CLIENTIO] EPOLLERR or EPOLLHUP for client fd: " << fd << ". Client likely disconnected.");
+    }
 
-	DEBUG_IF(revents & EPOLLIN, "EPOLLIN event detected for fd: " << fd);
-	DEBUG_IF(revents & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd);
-	DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "EPOLLERR or EPOLLHUP event detected for fd: " << fd);
-	DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd);
+    auto it = _clients.find(fd);
+    if (it == _clients.end()) {
+        ERROR("Client not found in _clients map: " << fd);
+        return ;
+    }
+    std::shared_ptr<Client> client = it->second;
 
-	if (revents & EPOLLIN)
-		_handleClientInput(fd, client);
-	else if (revents & EPOLLOUT)
-		_handleClientOutput(fd, client);
-	else if (revents & (EPOLLERR | EPOLLHUP)) {
-		ERROR("Error or hangup on client socket: " << fd);
-		_removeClient(fd);
-	}
+    DEBUG_IF(revents & EPOLLIN, "EPOLLIN event detected for fd: " << fd);
+    DEBUG_IF(revents & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd);
+    DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "EPOLLERR or EPOLLHUP event detected for fd: " << fd);
+    DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd);
+
+    if (revents & EPOLLIN)
+        _handleClientInput(fd, client);
+    else if (revents & EPOLLOUT)
+        _handleClientOutput(fd, client);
+    else if (revents & (EPOLLERR | EPOLLHUP)) {
+        ERROR("Error or hangup on client socket: " << fd);
+        _removeClient(fd);
+    }
 }
 
 /// @brief Handle CGI file descriptor events
@@ -430,22 +452,33 @@ void Server::_handleCGIIo(int fd, short revents) {
     DEBUG_IF(revents & EPOLLIN, "CGI EPOLLIN event on fd: " << fd);
     DEBUG_IF(revents & EPOLLOUT, "CGI EPOLLOUT event on fd: " << fd);
     DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "CGI EPOLLERR or EPOLLHUP event on fd: " << fd);
-    
-    // Since CGI file descriptors are non-blocking and managed by the CGI class,
-    // we don't need to do much here. The updateCGIProcesses() method will
-    // handle the actual reading/writing when it's called in the main loop.
-    
-    // However, if there's an error or hangup, we should log it
-    if (revents & EPOLLERR) {
-        ERROR("CGI file descriptor error on fd: " << fd);
+
+    // Find which CGI instance owns this fd
+    for (auto it = _activeCGIs.begin(); it != _activeCGIs.end(); ++it) {
+        CGI* cgi = it->second;
+        std::vector<int> fds = cgi->getFileDescriptors();
+        for (size_t i = 0; i < fds.size(); ++i) {
+            if (fds[i] == fd) {
+                DEBUG("[CGI EVENT MAP] fd " << fd << " belongs to CGI instance " << cgi << " (pid=" << cgi->getPid() << ") for client fd " << it->first);
+                // Always call readFromPipes() on any event
+                cgi->readFromPipes();
+                // If the pipe is now closed, remove from epoll
+                std::vector<int> newFds = cgi->getFileDescriptors();
+                bool stillOpen = false;
+                for (size_t j = 0; j < newFds.size(); ++j) {
+                    if (newFds[j] == fd) {
+                        stillOpen = true;
+                        break;
+                    }
+                }
+                if (!stillOpen) {
+                    DEBUG("[CGI EVENT MAP] fd " << fd << " is now closed, removing from epoll");
+                    _epollExecute(fd, EPOLL_CTL_DEL, 0);
+                }
+                return;
+            }
+        }
     }
-    
-    if (revents & EPOLLHUP) {
-        DEBUG("CGI file descriptor hangup on fd: " << fd << " (this might be normal)");
-    }
-    
-    // The actual CGI I/O processing happens in _updateCGIProcesses()
-    // which is called in the main event loop
 }
 
 // /// @brief Determine if a request should use CGI based on the location rule
@@ -502,109 +535,42 @@ void Server::_handleCGIIo(int fd, short revents) {
 /// @brief Process a client request asynchronously using the thread pool
 /// @param fd The client file descriptor
 /// @param client The client object
-void Server::_processRequestAsync(int fd, Client &client) {
-	(void)client;  // Suppress unused variable warning
-    // Capture necessary data for the lambda
-    auto processTask = [this, fd, &client]() {
+void Server::_processRequestAsync(int fd, std::shared_ptr<Client> client) {
+    // Hold a shared_ptr for the duration of the task
+    auto processTask = [this, fd, client]() {
         this->_prepareRequestProcessing(client);
-        ServerConfig& config = this->_loadRequestConfig(client.request);
-        
-        // Find the matching route
-        const LocationRule* route = config.routes.find(client.request.metadata.getPath());
+        ServerConfig& config = this->_loadRequestConfig(client->request);
+        const LocationRule* route = config.routes.find(client->request.metadata.getPath());
         if (!route) {
-            client.response.setStatusCode(HttpStatusCode::NotFound);
+            client->response.setStatusCode(HttpStatusCode::NotFound);
             if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
                 this->_removeClient(fd);
             }
             return;
         }
-        
-        // Check if this request should be handled by CGI BEFORE processing the request
-        if (this->shouldUseCGI(client.request, *route)) {
-            DEBUG("Starting CGI execution for request: " << client.request.metadata.getPath());
-            // Start CGI execution
-            if (!this->_startCGIExecution(fd, client, *route, config)) {
+        if (this->shouldUseCGI(client->request, *route)) {
+            DEBUG("Starting CGI execution for request: " << client->request.metadata.getPath());
+            if (!this->_startCGIExecution(fd, *client, *route, config)) {
                 ERROR("Failed to start CGI execution");
-                client.response.setStatusCode(HttpStatusCode::InternalServerError);
+                client->response.setStatusCode(HttpStatusCode::InternalServerError);
                 if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
                     this->_removeClient(fd);
                 }
             }
-            // CGI is now running, response will be handled when CGI completes
-            // Don't call processRequest() for CGI requests
             return;
         }
-        
         // Handle normal request processing (non-CGI)
-        DEBUG("Processing non-CGI request: " << client.request.metadata.getPath());
-        client.processRequest(config);
+        DEBUG("Processing non-CGI request: " << client->request.metadata.getPath());
+        client->processRequest(config);
         if (!this->_epollExecute(fd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
             ERROR("Failed to modify epoll event for client: " << fd);
             this->_removeClient(fd);
             return;
         }
     };
-    
     // Enqueue the task to the thread pool
     _threadPool->enqueue(processTask);
 }
-
-// /// @brief Determine if a request should use CGI based on the location rule
-// /// @param request The client request
-// /// @param route The location rule
-// /// @return True if CGI should be used
-// bool Server::shouldUseCGI(const Request& request, const LocationRule& route) {
-//     DEBUG("Checking if request should use CGI: " << request.metadata.getPath());
-    
-//     if (!route.cgi_paths.isSet()) {
-//         DEBUG("CGI paths not set for route");
-//         return false;
-//     }
-    
-//     // Check if the file extension matches a CGI interpreter
-//     std::string path = request.metadata.getPath();
-//     std::string extension = Utils::getFileExtension(path);
-//     DEBUG("File extension: " << extension);
-    
-//     if (!route.cgi_paths.exists(extension)) {
-//         DEBUG("No CGI interpreter found for extension: " << extension);
-//         return false;
-//     }
-    
-//     DEBUG("Found CGI interpreter for extension: " << extension << " -> " << route.cgi_paths.getPath(extension));
-    
-//     // Verify the file exists and is executable
-//     Path requestPath = Path::createFromUrl(request.metadata.getPath(), route);
-//     if (!requestPath.isValid()) {
-//         DEBUG("Invalid request path for CGI: " << requestPath.str());
-//         return false;
-//     }
-    
-//     DEBUG("CGI script path: " << requestPath.str());
-    
-//     struct stat statBuf;
-//     if (stat(requestPath.str().c_str(), &statBuf) != 0) {
-//         DEBUG("CGI: Script not found: " << requestPath.str());
-//         return false;
-//     }
-    
-//     // Check if it's a regular file (not a directory)
-//     if (!S_ISREG(statBuf.st_mode)) {
-//         DEBUG("CGI: Path is not a regular file: " << requestPath.str());
-//         return false;
-//     }
-    
-//     // Check if it's executable
-//     if (!(statBuf.st_mode & S_IXUSR)) {
-//         DEBUG("CGI: Script not executable: " << requestPath.str());
-//         return false;
-//     }
-    
-//     DEBUG("CGI: Request SHOULD use CGI - " << path << " with extension " << extension);
-//     return true;
-// }
-
-
 
 /// @brief Determine if a request should use CGI based on the location rule
 /// @param request The client request
@@ -678,15 +644,29 @@ void Server::_updateCGIProcesses() {
             continue;
         }
 
+        // DEBUG("[CGI UPDATE] clientFd=" << clientFd << ", CGI instance=" << cgi << ", pid=" << cgi->getPid() << ", pipesClosed=" << cgi->pipesClosed() << ", status=" << static_cast<int>(cgi->getStatus()) << ", outputPipe[0]=" << cgi->getOutputPipeFd() << ", errorPipe[0]=" << cgi->getErrorPipeFd()); // SPAMMY, REMOVE
+        if (cgi->pipesClosed() || cgi->getStatus() != CGI::Status::RUNNING) {
+            continue;
+        }
+
         CGI::Status status = cgi->updateExecution();
-        
+
+        if (status != CGI::Status::RUNNING) {
+            // Remove CGI FDs from epoll immediately
+            std::vector<int> cgiFds = cgi->getFileDescriptors();
+            for (int cgiFd : cgiFds) {
+                DEBUG("[CGI UPDATE] Removing CGI fd " << cgiFd << " from epoll for CGI instance " << cgi << " (pid=" << cgi->getPid() << ")");
+                _epollExecute(cgiFd, EPOLL_CTL_DEL, 0);
+            }
+        }
+
         switch (status) {
             case CGI::Status::FINISHED: {
                 DEBUG("CGI finished for client: " << clientFd);
                 auto clientIt = _clients.find(clientFd);
-                if (clientIt != _clients.end()) {
-                    Client& client = clientIt->second;
-                    
+                if (clientIt != _clients.end() && clientIt->second) {
+                    std::shared_ptr<Client> clientPtr = clientIt->second;
+                    Client& client = *clientPtr;
                     if (cgi->getResponse(client.response)) {
                         DEBUG("CGI completed successfully for client: " << clientFd);
                         DEBUG("CGI response status: " << static_cast<int>(client.response.getStatusCode()));
@@ -700,7 +680,11 @@ void Server::_updateCGIProcesses() {
                     } else {
                         ERROR("Failed to get CGI response for client: " << clientFd);
                         client.response.setStatusCode(HttpStatusCode::InternalServerError);
-                        if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                        if (is_fd_valid(clientFd)) {
+                            if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                                _removeClient(clientFd);
+                            }
+                        } else {
                             _removeClient(clientFd);
                         }
                     }
@@ -713,12 +697,17 @@ void Server::_updateCGIProcesses() {
             case CGI::Status::ERROR: {
                 ERROR("CGI error for client: " << clientFd);
                 auto clientIt = _clients.find(clientFd);
-                if (clientIt != _clients.end()) {
-                    Client& client = clientIt->second;
+                if (clientIt != _clients.end() && clientIt->second) {
+                    std::shared_ptr<Client> clientPtr = clientIt->second;
+                    Client& client = *clientPtr;
                     client.response.setStatusCode(HttpStatusCode::InternalServerError);
                     client.response.setBody("<html><body><h1>500 Internal Server Error</h1><p>CGI script execution failed.</p></body></html>");
                     client.response.headers.replace(HeaderKey::ContentType, "text/html");
-                    if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                    if (is_fd_valid(clientFd)) {
+                        if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                            _removeClient(clientFd);
+                        }
+                    } else {
                         _removeClient(clientFd);
                     }
                 }
@@ -728,12 +717,17 @@ void Server::_updateCGIProcesses() {
             case CGI::Status::TIMEOUT: {
                 ERROR("CGI timeout for client: " << clientFd);
                 auto clientIt = _clients.find(clientFd);
-                if (clientIt != _clients.end()) {
-                    Client& client = clientIt->second;
+                if (clientIt != _clients.end() && clientIt->second) {
+                    std::shared_ptr<Client> clientPtr = clientIt->second;
+                    Client& client = *clientPtr;
                     client.response.setStatusCode(HttpStatusCode::RequestTimeout);
                     client.response.setBody("<html><body><h1>408 Request Timeout</h1><p>CGI script execution timed out.</p></body></html>");
                     client.response.headers.replace(HeaderKey::ContentType, "text/html");
-                    if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                    if (is_fd_valid(clientFd)) {
+                        if (!_epollExecute(clientFd, EPOLL_CTL_MOD, EPOLLOUT | EPOLLET)) {
+                            _removeClient(clientFd);
+                        }
+                    } else {
                         _removeClient(clientFd);
                     }
                 }
@@ -796,4 +790,9 @@ void Server::runOnce() {
     _updateCGIProcesses();
     
     _sessionManager.cleanUpExpiredSessions();
+}
+
+// Helper to check if a file descriptor is valid (open)
+bool is_fd_valid(int fd) {
+    return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
 }

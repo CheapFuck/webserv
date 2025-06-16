@@ -15,26 +15,51 @@
 #include <unistd.h>   // for getcwd
 #include <limits.h>   // for PATH_MAX
 
-CGI::CGI() : _pid(-1), _status(Status::RUNNING) {
-    _inputPipe[0] = _inputPipe[1] = -1;
-    _outputPipe[0] = _outputPipe[1] = -1;
-    _errorPipe[0] = _errorPipe[1] = -1;
+CGI::CGI()
+    : _env(),
+      _scriptPath(),
+      _interpreter(),
+      _inputPipe{-1, -1},
+      _outputPipe{-1, -1},
+      _errorPipe{-1, -1},
+      _pid(-1),
+      _status(Status::RUNNING),
+      _pipesClosed(false),
+      _startTime(0),
+      _output(),
+      _error(),
+      _executionFuture(),
+      _outputPipeEOF(false),
+      _errorPipeEOF(false)
+{
+    DEBUG("[CGI ctor] TIMEOUT_SECONDS=" << TIMEOUT_SECONDS);
 }
 
 CGI::~CGI() {
-    // Close any open pipes
-    if (_inputPipe[0] != -1) close(_inputPipe[0]);
-    if (_inputPipe[1] != -1) close(_inputPipe[1]);
-    if (_outputPipe[0] != -1) close(_outputPipe[0]);
-    if (_outputPipe[1] != -1) close(_outputPipe[1]);
-    if (_errorPipe[0] != -1) close(_errorPipe[0]);
-    if (_errorPipe[1] != -1) close(_errorPipe[1]);
-    
+    closePipes();
     // Kill the CGI process if it's still running
     if (_pid > 0) {
+        DEBUG("[CGI dtor] Killing pid " << _pid);
         kill(_pid, SIGKILL);
         waitpid(_pid, NULL, 0);
     }
+}
+
+void CGI::closePipes() {
+    if (_pipesClosed) {
+        DEBUG("[CGI closePipes] Already closed for pid=" << _pid);
+        return;
+    }
+    _pipesClosed = true;
+    DEBUG("[CGI closePipes] Closing pipes for pid=" << _pid << ", outputPipe[0]=" << _outputPipe[0] << ", errorPipe[0]=" << _errorPipe[0]);
+    if (_inputPipe[0] != -1) { DEBUG("[CGI closePipes] Closing _inputPipe[0] fd=" << _inputPipe[0]); close(_inputPipe[0]); _inputPipe[0] = -1; }
+    if (_inputPipe[1] != -1) { DEBUG("[CGI closePipes] Closing _inputPipe[1] fd=" << _inputPipe[1]); close(_inputPipe[1]); _inputPipe[1] = -1; }
+    if (_outputPipe[0] != -1) { DEBUG("[CGI closePipes] Closing _outputPipe[0] fd=" << _outputPipe[0]); close(_outputPipe[0]); _outputPipe[0] = -1; }
+    if (_outputPipe[1] != -1) { DEBUG("[CGI closePipes] Closing _outputPipe[1] fd=" << _outputPipe[1]); close(_outputPipe[1]); _outputPipe[1] = -1; }
+    if (_errorPipe[0] != -1) { DEBUG("[CGI closePipes] Closing _errorPipe[0] fd=" << _errorPipe[0]); close(_errorPipe[0]); _errorPipe[0] = -1; }
+    if (_errorPipe[1] != -1) { DEBUG("[CGI closePipes] Closing _errorPipe[1] fd=" << _errorPipe[1]); close(_errorPipe[1]); _errorPipe[1] = -1; }
+    _outputPipeEOF = true;
+    _errorPipeEOF = true;
 }
 
 bool CGI::startExecution(const Request& request, const LocationRule& route, const ServerConfig& server) {
@@ -198,107 +223,158 @@ bool CGI::startExecution(const Request& request, const LocationRule& route, cons
             }
         }
         close(_inputPipe[1]); // Close stdin to signal EOF
+        DEBUG("[CGI parent] Closed _inputPipe[1] (fd=" << _inputPipe[1] << ") for pid " << _pid);
         _inputPipe[1] = -1;
-        
         // Record start time
         _startTime = time(NULL);
         _status = Status::RUNNING;
-        
         return true;
     }
 }
 
 CGI::Status CGI::updateExecution() {
     if (_status != Status::RUNNING) {
+        // Only close pipes if process is not running AND both pipes are closed
+        if (_outputPipe[0] == -1 && _errorPipe[0] == -1) {
+            closePipes();
+        }
         return _status;
     }
-    
     // Check for timeout
     if (time(NULL) - _startTime > TIMEOUT_SECONDS) {
         ERROR("CGI script timeout");
         kill(_pid, SIGKILL);
         _status = Status::TIMEOUT;
+        // Only close pipes if both are closed
+        if (_outputPipe[0] == -1 && _errorPipe[0] == -1) {
+            closePipes();
+        }
         return _status;
     }
-    
     // Read from pipes
     readFromPipes();
-    
     // Check if process has finished
-    if (checkProcessStatus()) {
-        _status = Status::FINISHED;
+    bool finished = checkProcessStatus();
+    // Only close pipes if process is finished AND both pipes are closed
+    if (finished && _outputPipe[0] == -1 && _errorPipe[0] == -1) {
+        closePipes();
     }
-    
     return _status;
 }
 
 bool CGI::readFromPipes() {
+    if (_pipesClosed) {
+        DEBUG("[CGI readFromPipes] Called after pipes closed for pid=" << _pid);
+        return false;
+    }
     char buffer[4096];
     ssize_t bytesRead;
-    
     // Read from stdout
-    while ((bytesRead = read(_outputPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytesRead] = '\0';
-        _output.append(buffer, bytesRead);
-        
-        // Check output size limit
-        if (_output.length() > MAX_OUTPUT_SIZE) {
-            ERROR("CGI output too large");
-            kill(_pid, SIGKILL);
-            _status = Status::ERROR;
-            return false;
+    if (_outputPipe[0] != -1 && !_outputPipeEOF) {
+        while ((bytesRead = read(_outputPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
+            buffer[bytesRead] = '\0';
+            DEBUG("[CGI readFromPipes] Read " << bytesRead << " bytes from _outputPipe[0] fd=" << _outputPipe[0] << ", pid=" << _pid);
+            _output.append(buffer, bytesRead);
+            if (_output.length() > MAX_OUTPUT_SIZE) {
+                ERROR("CGI output too large");
+                kill(_pid, SIGKILL);
+                _status = Status::ERROR;
+                return false;
+            }
+        }
+        if (bytesRead == 0) {
+            DEBUG("[CGI readFromPipes] EOF on _outputPipe[0] fd=" << _outputPipe[0] << ", pid=" << _pid);
+            _outputPipeEOF = true;
+            // Do NOT close(_outputPipe[0]) here!
+        } else if (bytesRead < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No data available, not an error in non-blocking mode
+            } else if (errno == EBADF) {
+                ERROR("[CGI readFromPipes] EBADF on _outputPipe[0] for CGI instance " << this << ", pid=" << _pid);
+                _outputPipeEOF = true;
+                if (_outputPipe[0] != -1) { close(_outputPipe[0]); _outputPipe[0] = -1; }
+                return false;
+            } else {
+                ERROR("[CGI readFromPipes] Unexpected read() error " << errno << " on _outputPipe[0] for CGI instance " << this << ", pid=" << _pid);
+                _outputPipeEOF = true;
+                // Do NOT close(_outputPipe[0]) here!
+            }
         }
     }
-    
     // Read from stderr
-    while ((bytesRead = read(_errorPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytesRead] = '\0';
-        _error.append(buffer, bytesRead);
+    if (_errorPipe[0] != -1 && !_errorPipeEOF) {
+        while ((bytesRead = read(_errorPipe[0], buffer, sizeof(buffer) - 1)) > 0) {
+            buffer[bytesRead] = '\0';
+            DEBUG("[CGI readFromPipes] Read " << bytesRead << " bytes from _errorPipe[0] fd=" << _errorPipe[0] << ", pid=" << _pid);
+            _error.append(buffer, bytesRead);
+        }
+        if (bytesRead == 0) {
+            DEBUG("[CGI readFromPipes] EOF on _errorPipe[0] fd=" << _errorPipe[0] << ", pid=" << _pid);
+            _errorPipeEOF = true;
+            // Do NOT close(_errorPipe[0]) here!
+        } else if (bytesRead < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No data available, not an error in non-blocking mode
+            } else if (errno == EBADF) {
+                ERROR("[CGI readFromPipes] EBADF on _errorPipe[0] for CGI instance " << this << ", pid=" << _pid);
+                _errorPipeEOF = true;
+                if (_errorPipe[0] != -1) { close(_errorPipe[0]); _errorPipe[0] = -1; }
+                return false;
+            } else {
+                ERROR("[CGI readFromPipes] Unexpected read() error " << errno << " on _errorPipe[0] for CGI instance " << this << ", pid=" << _pid);
+                _errorPipeEOF = true;
+                // Do NOT close(_errorPipe[0]) here!
+            }
+        }
     }
-    
     return true;
 }
 
 bool CGI::checkProcessStatus() {
     int status;
     pid_t result = waitpid(_pid, &status, WNOHANG);
-    
     if (result == _pid) {
         // Process has finished
         if (WIFEXITED(status)) {
             int exitCode = WEXITSTATUS(status);
-            DEBUG("CGI: Process exited with code: " << exitCode);
+            DEBUG("[CGI checkProcessStatus] Process exited with code: " << exitCode);
             if (exitCode != 0) {
                 ERROR("CGI script exited with code: " << exitCode);
                 if (!_error.empty()) {
                     ERROR("CGI stderr: " << _error);
                 }
                 _status = Status::ERROR;
-                return true;
             }
         } else if (WIFSIGNALED(status)) {
             int signal = WTERMSIG(status);
             ERROR("CGI script terminated by signal: " << signal);
             _status = Status::ERROR;
-            return true;
         }
-        
+        DEBUG("[CGI checkProcessStatus] Process " << _pid << " finished normally");
         _status = Status::FINISHED;
+        // Only now close pipes if both EOFs have been seen
+        if (_outputPipeEOF && _outputPipe[0] != -1) { close(_outputPipe[0]); _outputPipe[0] = -1; }
+        if (_errorPipeEOF && _errorPipe[0] != -1) { close(_errorPipe[0]); _errorPipe[0] = -1; }
         return true;
     } else if (result == -1 && errno != ECHILD) {
         ERROR("waitpid error: " << strerror(errno));
         _status = Status::ERROR;
         return true;
     }
-    
     return false;
 }
 
 bool CGI::getResponse(Response& response) {
     if (_status != Status::FINISHED) {
+        DEBUG("[CGI getResponse] Not finished: status=" << static_cast<int>(_status) << ", pid=" << _pid);
         return false;
     }
-    
+    DEBUG("[CGI getResponse] Output buffer size for pid=" << _pid << ": " << _output.size());
+    if (!_output.empty()) {
+        DEBUG("[CGI getResponse] Output buffer (first 200 chars): " << _output.substr(0, 200));
+    } else {
+        DEBUG("[CGI getResponse] Output buffer is EMPTY for pid=" << _pid);
+    }
     return parseOutput(response);
 }
 
@@ -411,6 +487,12 @@ void CGI::setupEnvironment(const Request& request, const LocationRule& route, co
 bool CGI::parseOutput(Response& response) {
     if (_output.empty()) {
         ERROR("Empty CGI output");
+        if (!_error.empty()) {
+            response.setStatusCode(HttpStatusCode::InternalServerError);
+            response.setBody("<html><body><h1>500 Internal Server Error</h1><pre>" + _error + "</pre></body></html>");
+            response.headers.replace(HeaderKey::ContentType, "text/html");
+            return true;
+        }
         return false;
     }
     

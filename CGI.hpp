@@ -33,6 +33,15 @@ public:
     // Get file descriptors for epoll monitoring
     std::vector<int> getFileDescriptors() const;
 
+    bool pipesClosed() const { return _pipesClosed; }
+    Status getStatus() const { return _status; }
+    pid_t getPid() const { return _pid; }
+    int getOutputPipeFd() const { return _outputPipe[0]; }
+    int getErrorPipeFd() const { return _errorPipe[0]; }
+
+    bool readFromPipes();
+
+
 private:
     static const int TIMEOUT_SECONDS = 30;
     static const size_t MAX_OUTPUT_SIZE = 10 * 1024 * 1024; // 10MB
@@ -51,6 +60,7 @@ private:
     
     // Execution state
     Status _status;
+    bool _pipesClosed;
     time_t _startTime;
     
     // Output buffers
@@ -59,7 +69,7 @@ private:
     
     // Future for async execution
     std::future<bool> _executionFuture;
-    
+
     // Private methods
     void setupEnvironment(const Request& request, const LocationRule& route, const ServerConfig& server, const std::string &interpreterPath);
     bool executeScript(const std::string& input);
@@ -67,8 +77,12 @@ private:
     std::string getWorkingDirectory(const std::string& scriptPath);
     
     // Read from pipes
-    bool readFromPipes();
+    // bool readFromPipes();
     
     // Check if process has finished
     bool checkProcessStatus();
+    void closePipes();
+
+    bool _outputPipeEOF = false;
+    bool _errorPipeEOF = false;
 };
