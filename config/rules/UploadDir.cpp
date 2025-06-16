@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+UploadDirRule::UploadDirRule() : _upload_dir(Path::createDummy()), _is_set(false) {}
+
 UploadDirRule::UploadDirRule(const Rules &rules, bool required) : _is_set(false) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing upload directory rule");

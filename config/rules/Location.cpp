@@ -4,6 +4,8 @@
 #include <functional>
 #include <iostream>
 
+LocationRule::LocationRule() : _path(), methods(), root(), upload_dir(), autoIndex(), index(), redirect(), errorPages(), cgiPaths() {}
+
 LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
 		{ALLOWED_METHODS, [this](const Rules &rules) { methods = MethodRule(rules, false); }},

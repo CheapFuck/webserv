@@ -92,6 +92,7 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     if (route->redirect.isSet()) {
+        DEBUG("Redirecting to: " << route->redirect.get());
         response.setStatusCode(HttpStatusCode::MovedPermanently);
         response.headers.replace(HeaderKey::Location, route->redirect.get());
         return (response);

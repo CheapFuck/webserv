@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+AutoIndexRule::AutoIndexRule() : _autoindex(false), _is_set(false) {}
+
 AutoIndexRule::AutoIndexRule(const Rules &rules, bool required) : _autoindex(true), _is_set(false) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing autoindex rule");

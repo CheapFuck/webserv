@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+RouteRules::RouteRules() : _routes(), _defaultLocation() {}
+
 RouteRules::RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required) {
 	_defaultLocation = defaultLocation;
 

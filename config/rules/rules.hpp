@@ -71,7 +71,7 @@ private:
 	int _port;
 
 public:
-	PortRule() = default;
+	PortRule();
 	PortRule(const Rules &rules, bool required = true);
 	int get() const;
 };
@@ -81,7 +81,7 @@ private:
 	std::string _server_name;
 
 public:
-	ServerNameRule() = default;
+	ServerNameRule();
 	ServerNameRule(const Rules &rules, bool required = false);
 	std::string get() const;
 };
@@ -91,7 +91,7 @@ private:
 	Size _size;
 
 public:
-	MaxBodySizeRule() = default;
+	MaxBodySizeRule();
 	MaxBodySizeRule(const Rules &rules, bool required = true);
 	size_t get() const;
 };
@@ -101,7 +101,7 @@ private:
 	std::map<std::string, std::string> _cgiPaths;
 
 public:
-	CGIRule() = default;
+	CGIRule();
 	CGIRule(const Rules &rules, bool required = false);
 	const std::map<std::string, std::string> &getPaths() const;
 	const std::string &getPath(const std::string &ext) const;
@@ -132,7 +132,7 @@ private:
 	bool _is_set;
 
 public:
-	MethodRule() = default;
+	MethodRule();
 	MethodRule(const Rules &rules, bool required = false);
 	bool isAllowed(Method method) const;
 	const Method &getMethods() const;
@@ -146,7 +146,7 @@ private:
 	bool _is_set;
 
 public:
-	RootRule() = default;
+	RootRule();
 	RootRule(const Rules &rules, bool required = false);
 	const Path &get() const;
 	bool isSet() const;
@@ -157,7 +157,7 @@ private:
 	std::vector<std::string> _index_pages;
 
 public:
-	IndexRule() = default;
+	IndexRule();
 	IndexRule(const Rules &rules, bool required = false);
 	IndexRule(const IndexRule &other);
 	IndexRule &operator=(const IndexRule &other);
@@ -171,7 +171,7 @@ private:
 	bool _is_set;
 
 public:
-	AutoIndexRule() = default;
+	AutoIndexRule();
 	AutoIndexRule(const Rules &rules, bool required = false);
 	bool get() const;
 	bool isSet() const;
@@ -183,7 +183,7 @@ private:
 	bool _is_set;
 
 public:
-	UploadDirRule() = default;
+	UploadDirRule();
 	UploadDirRule(const Rules &rules, bool required = false);
 	const Path &get() const;
 	bool isSet() const;
@@ -195,7 +195,7 @@ private:
 	bool _is_set;
 
 public:
-	RedirectRule() = default;
+	RedirectRule();
 	RedirectRule(const Rules &rules, bool required = false);
 	const std::string &get() const;
 	bool isSet() const;
@@ -215,7 +215,7 @@ public:
 	ErrorPageRule errorPages;
 	CGIRule cgiPaths;
 
-	LocationRule() = default;
+	LocationRule();
 	LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty);
 	LocationRule(const LocationRule &other) = default;
 	LocationRule &operator=(const LocationRule &other) = default;
@@ -231,7 +231,7 @@ private:
 	LocationRule _defaultLocation;
 
 public:
-	RouteRules() = default;
+	RouteRules();
 	RouteRules(Rules &rules, const LocationRule &defaultLocation, bool required = false);
 	RouteRules(const RouteRules &other) = default;
 	RouteRules &operator=(const RouteRules &other) = default;

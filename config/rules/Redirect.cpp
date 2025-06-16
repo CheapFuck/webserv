@@ -1,8 +1,11 @@
+#include "../../print.hpp"
 #include "rules.hpp"
 
 #include <iostream>
 
-RedirectRule::RedirectRule(const Rules &rules, bool required) : _is_set(false) {
+RedirectRule::RedirectRule() : _redirect(), _is_set(false) {}
+
+RedirectRule::RedirectRule(const Rules &rules, bool required) : _redirect(), _is_set(false) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing redirect rule");
 	
@@ -16,6 +19,7 @@ RedirectRule::RedirectRule(const Rules &rules, bool required) : _is_set(false) {
 			throw ConfigParsingException("Invalid redirect argument type");
 
 		_redirect = std::string(rule.arguments[0].str);
+		DEBUG("RedirectRule: redirect set to " << _redirect);
 		_is_set = true;
 	}
 }

@@ -1,6 +1,8 @@
 #include "rules.hpp"
 #include <iostream>
 
+PortRule::PortRule() : _port(-1) {}
+
 PortRule::PortRule(const Rules &rules, bool required) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing port rule");

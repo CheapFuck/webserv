@@ -2,7 +2,9 @@
 
 #include <iostream>
 
-RootRule::RootRule(const Rules &rules, bool required) : _is_set(false) {
+RootRule::RootRule() : _root(), _is_set(false) {}
+
+RootRule::RootRule(const Rules &rules, bool required) : _root(), _is_set(false) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing root rule");
 	

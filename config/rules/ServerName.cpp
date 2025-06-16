@@ -3,6 +3,8 @@
 #include <string.h>
 #include <iostream>
 
+ServerNameRule::ServerNameRule() : _server_name() {}
+
 ServerNameRule::ServerNameRule(const Rules &rules, bool required) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing server name rule");

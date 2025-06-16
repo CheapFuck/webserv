@@ -1,6 +1,8 @@
 #include "rules.hpp"
 #include <iostream>
 
+MaxBodySizeRule::MaxBodySizeRule() : _size() {}
+
 MaxBodySizeRule::MaxBodySizeRule(const Rules &rules, bool required) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing max body size rule");

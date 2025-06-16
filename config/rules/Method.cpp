@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+MethodRule::MethodRule() : _methods(UNKNOWN_METHOD), _is_set(false) {}
+
 MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD) {
 	bool found = false;
 

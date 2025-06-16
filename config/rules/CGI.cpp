@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+CGIRule::CGIRule() : _cgiPaths({}) {}
+
 CGIRule::CGIRule(const Rules &rules, bool required) : _cgiPaths({}) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing cgi_pass rule");

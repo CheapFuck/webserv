@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+IndexRule::IndexRule() : _index_pages() {}
+
 IndexRule::IndexRule(const Rules &rules, bool required) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing index rule");

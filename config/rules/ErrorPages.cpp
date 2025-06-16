@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+ErrorPageRule::ErrorPageRule(): _error_pages(), _default_page() {}
+
 ErrorPageRule::ErrorPageRule(const Rules &rules, bool required) :
 	_default_page(Path::createDummy()) {
 	if (rules.empty() && required)
