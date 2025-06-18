@@ -46,32 +46,24 @@ void handleServersCleanup(std::vector<Server> &servers) {
 /// @param serverConfigs A vector of ServerConfig objects containing the server configurations
 /// @return 1 if either one of the servers failed to start, 0 otherwise
 int run_servers(const std::vector<ServerConfig>& serverConfigs) {
-    std::map<int, std::vector<ServerConfig>> portToCOnfigs;
+    std::map<int, std::vector<ServerConfig>> portToConfigs;
     for (const ServerConfig& config : serverConfigs) {
-        if (portToCOnfigs.find(config.port.get()) == portToCOnfigs.end())
-            portToCOnfigs[config.port.get()] = std::vector<ServerConfig>();
-        portToCOnfigs[config.port.get()].push_back(config);
+        if (portToConfigs.find(config.port.get()) == portToConfigs.end())
+            portToConfigs[config.port.get()] = std::vector<ServerConfig>();
+        portToConfigs[config.port.get()].push_back(config);
     }
 
-    std::vector<Server> servers;
-    for (const std::pair<int, std::vector<ServerConfig>> entry : portToCOnfigs) {
-        try {
-            servers.emplace_back(entry.second);
-        } catch (const std::exception& e) {
-            ERROR("Error creating server for port " << entry.first << ": " << e.what());
-            handleServersCleanup(servers);
-            return (1);
-        }
-    }
-
-    while (!g_quit) {
-        for (Server& server : servers)
+    try {
+        Server server(portToConfigs);
+        while (!g_quit)
             server.runOnce();
-        // Optionally sleep for a short time to avoid busy-waiting
-        usleep(1000); // 1ms
+        server.cleanUp();
+    }
+    catch (const std::exception& e) {
+        ERROR("Failed to create server: " << e.what());
+        return (1);
     }
 
-    handleServersCleanup(servers);
     return (0);
 }
 

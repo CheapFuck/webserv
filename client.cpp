@@ -1,44 +1,10 @@
-#include "methods.hpp"
 #include "client.hpp"
+#include "methods.hpp"
+#include "server.hpp"
 #include "print.hpp"
+#include "fd.hpp"
 
-Client::Client(const Client &other) 
-    : request(other.request), response(other.response) {}
-
-Client &Client::operator=(const Client &other) {
-    if (this != &other) {
-        request = other.request;
-        response = other.response;
-    }
-    return *this;
-}
-
-/// @brief Reads data from the specified file descriptor into the request buffer.
-/// @param fd The file descriptor to read from.
-/// @return Returns false if the connection is closed, true otherwise.
-bool Client::read(int fd) {
-    return request.read(fd);
-}
-
-/// @brief Checks if the request is complete and ready for processing.
-/// @return Returns true if the request is complete, false otherwise.
-bool Client::requestIsComplete() const {
-    return request.isComplete();
-}
-
-/// @brief Sends the response to the client.
-/// @return Returns true if the response was sent successfully, false otherwise.
-bool Client::sendResponse(int fd, ServerConfig& using_conf) {
-    response.setDefaultBody(using_conf);
-    return response.sendToClient(fd);
-}
-
-/// @brief Resets the client state, clearing the request and response objects.
-void Client::reset() {
-    request = Request();
-    response = Response();
-    DEBUG("Client reset");
-}
+Client::Client(Server &server, int serverFd) : _server(server), _serverFd(serverFd) {}
 
 /// @brief Processes the request based on its HTTP method.
 /// @param config The server configuration
@@ -61,11 +27,11 @@ Response &Client::_processRequestByMethod(const ServerConfig &config, const Loca
 
 /// @brief Processes the request.
 /// @param config The server configuration
-Response &Client::processRequest(const ServerConfig &config) {
+Response &Client::_processRequest(const ServerConfig &config) {
     DEBUG("Processing client request");
     response.setDefaultHeaders();
 
-    if (!request.isComplete()) {
+    if (!request.isComplete(request.getBody())) {
         response.setStatusCode(HttpStatusCode::BadRequest);
         return (response);
     }
@@ -99,4 +65,50 @@ Response &Client::processRequest(const ServerConfig &config) {
     }
 
     return _processRequestByMethod(config, *route);
+}
+
+void Client::handleReadCallback(FD &fd, int funcReturnValue) {
+    DEBUG("Read callback for Client, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
+    (void)funcReturnValue;
+
+    request.parseRequestHeaders(fd.readBuffer);
+    if (request.isComplete(fd.readBuffer)) {
+        request.setBody(fd.readBuffer);
+        _processRequest(_server.loadRequestConfig(request, _serverFd));
+        DEBUG("Request is complete, processing request for fd: " << fd.get());
+        if (fd.setEpollOut() == -1) {
+            ERROR("Failed to set EPOLLOUT for Client: " << fd.get());
+            fd.close();
+            return;
+        }
+    }
+}
+
+void Client::handleWriteCallback(FD &fd) {
+    DEBUG("Write callback for Client, fd: " << fd.get());
+
+    response.setDefaultBody(_server.loadRequestConfig(request, _serverFd));
+    fd.writeToBuffer(response.getAsString());
+
+    if (fd.write() == -1) {
+        ERROR("Failed to write response for Client: " << fd.get());
+        fd.close();
+        return;
+    }
+
+    if (fd.setEpollIn() == -1) {
+        ERROR("Failed to set EPOLLIN for Client: " << fd.get());
+        fd.close();
+        return;
+    }
+
+    request = Request();
+    response = Response();
+    fd.readBuffer.clear();
+    fd.writeBuffer.clear();
+}
+
+void Client::handleDisconnectCallback(FD &fd) {
+    DEBUG("Disconnect callback for Client, fd: " << fd.get());
+    (void)fd;
 }

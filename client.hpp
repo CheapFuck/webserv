@@ -1,30 +1,32 @@
 #pragma once
 
-#include "config/rules/rules.hpp"
+#include "baseHandlerObject.hpp"
 #include "response.hpp"
 #include "request.hpp"
-#include <string>
+#include "server.hpp"
+#include "print.hpp"
+#include "fd.hpp"
 
-#include <netinet/in.h>
-#include <unordered_map>
+class Server;
 
-class Client {
+class Client : public BaseHandlerObject {
 private:
+    Server &_server;
+    int _serverFd;
+
+    Response &_processRequest(const ServerConfig &config);
     Response &_processRequestByMethod(const ServerConfig &config, const LocationRule &route);
 
 public:
-    Request request;
     Response response;
-    
-    Client() = default;
+    Request request;
+
+    Client(Server &server, int serverFd);
     Client(const Client &other);
     Client &operator=(const Client &other);
-    ~Client() = default;
+    ~Client() override = default;
 
-    bool read(int fd);
-    bool sendResponse(int fd, ServerConfig& using_conf);
-    bool requestIsComplete() const;
-    Response &processRequest(const ServerConfig &config);
-
-    void reset();
+    void handleReadCallback(FD &fd, int funcReturnValue) override;
+    void handleWriteCallback(FD &fd) override;
+    void handleDisconnectCallback(FD &fd) override;
 };

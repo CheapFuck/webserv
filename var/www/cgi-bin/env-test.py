@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import cgilib
-import sys
-import os
 
 cgi: cgilib.CGIClient = cgilib.CGIClient()
 

@@ -18,20 +18,16 @@ class CGIStatus(enum.Enum):
 	SEND_BODY = 2
 	END = 3
 
-	def __lt__(self, other):
-		if not isinstance(other, CGIStatus): raise TypeError(f"Cannot compare {self.__class__.__name__} with {other.__class__.__name__}")
+	def __lt__(self, other: 'CGIStatus') -> bool:
 		return self.value < other.value
 
-	def __le__(self, other):
-		if not isinstance(other, CGIStatus): raise TypeError(f"Cannot compare {self.__class__.__name__} with {other.__class__.__name__}")
+	def __le__(self, other: 'CGIStatus') -> bool:
 		return self.value <= other.value
 
-	def __gt__(self, other):
-		if not isinstance(other, CGIStatus): raise TypeError(f"Cannot compare {self.__class__.__name__} with {other.__class__.__name__}")
+	def __gt__(self, other: 'CGIStatus') -> bool:
 		return self.value > other.value
 
-	def __ge__(self, other):
-		if not isinstance(other, CGIStatus): raise TypeError(f"Cannot compare {self.__class__.__name__} with {other.__class__.__name__}")
+	def __ge__(self, other: 'CGIStatus') -> bool:
 		return self.value >= other.value
 
 class SessionHandler:
@@ -42,7 +38,7 @@ class SessionHandler:
 	
 	def __enter__(self) -> 'SessionHandler':
 		"""Context manager entry method."""
-		if not self.load(self._filename):
+		if self._filename is None or not self.load(self._filename):
 			raise RuntimeError(f"Failed to load session data from {self._filename}.")
 		return self
 
@@ -112,15 +108,15 @@ class CGIClient:
 		self._cgiStatus: CGIStatus = CGIStatus.INIT
 		self._body: str | None = None
 
-	def getCookie(self, name: str, default: str | None = None) -> str:
+	def getCookie(self, name: str, default: str | None = None) -> str | None:
 		"""Returns the value of a cookie by name. If no default value is provided and the cookie does not exist, returns None."""
 		return os.environ.get(CGI_COOKIE_PREFIX + name, default)
 
-	def getEnvironmentVariable(self, name: str, default: str | None = None) -> str:
+	def getEnvironmentVariable(self, name: str, default: str | None = None) -> str | None:
 		"""Returns the value of an environment variable by name. If no default value is provided and the variable does not exist, returns None."""
 		return os.environ.get(name, default)
 
-	def getBody(self) -> str:
+	def getBody(self) -> str | None:
 		"""Returns the body of the request. If the body is not already set, it attempts to read from stdin."""
 		if self._body is None:
 			try:

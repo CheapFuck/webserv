@@ -1,4 +1,5 @@
 #include "timer.hpp"
+#include "print.hpp"
 
 #include <functional>
 #include <chrono>
@@ -10,9 +11,10 @@ bool TimerEvent::operator<(const TimerEvent &other) const {
 	return time < other.time;
 }
 
-/// @brief Add a new event to the timer
+/// @brief Add a new event to the timer.
 /// @param delay The delay after which the event should be triggered
 /// @param callback The function to call when the event is triggered
+/// @param isRecurring If true, the event will be repeated at the specified interval; otherwise, it will only be triggered once
 /// @return Returns the ID of the added event
 int Timer::addEvent(std::chrono::steady_clock::duration delay, std::function<void()> callback, bool isRecurring) {
 	std::chrono::steady_clock::duration interval = isRecurring ? delay : std::chrono::steady_clock::duration::max();
@@ -37,11 +39,11 @@ int Timer::deleteEvent(int eventId) {
 
 /// @brief Get the time until the next scheduled event
 /// @return Returns the duration until the next event, or max() if no events are scheduled
-std::chrono::steady_clock::duration Timer::getNextEventTime() const {
-	if (_events.empty()) {
-		return std::chrono::steady_clock::duration::max();
-	}
-	return _events.begin()->time - std::chrono::steady_clock::now();
+int Timer::getNextEventTimeoutMS() const {
+	if (_events.empty()) return (-1);
+	auto now = std::chrono::steady_clock::now();
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(_events.begin()->time - now);
+    return diff.count() < 0 ? 0 : static_cast<int>(diff.count());
 }
 
 /// @brief Process all events that are due
@@ -55,7 +57,7 @@ void Timer::processEvents() {
 		event.callback();
 
 		if (event.interval != std::chrono::steady_clock::duration::max()) {
-			event.time = now + event.interval;
+			event.time = std::max(event.time + event.interval, now);
 			_events.insert(event);
 		}
 	}

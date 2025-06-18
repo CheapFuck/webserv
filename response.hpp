@@ -33,7 +33,7 @@ public:
     const char *getTlsVersion() const;
     const std::string& getBody() const;
 
-    bool sendToClient(int fd) const;
+    std::string getAsString() const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Response& obj);

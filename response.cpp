@@ -77,7 +77,7 @@ void Response::setDefaultBody(ServerConfig& config) {
     	setBody(getDefaultBodyForCode(_statusCode));
 	else if (tryCreateResponseFromFile(error_templates[error_int], *this) == false)
 	{
-		std::cout << "Sunhappiness -- Sunhappiness -- Sunhappiness -- Sunhappiness --  \n\n";
+		DEBUG("Sunhappiness -- Sunhappiness -- Sunhappiness -- Sunhappiness --  \n\n");
 		setBody(getDefaultBodyForCode(_statusCode));
 	}
 }
@@ -85,18 +85,11 @@ void Response::setDefaultBody(ServerConfig& config) {
 /// @brief Sends the response to the client.
 /// @param fd The file descriptor to send the response to.
 /// @return Returns true if the response was sent successfully, false otherwise.
-bool Response::sendToClient(int fd) const {
+std::string Response::getAsString() const {
     std::ostringstream response_stream;
     response_stream << *this;
-
-    std::string response_str = response_stream.str();
-    ssize_t bytes_sent = send(fd, response_str.c_str(), response_str.length(), 0);
-    if (bytes_sent < 0) {
-        ERROR("Failed to send response to client");
-        return (false);
-    }
-    DEBUG("Sent " << bytes_sent << " bytes to client | " << static_cast<int>(_statusCode) << " (" << _statusCode << ")");
-    return (true);
+    DEBUG("Response as string: " << response_stream.str());
+    return (response_stream.str());
 }
 
 std::ostream& operator<<(std::ostream& os, const Response& obj) {

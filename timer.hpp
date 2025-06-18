@@ -28,7 +28,7 @@ public:
 	int addEvent(std::chrono::steady_clock::duration delay, std::function<void()> callback, bool isRecurring = false);
 	int deleteEvent(int eventId);
 	
-	std::chrono::steady_clock::duration getNextEventTime() const;
+	int getNextEventTimeoutMS() const;
 	void processEvents();
 	void clear();
 };

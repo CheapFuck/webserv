@@ -6,7 +6,7 @@ CXX := c++# or g++-12
 DIR := objs/
 DBDIR := db_objs/
 CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -Wshadow -std=c++20 -MMD
-CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS
+CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS -DFD_TRACKING
 MAKEFLAGS += -j $(shell nproc)
 
 SRCS := main.cpp \
@@ -22,6 +22,7 @@ SRCS := main.cpp \
 	timer.cpp \
 	post.cpp \
 	delete.cpp \
+	fd.cpp \
 	CGI.cpp \
 	cookie.cpp \
 	session.cpp \
