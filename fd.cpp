@@ -293,7 +293,7 @@ FD FD::fromPipeReadEnd(int pipe[2]) {
         return FD(-1);
     }
     ::close(pipe[1]);
-    return FD(pipe[0]);
+    return FD(pipe[0], FDType::DEFAULT);
 }
 
 /// @brief Creates an FD object from the write end of a pipe; closes the read end.
@@ -304,7 +304,7 @@ FD FD::fromPipeWriteEnd(int pipe[2]) {
         return FD(-1);
     }
     ::close(pipe[0]);
-    return FD(pipe[1]);
+    return FD(pipe[1], FDType::DEFAULT);
 }
 
 /// @brief Creates an FD object from a socket file descriptor.

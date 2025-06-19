@@ -4,7 +4,7 @@
 #include "print.hpp"
 #include "fd.hpp"
 
-Client::Client(Server &server, int serverFd) : _server(server), _serverFd(serverFd) {}
+Client::Client(Server &server, int serverFd, std::string &clientIP, std::string &clientPort) : _server(server), _serverFd(serverFd), _clientIP(clientIP), _clientPort(clientPort), _cgiClient(nullptr) {}
 
 /// @brief Processes the request based on its HTTP method.
 /// @param config The server configuration
@@ -12,6 +12,18 @@ Client::Client(Server &server, int serverFd) : _server(server), _serverFd(server
 /// @return Returns a reference to the response object after processing the request.
 Response &Client::_processRequestByMethod(const ServerConfig &config, const LocationRule &route) {
     (void)config;
+
+    if (route.CGI.isSet()) {
+        _cgiClient = std::make_shared<CGIClient>(*this);
+        if (!_cgiClient) {
+            ERROR("Failed to create CGIClient for request processing");
+            response.setStatusCode(HttpStatusCode::InternalServerError);
+            return (response);
+        }
+        _cgiClient->start(config, route);
+        return (response);
+    }
+
     switch (request.metadata.getMethod()) {
         case Method::GET:
             return GetMethod::processRequest(request, response, config, route);

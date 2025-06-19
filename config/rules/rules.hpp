@@ -103,8 +103,6 @@ private:
 public:
 	CGIRule();
 	CGIRule(const Rules &rules, bool required = false);
-	const std::map<std::string, std::string> &getPaths() const;
-	const std::string &getPath(const std::string &ext) const;
 
 	inline bool isSet() const {
 		return _is_set;

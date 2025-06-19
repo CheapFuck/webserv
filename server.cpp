@@ -162,7 +162,8 @@ void Server::_handleNewConnection(int sourceFd) {
     sockaddr_in client_address{};
     socklen_t client_len = sizeof(client_address);
 
-    FD clientFD(accept(sourceFd, (sockaddr *)&client_address, &client_len), FDType::SOCKET, std::make_unique<Client>(*this, sourceFd));
+    int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
+    FD clientFD(fd, FDType::SOCKET, std::make_unique<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), std::to_string(ntohs(client_address.sin_port))));
     if (!clientFD)
         return ;
 
