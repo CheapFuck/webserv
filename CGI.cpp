@@ -74,7 +74,7 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     }
 }
 
-const char **CGIClient::_createEnvironmentArray() const {
+char * const *CGIClient::_createEnvironmentArray() const {
     static std::vector<std::string> envVars;
     envVars.clear();
 
@@ -82,7 +82,7 @@ const char **CGIClient::_createEnvironmentArray() const {
         envVars.push_back(key + "=" + value);
     }
     envVars.push_back(nullptr); // Null-terminate the array
-    return envVars.empty() ? nullptr : reinterpret_cast<const char **>(envVars.data());
+    return envVars.empty() ? nullptr : reinterpret_cast<char * const *>(envVars.data());
 }
 
 void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
@@ -114,6 +114,7 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
     }
 
     if (_pid == 0) {
+        // Child process
         FD childStdin = FD::fromPipeReadEnd(cin);
         FD childStdout = FD::fromPipeWriteEnd(cout);
         if (dup2(childStdin.get(), STDIN_FILENO) == -1 || dup2(childStdout.get(), STDOUT_FILENO) == -1) {
@@ -123,22 +124,18 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
             exit(EXIT_FAILURE);
         }
 
-        if (childStdin.setNonBlocking() == -1 || childStdout.setNonBlocking() == -1) {
-            childStdin.close();
-            childStdout.close();
-            ERROR("Failed to set pipes to non-blocking for CGI process: " << strerror(errno));
-            exit(EXIT_FAILURE);
-        }
+        childStdin.close();
+        childStdout.close();
 
-        close(cin[0]);
-        close(cout[1]);
-        close(cin[1]);
-        close(cout[0]);
-        const char **envp = _createEnvironmentArray();
-        if (execve(route.CGI.get().c_str(), nullptr, envp) == -1) {
-            ERROR("Failed to execute CGI script: " << route.CGI.get() << ", errno: " << errno << " (" << strerror(errno) << ")");
+        if (execve(parsedUrl.scriptPath.c_str(), nullptr, _createEnvironmentArray()) == -1) {
+            ERROR("Failed to execute CGI script: " << parsedUrl.scriptPath << ", errno: " << errno << " (" << strerror(errno) << ")");
             exit(EXIT_FAILURE);
         }
         exit(EXIT_SUCCESS);
+    } else {
+        // Parent process
+        std::shared_ptr<CGIClient> cgiClient = std::make_shared<CGIClient>(*this);
+        FD toCGIProccess = FD::fromPipeWriteEnd(cin, cgiClient);
+        FD fromCGIProccess = FD::fromPipeReadEnd(cout, cgiClient);
     }
 }

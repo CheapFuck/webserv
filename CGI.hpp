@@ -18,7 +18,7 @@ private:
     std::unordered_map<std::string, std::string> _environmentVariables;
 
     void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl);
-    const char **_createEnvironmentArray() const;
+    char * const *_createEnvironmentArray() const;
 
 public:
     CGIClient(Client &client);

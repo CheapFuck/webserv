@@ -11,7 +11,7 @@
 #include <memory>
 
 FD::FD(int fd, FDType type, std::shared_ptr<BaseHandlerObject> connectedObject)
-    : _fd(fd), _epoll_fd(-1), _type(type), _connectedObject(std::move(connectedObject)) {}
+    : _fd(fd), _epollFd(-1), _type(type), _connectedObject(std::move(connectedObject)) {}
 
 bool FD::operator<(const FD& other) const {
     return _fd < other._fd;
@@ -77,7 +77,7 @@ int FD::connectToEpoll(int epoll_fd, uint32_t events) {
     event.data.fd = _fd;
 
     int ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, _fd, &event);
-    if (ret != -1) _epoll_fd = epoll_fd;
+    if (ret != -1) _epollFd = epoll_fd;
     return (ret);
 }
 
@@ -89,14 +89,14 @@ int FD::disconnectFromEpoll() {
         return -1;
     }
 
-    int result = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, _fd, nullptr);
+    int result = epoll_ctl(_epollFd, EPOLL_CTL_DEL, _fd, nullptr);
     if (result == -1) {
         ERROR("Failed to disconnect fd: " << _fd << " from epoll, errno: " << errno << " (" << strerror(errno) << ")");
         return -1;
     }
 
     DEBUG("Disconnected fd: " << _fd << " from epoll");
-    _epoll_fd = -1;
+    _epollFd = -1;
     return 0;
 }
 
@@ -112,13 +112,14 @@ int FD::setEpollEvents(uint32_t events) {
     epoll_event event{};
     event.events = events;
     event.data.fd = _fd;
-    int result = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, _fd, &event);
+    int result = epoll_ctl(_epollFd, EPOLL_CTL_MOD, _fd, &event);
     if (result == -1) {
         ERROR("Failed to set epoll events for fd: " << _fd << ", errno: " << errno << " (" << strerror(errno) << ")");
         return -1;
     }
 
     DEBUG("Set epoll events for fd: " << _fd << ", events: " << events);
+    _epollEvents = events;
     return 0;
 }
 
@@ -287,24 +288,25 @@ void FD::triggerWriteCallback() {
 }
 
 /// @brief Creates an FD object from the read end of a pipe; closes the write end.
-FD FD::fromPipeReadEnd(int pipe[2]) {
+/// @param pipe The pipe file descriptors (pipe[0] is read end).
+FD FD::fromPipeReadEnd(int pipe[2], std::shared_ptr<BaseHandlerObject> connectedObject) {
     if (pipe[0] == -1) {
         ERROR("Invalid pipe read end file descriptor: " << pipe[0]);
         return FD(-1);
     }
     ::close(pipe[1]);
-    return FD(pipe[0], FDType::DEFAULT);
+    return FD(pipe[0], FDType::DEFAULT, connectedObject);
 }
 
 /// @brief Creates an FD object from the write end of a pipe; closes the read end.
-/// @param pipe The pipe file descriptors (pipe[0] is read end).
-FD FD::fromPipeWriteEnd(int pipe[2]) {
+/// @param pipe The pipe file descriptors (pipe[1] is write end).
+FD FD::fromPipeWriteEnd(int pipe[2], std::shared_ptr<BaseHandlerObject> connectedObject) {
     if (pipe[1] == -1) {
         ERROR("Invalid pipe write end file descriptor: " << pipe[1]);
         return FD(-1);
     }
     ::close(pipe[0]);
-    return FD(pipe[1], FDType::DEFAULT);
+    return FD(pipe[1], FDType::DEFAULT, connectedObject);
 }
 
 /// @brief Creates an FD object from a socket file descriptor.

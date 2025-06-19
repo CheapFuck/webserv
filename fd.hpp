@@ -20,7 +20,8 @@ enum class FDType {
 class FD {
 private:
     int _fd;
-    int _epoll_fd;
+    int _epollFd;
+    uint32_t _epollEvents;
     FDType _type;
     std::shared_ptr<BaseHandlerObject> _connectedObject;
 
@@ -59,8 +60,8 @@ public:
 
     void triggerWriteCallback();
 
-    static FD fromPipeReadEnd(int pipe[2]);
-    static FD fromPipeWriteEnd(int pipe[2]);
+    static FD fromPipeReadEnd(int pipe[2], std::shared_ptr<BaseHandlerObject> connectedObject = nullptr);
+    static FD fromPipeWriteEnd(int pipe[2], std::shared_ptr<BaseHandlerObject> connectedObject = nullptr);
 
     static FD socket(int fd, std::shared_ptr<BaseHandlerObject> connectedObject = nullptr);
     static FD file(int fd, std::shared_ptr<BaseHandlerObject> connectedObject = nullptr);
@@ -81,11 +82,14 @@ public:
     inline int get() const { return _fd; }
 
     /// @brief Get the epoll file descriptor if connected.
-    inline int getEpollFd() const { return _epoll_fd; }
+    inline int getEpollFd() const { return _epollFd; }
 
     /// @brief Check if the file descriptor is connected to an epoll instance.
-    inline bool isConnectedToEpoll() const { return _epoll_fd != -1; }
+    inline bool isConnectedToEpoll() const { return _epollFd != -1; }
 
     /// @brief Check if the file descriptor is valid (open).
     inline bool isValidFd() const { return _fd != -1; }
+
+    /// @brief Get the epoll events currently set for the file descriptor.
+    inline uint32_t getEpollEvents() const { return _epollEvents; }
 };
