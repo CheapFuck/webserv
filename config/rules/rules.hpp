@@ -8,6 +8,8 @@
 #include <vector>
 #include <map>
 
+#define DEFAULT_CGI_TIMEOUT 5.0
+
 class Size;
 class Path;
 
@@ -198,6 +200,22 @@ public:
 	bool isSet() const;
 };
 
+class CGITimeoutRule {
+private:
+	double _timeout;
+	bool _is_set;
+
+public:
+	CGITimeoutRule();
+	CGITimeoutRule(const Rules &rules, bool required = false);
+	CGITimeoutRule(const CGITimeoutRule &other) = default;
+	CGITimeoutRule &operator=(const CGITimeoutRule &other) = default;
+	~CGITimeoutRule() = default;
+
+	inline double get() const { return _timeout; }
+	inline bool isSet() const { return _is_set; }
+};
+
 class LocationRule {
 private:
 	std::string _path;
@@ -211,6 +229,7 @@ public:
 	RedirectRule redirect;
 	ErrorPageRule errorPages;
 	CGIRule CGI;
+	CGITimeoutRule cgiTimeout;
 
 	LocationRule();
 	LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty);
@@ -268,3 +287,4 @@ std::ostream& operator<<(std::ostream& os, const UploadDirRule& rule);
 std::ostream& operator<<(std::ostream& os, const IndexRule& rule);
 std::ostream& operator<<(std::ostream& os, const AutoIndexRule& rule);
 std::ostream& operator<<(std::ostream& os, const RedirectRule& rule);
+std::ostream& operator<<(std::ostream& os, const CGITimeoutRule& rule);

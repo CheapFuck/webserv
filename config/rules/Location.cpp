@@ -15,7 +15,8 @@ LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNon
 		{INDEX, [this](const Rules &rules) { index = IndexRule(rules, false); }},
 		{REDIRECT, [this](const Rules &rules) { redirect = RedirectRule(rules, false); }},
 		{ERROR_PAGE, [this](const Rules &rules) { errorPages = ErrorPageRule(rules, false); }},
-		{CGI_PASS, [this](const Rules &rules) { CGI = CGIRule(rules, false); }}
+		{CGI_PASS, [this](const Rules &rules) { CGI = CGIRule(rules, false); }},
+		{CGI_TIMEOUT, [this](const Rules &rules) { cgiTimeout = CGITimeoutRule(rules, false); }}
 	};
 
 	_path = path;
@@ -37,6 +38,8 @@ void LocationRule::adjustFromDefault(const LocationRule &defaultLocation) {
 		redirect = defaultLocation.redirect;
 	if (!CGI.isSet())
 		CGI = defaultLocation.CGI;
+	if (!cgiTimeout.isSet())
+		cgiTimeout = defaultLocation.cgiTimeout;
 	errorPages.updateFromDefault(defaultLocation.errorPages);
 }
 
@@ -45,6 +48,6 @@ inline const std::string &LocationRule::getPath() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule) {
-	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.CGI << ")";
+	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.CGI << ", cgi_timeout: " << rule.cgiTimeout << ", error_pages: " << rule.errorPages << ")";
 	return os;
 }

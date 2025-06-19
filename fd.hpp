@@ -36,6 +36,7 @@ public:
     std::string readBuffer;
     std::string writeBuffer;
 
+    FD();
     FD(int fd, FDType type = FDType::DEFAULT, std::shared_ptr<BaseHandlerObject> connectedObject = nullptr);
     FD(const FD& other) = default;
     FD& operator=(const FD& other) = default;

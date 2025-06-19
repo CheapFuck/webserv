@@ -147,9 +147,12 @@ class CGIClient:
 	def sendBody(self, body: str) -> None:
 		"""Sends the body of the response."""
 		if self._cgiStatus < CGIStatus.SEND_BODY:
+			# self.setHeader('Content-Length', str(len(body)))
 			print('', end='\r\n', flush=True)
-		if self._cgiStatus > CGIStatus.SEND_BODY:
-			raise RuntimeError("Headers must be sent before the body.")
+		if self._cgiStatus == CGIStatus.SEND_BODY:
+			raise RuntimeError("Body cannot be sent multiple times.")
+		elif self._cgiStatus > CGIStatus.SEND_BODY:
+			raise RuntimeError("Cannot send body after ending the response.")
 		self._cgiStatus = CGIStatus.SEND_BODY
 
 		print(body, flush=True)

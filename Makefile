@@ -34,6 +34,7 @@ SRCS := main.cpp \
 	config/custom_types/path.cpp \
 	config/rules/rules.cpp \
 	config/rules/MaxBodySize.cpp \
+	config/rules/CGITimeout.cpp \
 	config/rules/ServerName.cpp \
 	config/rules/Port.cpp \
 	config/rules/CGI.cpp \

@@ -4,7 +4,7 @@
 #include "print.hpp"
 #include "fd.hpp"
 
-Client::Client(Server &server, int serverFd, std::string &clientIP, std::string &clientPort) : _server(server), _serverFd(serverFd), _clientIP(clientIP), _clientPort(clientPort), _cgiClient(nullptr) {}
+Client::Client(Server &server, int serverFd, const char *clientIP, int clientPort) : _cgiClient(nullptr), _CGIWriteFd(nullptr), _server(server), _serverFd(serverFd), _clientIP(std::string(clientIP)), _clientPort(std::to_string(clientPort)) {}
 
 /// @brief Processes the request based on its HTTP method.
 /// @param config The server configuration
@@ -96,21 +96,52 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
     }
 }
 
+void Client::handleCGIResponse() {
+    if (!_CGIWriteFd) return ;
+
+    _CGIWriteFd->writeToBuffer(response.getAsString());
+    if (_CGIWriteFd->write() == -1) {
+        ERROR("Failed to write CGI response for Client: " << _CGIWriteFd->get());
+        _server.untrackDescriptor(_CGIWriteFd->get());
+        _CGIWriteFd = nullptr;
+        return;
+    }
+
+    if (_CGIWriteFd->setEpollIn() == -1) {
+        ERROR("Failed to set EPOLLIN for CGI write fd: " << _CGIWriteFd->get());
+        _server.untrackDescriptor(_CGIWriteFd->get());
+        _CGIWriteFd = nullptr;
+        return;
+    }
+
+    DEBUG("CGI response written successfully for Client: " << _CGIWriteFd->get());
+
+    request = Request();
+    response = Response();
+    _CGIWriteFd->readBuffer.clear();
+    _CGIWriteFd->writeBuffer.clear();
+    _CGIWriteFd = nullptr;
+}
+
 void Client::handleWriteCallback(FD &fd) {
     DEBUG("Write callback for Client, fd: " << fd.get());
+    if (_cgiClient && _cgiClient->isRunning()) {
+        _CGIWriteFd = &fd;
+        return ;
+    }
 
     response.setDefaultBody(_server.loadRequestConfig(request, _serverFd));
     fd.writeToBuffer(response.getAsString());
 
     if (fd.write() == -1) {
         ERROR("Failed to write response for Client: " << fd.get());
-        fd.close();
+        _server.untrackDescriptor(fd.get());
         return;
     }
 
     if (fd.setEpollIn() == -1) {
         ERROR("Failed to set EPOLLIN for Client: " << fd.get());
-        fd.close();
+        _server.untrackDescriptor(fd.get());
         return;
     }
 
@@ -118,6 +149,7 @@ void Client::handleWriteCallback(FD &fd) {
     response = Response();
     fd.readBuffer.clear();
     fd.writeBuffer.clear();
+    _CGIWriteFd = nullptr;
 }
 
 void Client::handleDisconnectCallback(FD &fd) {

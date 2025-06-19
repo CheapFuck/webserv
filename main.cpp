@@ -24,8 +24,15 @@ void signalHandler(int signum) {
 /// @param configPath The file path to the configuration file
 /// @return A vector of ServerConfig objects
 std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
+    std::ifstream file(configPath);
+	if (!file.is_open())
+		return std::vector<ServerConfig>();
+
+	std::string config((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	file.close();
+
     try {
-        std::vector<Token> tokens = tokenize(configPath);
+        std::vector<Token> tokens = tokenize(config);
         Object raw_data = lexer(tokens);
         return fetchServerConfigs(raw_data);
     }
@@ -53,16 +60,10 @@ int run_servers(const std::vector<ServerConfig>& serverConfigs) {
         portToConfigs[config.port.get()].push_back(config);
     }
 
-    try {
-        Server server(portToConfigs);
-        while (!g_quit)
-            server.runOnce();
-        server.cleanUp();
-    }
-    catch (const std::exception& e) {
-        ERROR("Failed to create server: " << e.what());
-        return (1);
-    }
+    Server server(portToConfigs);
+    while (!g_quit)
+        server.runOnce();
+    server.cleanUp();
 
     return (0);
 }

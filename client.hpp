@@ -8,11 +8,13 @@
 #include "CGI.hpp"
 #include "fd.hpp"
 
+class CGIClient;
 class Server;
 
 class Client : public BaseHandlerObject {
 private:
     std::shared_ptr<CGIClient> _cgiClient;
+    FD *_CGIWriteFd;
     Server &_server;
     int _serverFd;
     
@@ -26,15 +28,18 @@ public:
     Response response;
     Request request;
 
-    Client(Server &server, int serverFd, std::string &clientIP, std::string &clientPort);
-    Client(const Client &other);
-    Client &operator=(const Client &other);
+    Client(Server &server, int serverFd, const char *clientIP, int clientPort);
+    // Client(const Client &other) = default;
+    // Client &operator=(const Client &other) = default;
     ~Client() override = default;
 
     void handleReadCallback(FD &fd, int funcReturnValue) override;
     void handleWriteCallback(FD &fd) override;
     void handleDisconnectCallback(FD &fd) override;
 
-    std::string &getClientIP() { return _clientIP; }
-    std::string &getClientPort() { return _clientPort; }
+    void handleCGIResponse();
+
+    inline std::string &getClientIP() { return _clientIP; }
+    inline std::string &getClientPort() { return _clientPort; }
+    inline Server &getServer() { return _server; }
 };

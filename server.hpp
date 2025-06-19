@@ -19,18 +19,6 @@
 bool is_fd_valid(int fd);
 
 class Server {
-public:
-    Server(const std::map<int, std::vector<ServerConfig>> &configs);
-    Server(const Server &other);
-    Server &operator=(const Server &other);
-    ~Server();
-
-    void cleanUp();
-    void runOnce();
-
-    // Request processing
-    ServerConfig &loadRequestConfig(Request &request, int serverFd);
-
 private:
     std::map<int, std::vector<ServerConfig>> _portToConfigs;
     UserSessionManager _sessionManager;
@@ -50,6 +38,24 @@ private:
 
     // I/O handling
     void _handleFDIO(FD &fd, short revents);
+
+public:
+    Server(const std::map<int, std::vector<ServerConfig>> &configs);
+    Server(const Server &other);
+    Server &operator=(const Server &other);
+    ~Server();
+
+    void cleanUp();
+    void runOnce();
+
+    // Request processing
+    ServerConfig &loadRequestConfig(Request &request, int serverFd);
+
+    void untrackDescriptor(int fd);
+
+    inline Timer &getTimer() { return _timer; }
+    inline int getEpollFd() const { return _epoll_fd; }
+    inline void trackDescriptor(const FD &fd) { _descriptors[fd.get()] = fd; }
 };
 
 #endif // SERVER_HPP

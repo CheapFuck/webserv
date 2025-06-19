@@ -37,6 +37,7 @@ enum Keyword {
 	DEFAULT = 1 << 4,
 	ENABLE = 1 << 5,
 	DISABLE = 1 << 6,
+	AUTO = 1 << 7,
 };
 
 enum Key {
@@ -53,6 +54,7 @@ enum Key {
 	ALLOWED_METHODS = 1 << 10,
 	UPLOAD_DIR = 1 << 11,
 	CGI_PASS = 1 << 12,
+	CGI_TIMEOUT = 1 << 13,
 };
 
 #define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | SEMICOLON | KEYWORD | END))
@@ -89,6 +91,6 @@ std::ostream& operator<<(std::ostream& os, const Token& token);
 std::ostream& operator<<(std::ostream& os, const Rule& rule);
 std::ostream& operator<<(std::ostream& os, const Object& object);
 
-std::vector<Token> tokenize(const std::string& filename);
+std::vector<Token> tokenize(const std::string& configuration);
 
 Object lexer(std::vector<Token> &tokens);

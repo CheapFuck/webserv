@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 
 import cgilib
+import sys
+
+print('apple banana something from cgi script to sterr yk', file=sys.stderr)
 
 cgi: cgilib.CGIClient = cgilib.CGIClient()
 
-with cgi.session:
-    cgi.session["me"] = {
-        "name": "Test User",
-        "email": "somemail@gmail.com",
-        "roles": ["admin", "user"],
-        "preferences": {
-            "theme": "dark",
-            "notifications": True,
-            "language": "en-US"
-        }
-    }
+# with cgi.session:
+#     cgi.session["me"] = {
+#         "name": "Test User",
+#         "email": "somemail@gmail.com",
+#         "roles": ["admin", "user"],
+#         "preferences": {
+#             "theme": "dark",
+#             "notifications": True,
+#             "language": "en-US"
+#         }
+#     }
 
 cgi.setHeader("Content-Type", "text/plain; charset=utf-8")
 cgi.setHeader("X-Content-Type-Options", "nosniff")
@@ -28,10 +31,10 @@ cgi.setHeader("X-Frame-Options", "DENY")
 cgi.setHeader("X-XSS-Protection", "1; mode=block")
 
 somebody = cgi.getBody()
-with cgi.session:
-    cgi.session["body"] = somebody
+# with cgi.session:
+#     cgi.session["body"] = somebody
 
-cgi.sendBody(f"Hello, {cgi.session['me']}!\n")
+# cgi.sendBody(f"Hello, {cgi.session['me']}!\n")
 cgi.sendBody("This is a test of the CGI environment.\n")
 cgi.sendBody("You can access environment variables like this:\n")
 cgi.sendBody(f"HTTP_USER_AGENT: {cgi.getEnvironmentVariable('HTTP_USER_AGENT', 'Unknown')}\n")

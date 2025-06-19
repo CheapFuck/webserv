@@ -4,3 +4,4 @@ webserv
 webserv_db
 .vscode/
 sessions*/
+__pycache__/

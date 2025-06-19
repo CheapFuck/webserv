@@ -10,15 +10,17 @@
 #include "fd.hpp"
 
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <exception>
+#include <unistd.h>
 #include <iostream>
 #include <unistd.h>
+#include <netdb.h>
 #include <fcntl.h>
 #include <thread>
 #include <memory>
@@ -163,7 +165,7 @@ void Server::_handleNewConnection(int sourceFd) {
     socklen_t client_len = sizeof(client_address);
 
     int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
-    FD clientFD(fd, FDType::SOCKET, std::make_unique<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), std::to_string(ntohs(client_address.sin_port))));
+    FD clientFD(fd, FDType::SOCKET, std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port)));
     if (!clientFD)
         return ;
 
@@ -237,8 +239,10 @@ void Server::_removeDescriptor(int fd) {
 void Server::_handleFDIO(FD &fd, short revents) {
     DEBUG_IF(revents & EPOLLIN, "EPOLLIN event detected for fd: " << fd.get());
     DEBUG_IF(revents & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd.get());
-    DEBUG_IF(revents & (EPOLLERR | EPOLLHUP), "EPOLLERR or EPOLLHUP event detected for fd: " << fd.get());
+    DEBUG_IF(revents & EPOLLERR, "EPOLLERR event detected for fd: " << fd.get());
+    DEBUG_IF(revents & EPOLLHUP, "EPOLLHUP event detected for fd: " << fd.get());
     DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd.get());
+    DEBUG("-----------");
 
     int fdNum = fd.get();
 
@@ -253,6 +257,20 @@ void Server::_handleFDIO(FD &fd, short revents) {
         fd.close();
         _removeDescriptor(fdNum);
     }
+}
+
+/// @brief Untrack and close a file descriptor.
+/// @details This function removes the file descriptor from the server's descriptor map and closes it.
+/// @param fd The file descriptor to untrack and close.
+void Server::untrackDescriptor(int fd) {
+    auto it = _descriptors.find(fd);
+    if (it != _descriptors.end()) {
+        it->second.close();
+        _descriptors.erase(it);
+        DEBUG("Untracked and closed descriptor for fd: " << fd);
+    }
+    else
+        DEBUG("No descriptor found for fd: " << fd << ", nothing to untrack");
 }
 
 /// @brief Entry point for the server, running it's event loop once.

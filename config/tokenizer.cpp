@@ -88,18 +88,11 @@ Token get_next_token(const char *str, size_t &i) {
 	}
 }
 
-std::vector<Token> tokenize(const std::string& filename) {
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		throw std::runtime_error("Failed to open file: " + filename);
-	}
-	std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-	file.close();
-
+std::vector<Token> tokenize(const std::string& configuration) {
 	std::vector<Token> tokens;
 	size_t i = 0;
 	while (true) {
-		Token token = get_next_token(str.c_str(), i);
+		Token token = get_next_token(configuration.c_str(), i);
 		if (IS_USABLE_TOKEN(token.type))
 			tokens.push_back(token);
 		if (token.type == END)

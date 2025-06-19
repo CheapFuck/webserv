@@ -52,7 +52,8 @@ static Key getRuleKey(const Token &token) {
 		{"location", LOCATION},
 		{"allowed_methods", ALLOWED_METHODS},
 		{"upload_store", UPLOAD_DIR},
-		{"cgi", CGI_PASS}
+		{"cgi", CGI_PASS},
+		{"cgi_timeout", CGI_TIMEOUT},
 	};
 
 	auto it = keyMap.find(token.value);
@@ -69,7 +70,8 @@ static Keyword getKeyword(const std::string &str) {
 		{"false", FALSE},
 		{"default", DEFAULT},
 		{"enable", ENABLE},
-		{"disable", DISABLE}
+		{"disable", DISABLE},
+		{"auto", AUTO},
 	};
 
 	auto it = keywordMap.find(str);

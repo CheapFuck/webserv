@@ -10,8 +10,10 @@
 #include <string>
 #include <memory>
 
+FD::FD() : _fd(-1), _epollFd(-1), _epollEvents(0), _type(FDType::DEFAULT), _connectedObject(nullptr) {}
+
 FD::FD(int fd, FDType type, std::shared_ptr<BaseHandlerObject> connectedObject)
-    : _fd(fd), _epollFd(-1), _type(type), _connectedObject(std::move(connectedObject)) {}
+    : _fd(fd), _epollFd(-1), _epollEvents(0), _type(type), _connectedObject(std::move(connectedObject)) {}
 
 bool FD::operator<(const FD& other) const {
     return _fd < other._fd;
@@ -24,7 +26,10 @@ bool FD::operator<(int otherFd) const {
 FD::~FD() {}
 
 int FD::_cleanUp() {
-    DEBUG("Closing file descriptor: " << _fd);
+    if (_connectedObject) {
+        _connectedObject->handleDisconnectCallback(*this);
+        _connectedObject = nullptr;
+    }
 
     if (isConnectedToEpoll()) {
         int ret = disconnectFromEpoll();
@@ -35,11 +40,6 @@ int FD::_cleanUp() {
         int result = ::close(_fd);
         _fd = -1;
         return (result);
-    }
-
-    if (_connectedObject) {
-        _connectedObject->handleDisconnectCallback(*this);
-        _connectedObject = nullptr;
     }
 
     return (0);
@@ -250,7 +250,7 @@ int FD::read() {
         ret = _readToBuffer();
     }
 
-    if (_connectedObject && ret != 0)
+    if (_connectedObject)
         _connectedObject->handleReadCallback(*this, ret);
 
     return (ret);
