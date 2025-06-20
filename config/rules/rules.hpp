@@ -133,6 +133,10 @@ private:
 public:
 	MethodRule();
 	MethodRule(const Rules &rules, bool required = false);
+	MethodRule(const MethodRule &other) = default;
+	MethodRule &operator=(const MethodRule &other) = default;
+	~MethodRule() = default;
+
 	bool isAllowed(Method method) const;
 	const Method &getMethods() const;
 
@@ -165,8 +169,10 @@ private:
 public:
 	IndexRule();
 	IndexRule(const Rules &rules, bool required = false);
-	IndexRule(const IndexRule &other);
-	IndexRule &operator=(const IndexRule &other);
+	IndexRule(const IndexRule &other) =  default;
+	IndexRule &operator=(const IndexRule &other) =  default;
+	~IndexRule() = default;
+
 	const std::vector<std::string> &get() const;
 	bool isSet() const;
 };
@@ -179,6 +185,10 @@ private:
 public:
 	AutoIndexRule();
 	AutoIndexRule(const Rules &rules, bool required = false);
+	AutoIndexRule(const AutoIndexRule &other) = default;
+	AutoIndexRule &operator=(const AutoIndexRule &other) = default;
+	~AutoIndexRule() = default;
+
 	bool get() const;
 	bool isSet() const;
 };
@@ -191,6 +201,10 @@ private:
 public:
 	UploadDirRule();
 	UploadDirRule(const Rules &rules, bool required = false);
+	UploadDirRule(const UploadDirRule &other) = default;
+	UploadDirRule &operator=(const UploadDirRule &other) = default;
+	~UploadDirRule() = default;
+
 	const Path &get() const;
 	bool isSet() const;
 };
@@ -203,6 +217,10 @@ private:
 public:
 	RedirectRule();
 	RedirectRule(const Rules &rules, bool required = false);
+	RedirectRule(const RedirectRule &other) = default;
+ 	RedirectRule &operator=(const RedirectRule &other) = default;
+ 	~RedirectRule() = default;
+
 	const std::string &get() const;
 	bool isSet() const;
 };

@@ -7,7 +7,13 @@
 MethodRule::MethodRule() : _methods(UNKNOWN_METHOD), _is_set(false) {}
 
 MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD), _is_set(false) {
-	bool found = false;
+	if (rules.empty()) {
+		if (required)
+			throw ConfigParsingException("Missing allowed methods rule");
+		else
+			_methods = ALL_METHODS;
+		return;
+	}
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() < 1)
@@ -23,15 +29,8 @@ MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_MET
 			if (method & _methods)
 				throw ConfigParsingException("Duplicate method: " + arg.str);
 			_methods = _methods | method;
-			found = true;
+			_is_set = true;
 		}
-	}
-
-	if (!found) {
-		if (required)
-			throw ConfigParsingException("Missing allowed methods rule");
-		else
-			_methods = ALL_METHODS;
 	}
 }
 
