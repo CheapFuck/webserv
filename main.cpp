@@ -20,54 +20,6 @@ void signalHandler(int signum) {
     }
 }
 
-/// @brief Fetch server configurations
-/// @param configPath The file path to the configuration file
-/// @return A vector of ServerConfig objects
-std::vector<ServerConfig> load_server_configs(const std::string& configPath) {
-    std::ifstream file(configPath);
-	if (!file.is_open())
-		return std::vector<ServerConfig>();
-
-	std::string config((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-	file.close();
-
-    try {
-        std::vector<Token> tokens = tokenize(config);
-        Object raw_data = lexer(tokens);
-        return fetchServerConfigs(raw_data);
-    }
-    catch (const std::exception& e) {
-        ERROR("Failed to load server configurations: " << e.what());
-        return std::vector<ServerConfig>();
-    }
-}
-
-/// @brief Free up resources for running servers to freely exit the program
-/// @param servers A vector of Server objects to clean up
-void handleServersCleanup(std::vector<Server> &servers) {
-    for (Server& server : servers)
-        server.cleanUp();
-}
-
-/// @brief Spawn and run servers based on the provided configurations
-/// @param serverConfigs A vector of ServerConfig objects containing the server configurations
-/// @return 1 if either one of the servers failed to start, 0 otherwise
-int run_servers(const std::vector<ServerConfig>& serverConfigs) {
-    std::map<int, std::vector<ServerConfig>> portToConfigs;
-    for (const ServerConfig& config : serverConfigs) {
-        if (portToConfigs.find(config.port.get()) == portToConfigs.end())
-            portToConfigs[config.port.get()] = std::vector<ServerConfig>();
-        portToConfigs[config.port.get()].push_back(config);
-    }
-
-    Server server(portToConfigs);
-    while (!g_quit)
-        server.runOnce();
-    server.cleanUp();
-
-    return (0);
-}
-
 int main(int argc, char* argv[]) {
     if (argc > 2) {
         ERROR("Usage: " << argv[0] << " [configuration file]");
@@ -77,18 +29,19 @@ int main(int argc, char* argv[]) {
     std::string configPath = "default.conf";
     if (argc == 2) configPath = argv[1];
 
-    std::vector<ServerConfig> serverConfigs = load_server_configs(configPath);
-    if (serverConfigs.empty()) {
-        ERROR("No valid server configurations found in " << configPath);
-        return 1;
-    }
+    ConfigurationParser parser(configPath);
+    if (!parser.fetchConfiguration())
+        return (1);
 
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    if (run_servers(serverConfigs) != 0) {
-        ERROR("Error running servers.");
-        return 1;
-    }
+    PRINT("Configuration loaded successfully from " << configPath);
+    Server server(parser.getResult());
+    while (!g_quit)
+        server.runOnce();
+    server.cleanUp();
+
+    PRINT("Server shutting down gracefully - how nice ^^");
     return (0);
 }

@@ -8,16 +8,15 @@ RouteRules::RouteRules(Rules &rules, const LocationRule &defaultLocation, bool r
 	_defaultLocation = defaultLocation;
 
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing location rule");
+		throw ParserMissingException("Missing location rules");
 
 	for (Rule &rule : rules) {
 		if (rule.arguments.size() != 2)
-			throw ConfigParsingException("Invalid location rule");
+			throw ParserTokenException("Invalid location rule format", rule);
 		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid location path argument type");
+			throw ParserTokenException("Invalid location path argument type", rule.arguments[0]);
 		if (rule.arguments[1].type != OBJECT)
-			throw ConfigParsingException("Invalid location object argument type");
-
+			throw ParserTokenException("Invalid location rules argument type", rule.arguments[1]);
 		_routes.push_back(LocationRule(rule.arguments[0].str, rule.arguments[1].rules, true));
 		_routes.back().adjustFromDefault(defaultLocation);
 	}

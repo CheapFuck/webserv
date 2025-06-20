@@ -34,7 +34,7 @@ private:
 	size_t _size;
 
 public:
-	Size(const std::string &str);
+	Size(const Rule &rule);
 	Size(const Size &other);
 	Size();
 	Size &operator=(const Size &other);
@@ -75,6 +75,10 @@ private:
 public:
 	PortRule();
 	PortRule(const Rules &rules, bool required = true);
+	PortRule(const PortRule &other) = default;
+	PortRule &operator=(const PortRule &other) = default;
+	~PortRule() = default;
+
 	int get() const;
 };
 
@@ -85,6 +89,10 @@ private:
 public:
 	ServerNameRule();
 	ServerNameRule(const Rules &rules, bool required = false);
+	ServerNameRule(const ServerNameRule &other) = default;
+	ServerNameRule &operator=(const ServerNameRule &other) = default;
+	~ServerNameRule() = default;
+
 	std::string get() const;
 };
 
@@ -111,6 +119,9 @@ private:
 public:
 	CGIRule();
 	CGIRule(const Rules &rules, bool required = false);
+	CGIRule(const CGIRule &other) = default;
+	CGIRule &operator=(const CGIRule &other) = default;
+	~CGIRule() = default;
 
 	inline bool isSet() const {
 		return _is_set;
@@ -120,14 +131,15 @@ public:
 class ErrorPageRule {
 private:
 	std::map<int, Path> _error_pages;
-	Path _default_page;
 
 public:
 	ErrorPageRule();
 	ErrorPageRule(const Rules &rules, bool required = false);
-	const Path &getErrorPage(int code) const;
-	const std::map<int, Path> &getErrorPages() const;
+	ErrorPageRule(const ErrorPageRule &other) = default;
+	ErrorPageRule &operator=(const ErrorPageRule &other) = default;
+	~ErrorPageRule() = default;
 
+	const std::map<int, Path> &getErrorPages() const;
 	void updateFromDefault(const ErrorPageRule &defaultRule);
 };
 

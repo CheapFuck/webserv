@@ -5,18 +5,18 @@
 
 ServerNameRule::ServerNameRule() : _server_name() {}
 
-ServerNameRule::ServerNameRule(const Rules &rules, bool required) {
+ServerNameRule::ServerNameRule(const Rules &rules, bool required): _server_name() {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing server name rule");
+		throw ParserMissingException("Missing server name rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple server name rules found");
+		throw ParserDuplicationException("Multiple server name rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid server name rule");
+			throw ParserTokenException("Invalid server name rule format", rule);
 		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid server name argument type");
+			throw ParserTokenException("Invalid server name argument type", rule.arguments[0]);
 
 		_server_name = std::string(rule.arguments[0].str);
 	}

@@ -7,16 +7,16 @@ CGIRule::CGIRule() : _is_set(false) {}
 
 CGIRule::CGIRule(const Rules &rules, bool required) : _is_set(false) {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing cgi rule");
+		throw ParserMissingException("Missing cgi rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple cgi rules found");
+		throw ParserDuplicationException("Multiple cgi rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid cgi_pass rule");
+			throw ParserTokenException("Invalid cgi rule format", rule);
 		if (rule.arguments[0].type != KEYWORD)
-			throw ConfigParsingException("Invalid cgi_pass argument type");
+			throw ParserTokenException("Invalid cgi argument type", rule.arguments[0]);
 		
 		switch (rule.arguments[0].keyword) {
 			case ON:
@@ -30,7 +30,7 @@ CGIRule::CGIRule(const Rules &rules, bool required) : _is_set(false) {
 				_is_set = false;
 				break;
 			default:
-				throw ConfigParsingException("Invalid cgi_pass keyword: " + rule.arguments[0].str);
+				throw ParserTokenException("Invalid cgi keyword: " + rule.arguments[0].str, rule.arguments[0]);
 		}
 	}
 }

@@ -26,9 +26,11 @@ SRCS := main.cpp \
 	sessionManager.cpp \
 	cookie.cpp \
 	Utils.cpp \
-	config/tokenizer.cpp \
 	config/lexer.cpp \
+	config/parser.cpp \
 	config/consts.cpp \
+	config/config.cpp \
+	config/parserExceptions.cpp \
 	config/custom_types/size.cpp \
 	config/custom_types/path.cpp \
 	config/rules/rules.cpp \

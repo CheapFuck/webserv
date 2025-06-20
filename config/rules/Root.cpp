@@ -9,16 +9,16 @@ RootRule::RootRule(const Path &root) : _root(root), _is_set(true) {}
 
 RootRule::RootRule(const Rules &rules, bool required) : _root(), _is_set(false) {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing root rule");
+		throw ParserMissingException("Missing root rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple root rules found");
+		throw ParserDuplicationException("Multiple root rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid root rule");
+			throw ParserTokenException("Invalid root rule format", rule);
 		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid root argument type");
+			throw ParserTokenException("Invalid root argument type", rule.arguments[0]);
 
 		_root = Path(rule.arguments[0].str);
 		_is_set = true;

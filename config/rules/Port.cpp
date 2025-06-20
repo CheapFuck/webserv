@@ -1,27 +1,36 @@
 #include "rules.hpp"
+#include "../../print.hpp"
+
 #include <iostream>
 
 PortRule::PortRule() : _port(-1) {}
 
-PortRule::PortRule(const Rules &rules, bool required) {
+PortRule::PortRule(const Rules &rules, bool required): _port(-1) {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing port rule");
+		throw ParserMissingException("Missing port rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple port rules found");
+		throw ParserDuplicationException("Multiple port rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid port rule");
+			throw ParserTokenException("Invalid port rule format", rule);
 		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid port argument type");
+			throw ParserTokenException("Invalid port argument type", rule.arguments[0]);
 
 		size_t char_count = 0;
-		_port = std::stoi(rule.arguments[0].str, &char_count);
+		try {_port = std::stoi(rule.arguments[0].str, &char_count); }
+		catch (const std::invalid_argument &e) {
+			throw ParserTokenException("Invalid port value: " + rule.arguments[0].str, rule.arguments[0]);
+		}
+		catch (const std::out_of_range &e) {
+			throw ParserTokenException("Port number out of range: " + rule.arguments[0].str, rule.arguments[0]);
+		}
+
 		if (char_count != rule.arguments[0].str.size())
-			throw ConfigParsingException("Invalid port value: " + rule.arguments[0].str);
+			throw ParserTokenException("Invalid port value: " + rule.arguments[0].str, rule.arguments[0]);
 		if (_port < 1 || _port > 65535)
-			throw ConfigParsingException("Port number out of range: " + rule.arguments[0].str);
+			throw ParserTokenException("Port number out of range: " + rule.arguments[0].str, rule.arguments[0]);
 	}
 }
 

@@ -15,7 +15,6 @@ ServerConfig::ServerConfig(Object &object) {
 	};
 
 	extractRules(object, ruleParsers, true);
-	DEBUG(*this);
 }
 
 /// @brief Fetches server configurations from the given object.
@@ -27,8 +26,10 @@ std::vector<ServerConfig> fetchServerConfigs(Object &object) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
 		{SERVER, [&serverConfigs](Rules &rules) { 
 			for (Rule & rule : rules) {
-				if (rule.arguments.size() != 1 || rule.arguments[0].type != OBJECT)
-					throw ConfigParsingException("Invalid server rule");
+				if (rule.arguments.size() != 1)
+					throw ParserTokenException("Invalid server rule format", rule);
+				if (rule.arguments[0].type != OBJECT)
+					throw ParserTokenException("Invalid server rule argument type", rule.arguments[0]);
 				serverConfigs.push_back(ServerConfig(rule.arguments[0].rules));
 			}
 		 }},

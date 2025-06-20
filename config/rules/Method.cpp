@@ -9,7 +9,7 @@ MethodRule::MethodRule() : _methods(UNKNOWN_METHOD), _is_set(false) {}
 MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_METHOD), _is_set(false) {
 	if (rules.empty()) {
 		if (required)
-			throw ConfigParsingException("Missing allowed methods rule");
+			throw ParserMissingException("Missing allowed methods rule");
 		else
 			_methods = ALL_METHODS;
 		return;
@@ -17,17 +17,17 @@ MethodRule::MethodRule(const Rules &rules, bool required) : _methods(UNKNOWN_MET
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() < 1)
-			throw ConfigParsingException("Invalid allowed methods rule");
+			throw ParserTokenException("Invalid allowed methods rule", rule);
 
 		for (const Argument &arg : rule.arguments) {
 			if (arg.type != STRING)
-				throw ConfigParsingException("Invalid method argument type");
+				throw ParserTokenException("Invalid method argument type", arg);
 
 			Method method = stringToMethod(arg.str);
 			if (method == UNKNOWN_METHOD)
-				throw ConfigParsingException("Invalid method: " + arg.str);
+				throw ParserTokenException("Invalid method: " + arg.str, arg);
 			if (method & _methods)
-				throw ConfigParsingException("Duplicate method: " + arg.str);
+				throw ParserTokenException("Duplicate method: " + arg.str, arg);
 			_methods = _methods | method;
 			_is_set = true;
 		}

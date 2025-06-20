@@ -62,14 +62,13 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     try {
         for (const auto &pair : configs)
             this->_setupSocket(pair.first, pair.second);
+        this->_setupEpoll();
     } catch (const ServerCreationException &e) {
         for (const auto &pair : _portToConfigs) {
             close(pair.first);
         }
         throw;
     }
-
-    this->_setupEpoll();
 
     _timer.addEvent(std::chrono::seconds(SESSION_CLEANUP_INTERVAL), [this]() {
         _sessionManager.cleanUpExpiredSessions();

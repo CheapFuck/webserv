@@ -7,14 +7,8 @@
 #include <vector>
 #include <map>
 
-class ConfigParsingException : public std::exception {
-public:
-	ConfigParsingException(const std::string& message) : _message(message) {}
-	const char* what() const noexcept;
-private:
-	std::string _message;
-};
-
+class 	ServerConfig;
+struct	ErrorContext;
 struct	Rule;
 
 enum TokenType {
@@ -22,7 +16,7 @@ enum TokenType {
 	STR = 1 << 0,
 	BRACE_OPEN = 1 << 1,
 	BRACE_CLOSE = 1 << 2,
-	SEMICOLON = 1 << 3,
+	LINE_END = 1 << 3,
 	WHITESPACE = 1 << 4,
 	COMMENT = 1 << 5,
 	END = 1 << 6,
@@ -59,7 +53,7 @@ enum Key {
 	INCLUDE = 1 << 15,
 };
 
-#define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | SEMICOLON | KEYWORD | END))
+#define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | LINE_END | KEYWORD | END))
 
 struct Token {
 	TokenType type;
@@ -67,8 +61,13 @@ struct Token {
 	int filePos;
 };
 
-typedef std::map<Key, std::vector<Rule>> Object;
 typedef std::vector<Rule> Rules;
+
+struct Object {
+	std::map<Key, std::vector<Rule>> children;
+	int fileObjOpenPos;
+	int fileObjClosePos;
+};
 
 enum ArgumentType {
 	STRING = 1 << 0,
@@ -81,10 +80,12 @@ struct Argument {
 	std::string str;
 	Keyword keyword;
 	Object rules;
+	int filePos;
 };
 
 struct Rule {
 	Key key;
+	int filePos;
 	std::vector<Argument> arguments;
 };
 
@@ -92,11 +93,78 @@ struct LexerContext {
 	std::vector<std::pair<std::string, Object>> includes; 
 };
 
+class ConfigurationParser {
+private:
+	std::string _filename;
+	std::string _configuration;
+	std::vector<size_t> _lineNumbers;
+	std::vector<Token> _tokens;
+	std::map<int, std::vector<ServerConfig>> _result;
+
+	void _readFile();
+	std::vector<Token> _tokenize() const;
+	void _fetchServerConfigs(Object &object);
+	Object _parseTokens(std::vector<Token> &tokens) const;
+
+
+public:
+	ConfigurationParser(const std::string &filename);
+	ConfigurationParser(const ConfigurationParser &other) = default;
+	ConfigurationParser &operator=(const ConfigurationParser &other) = default;
+	~ConfigurationParser() = default;
+
+	bool fetchConfiguration();
+	std::map<int, std::vector<ServerConfig>> getResult() const;
+
+	ErrorContext getErrorContext(size_t pos) const;
+
+	inline const std::string& getFilename() const { return _filename; }
+};
+
+struct ErrorContext {
+	size_t lineNum;
+	size_t columnNum;
+	std::string line;
+};
+
+class ParserTokenException : public std::exception {
+private:
+	std::string _message;
+	int _filePos;
+
+public:
+	ParserTokenException(const std::string &message, const Rule &rule);
+	ParserTokenException(const std::string &message, const Token &token);
+	ParserTokenException(const std::string &message, const Argument &argument);
+	std::string what(ConfigurationParser &parser) const noexcept;
+};
+
+class ParserDuplicationException : public std::exception {
+private:
+	std::string _message;
+	int _firstFilePos;
+	int _secondFilePos;
+
+public:
+	ParserDuplicationException(const std::string &message, const Rule &firstRule, const Rule &secondRule);
+	std::string what(ConfigurationParser &parser) const noexcept;
+};
+
+class ParserMissingException : public std::exception {
+private:
+	std::string _message;
+	int _firstFilePos;
+	int _secondFilePos;
+
+public:
+	ParserMissingException(const std::string &message);
+	std::string what(ConfigurationParser &parser) const noexcept;
+
+	void attachObject(const Object &object);
+	inline bool isObjectAttached() const noexcept { return _firstFilePos != 0 && _secondFilePos != 0; };
+};
+
 std::ostream& operator<<(std::ostream& os, const TokenType& type);
 std::ostream& operator<<(std::ostream& os, const Token& token);
 std::ostream& operator<<(std::ostream& os, const Rule& rule);
 std::ostream& operator<<(std::ostream& os, const Object& object);
-
-std::vector<Token> tokenize(const std::string& configuration);
-
-Object lexer(std::vector<Token> &tokens);

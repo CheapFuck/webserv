@@ -123,7 +123,6 @@ char * const *CGIClient::_createEnvironmentArray() const {
     for (auto &env : _environmentVariables) {
         envStrings.push_back(env.first + "=" + env.second);
         envPtrs.push_back(const_cast<char*>(envStrings.back().c_str()));
-        ERROR("CGI ENV: " << env.first << "=" << env.second);
     }
     envPtrs.push_back(nullptr); // Null-terminate the array
     return envPtrs.data();
@@ -274,11 +273,11 @@ void CGIClient::handleDisconnectCallback(FD &fd) {
         int exitStatus = 0;
         waitpid(_pid, &exitStatus, 0);
         DEBUG("CGIClient exited normally, PID: " << _pid << ", exit status: " << exitStatus);
+        _isRunning = false;
         _client.getServer().getTimer().deleteEvent(_processTimerId);
         if (exitStatus == 0) _client.response.updateFromCGIOutput(fd.readBuffer);
         else _client.response.setStatusCode(HttpStatusCode::InternalServerError);
         _client.handleCGIResponse();
-        _isRunning = false;
     }
     DEBUG("CGIClient disconnect callback, fd: " << fd.get());
 }

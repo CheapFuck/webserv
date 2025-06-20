@@ -98,34 +98,10 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
 }
 
 void Client::handleCGIResponse() {
+    DEBUG("Handling CGI response for Client, fd: " << (_CGIWriteFd ? _CGIWriteFd->get() : -1));
     if (!_CGIWriteFd) return ;
-
-    const LocationRule *route = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getPath());
-    if (route)
-        response.setDefaultBody(*route);
-
-    _CGIWriteFd->writeToBuffer(response.getAsString());
-    if (_CGIWriteFd->write() == -1) {
-        ERROR("Failed to write CGI response for Client: " << _CGIWriteFd->get());
-        _server.untrackDescriptor(_CGIWriteFd->get());
-        _CGIWriteFd = nullptr;
-        return;
-    }
-
-    if (_CGIWriteFd->setEpollIn() == -1) {
-        ERROR("Failed to set EPOLLIN for CGI write fd: " << _CGIWriteFd->get());
-        _server.untrackDescriptor(_CGIWriteFd->get());
-        _CGIWriteFd = nullptr;
-        return;
-    }
-
-    DEBUG("CGI response written successfully for Client: " << _CGIWriteFd->get());
-
-    request = Request();
-    response = Response();
-    _CGIWriteFd->readBuffer.clear();
-    _CGIWriteFd->writeBuffer.clear();
-    _CGIWriteFd = nullptr;
+    DEBUG("Fire response");
+    handleWriteCallback(*_CGIWriteFd);
 }
 
 void Client::handleWriteCallback(FD &fd) {
@@ -144,13 +120,15 @@ void Client::handleWriteCallback(FD &fd) {
     if (fd.write() == -1) {
         ERROR("Failed to write response for Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
-        return;
-    }
-
-    if (fd.setEpollIn() == -1) {
+    } else if (fd.setEpollIn() == -1) {
         ERROR("Failed to set EPOLLIN for Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
-        return;
+    }
+
+    if (request.headers.getHeader(HeaderKey::Connection, "keep-alive") == "close") {
+        DEBUG("Connection header indicates 'close', disconnecting Client: " << fd.get());
+        _server.untrackDescriptor(fd.get());
+        return ;
     }
 
     request = Request();

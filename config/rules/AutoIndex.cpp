@@ -4,18 +4,18 @@
 
 AutoIndexRule::AutoIndexRule() : _autoindex(false), _is_set(false) {}
 
-AutoIndexRule::AutoIndexRule(const Rules &rules, bool required) : _autoindex(true), _is_set(false) {
+AutoIndexRule::AutoIndexRule(const Rules &rules, bool required) : _autoindex(false), _is_set(false) {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing autoindex rule");
-	
+		throw ParserMissingException("Missing autoindex rule");
+
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple autoindex rules found");
+		throw ParserDuplicationException("Multiple autoindex rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid autoindex rule");
+			throw ParserTokenException("Invalid autoindex rule format", rule);
 		if (rule.arguments[0].type != KEYWORD)
-			throw ConfigParsingException("Invalid autoindex argument type");
+			throw ParserTokenException("Invalid autoindex argument type", rule.arguments[0]);
 
 		switch (rule.arguments[0].keyword) {
 			case ON:
@@ -31,7 +31,7 @@ AutoIndexRule::AutoIndexRule(const Rules &rules, bool required) : _autoindex(tru
 				_is_set = true;
 				break;
 			default:
-				throw ConfigParsingException("Invalid autoindex keyword: " + rule.arguments[0].str);
+				throw ParserTokenException("Invalid autoindex keyword: " + rule.arguments[0].str, rule.arguments[0]);
 		}
 	}
 }

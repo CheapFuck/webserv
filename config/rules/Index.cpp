@@ -4,20 +4,20 @@
 
 IndexRule::IndexRule() : _index_pages() {}
 
-IndexRule::IndexRule(const Rules &rules, bool required) {
+IndexRule::IndexRule(const Rules &rules, bool required) : _index_pages() {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing index rule");
+		throw ParserMissingException("Missing index rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple index rules found");
+		throw ParserDuplicationException("Multiple index rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() < 1)
-			throw ConfigParsingException("Invalid index rule");
+			throw ParserTokenException("Invalid index rule format", rule);
 
 		for (const Argument &arg : rule.arguments) {
 			if (arg.type != STRING)
-				throw ConfigParsingException("Invalid index argument type");
+				throw ParserTokenException("Invalid index argument type", arg);
 			_index_pages.push_back(std::string(arg.str));
 		}
 	}

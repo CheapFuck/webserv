@@ -1,26 +1,32 @@
-#include "../config.hpp"
 #include "../rules/rules.hpp"
+#include "../config.hpp"
 
 #include <iostream>
 #include <string.h>
 #include <cstring>
 
-Size::Size(const std::string &str) {
-	_size = std::stoul(str);
+Size::Size(const Rule &rule): _size(0) {
+	try { _size = std::stoul(rule.arguments[0].str); }
+	catch (const std::invalid_argument &e) {
+		throw ParserTokenException("Invalid size value: " + rule.arguments[0].str, rule.arguments[0]);
+	}
+	catch (const std::out_of_range &e) {
+		throw ParserTokenException("Size value out of range: " + rule.arguments[0].str, rule.arguments[0]);
+	}
 
 	if (_size == 0)
-		throw ConfigParsingException("Invalid size value: " + str);
+		throw ParserTokenException("Invalid size value: " + rule.arguments[0].str, rule.arguments[0]);
 
-	for (size_t i = 0; i < str.size(); i++) {
-		if (!isdigit(str[i])) {
-			if (strncmp(str.c_str() + i, "kb", 3) == 0 || strncmp(str.c_str() + i, "Kb", 3) == 0)
+	for (size_t i = 0; i < rule.arguments[0].str.size(); i++) {
+		if (!isdigit(rule.arguments[0].str[i])) {
+			if (strncmp(rule.arguments[0].str.c_str() + i, "kb", 3) == 0 || strncmp(rule.arguments[0].str.c_str() + i, "Kb", 3) == 0)
 				_size *= 1024;
-			else if (strncmp(str.c_str() + i, "mb", 3) == 0 || strncmp(str.c_str() + i, "Mb", 3) == 0)
+			else if (strncmp(rule.arguments[0].str.c_str() + i, "mb", 3) == 0 || strncmp(rule.arguments[0].str.c_str() + i, "Mb", 3) == 0)
 				_size *= 1024 * 1024;
-			else if (strncmp(str.c_str() + i, "gb", 3) == 0 || strncmp(str.c_str() + i, "Gb", 3) == 0)
+			else if (strncmp(rule.arguments[0].str.c_str() + i, "gb", 3) == 0 || strncmp(rule.arguments[0].str.c_str() + i, "Gb", 3) == 0)
 				_size *= 1024 * 1024 * 1024;
 			else
-				throw ConfigParsingException("Invalid size multiplier: " + str);
+				throw ParserTokenException("Invalid size multiplier: " + rule.arguments[0].str.substr(i), rule.arguments[0]);
 			break;
 		}
 	}

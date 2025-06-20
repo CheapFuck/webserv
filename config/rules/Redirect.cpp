@@ -7,19 +7,18 @@ RedirectRule::RedirectRule() : _redirect(), _is_set(false) {}
 
 RedirectRule::RedirectRule(const Rules &rules, bool required) : _redirect(), _is_set(false) {
 	if (rules.empty() && required)
-		throw ConfigParsingException("Missing redirect rule");
+		throw ParserMissingException("Missing redirect rule");
 	
 	if (rules.size() > 1)
-		throw ConfigParsingException("Multiple redirect rules found");
+		throw ParserDuplicationException("Multiple redirect rules found", rules[0], rules[1]);
 
 	for (const Rule &rule : rules) {
 		if (rule.arguments.size() != 1)
-			throw ConfigParsingException("Invalid redirect rule");
+			throw ParserTokenException("Invalid redirect rule format", rule);
 		if (rule.arguments[0].type != STRING)
-			throw ConfigParsingException("Invalid redirect argument type");
+			throw ParserTokenException("Invalid redirect argument type", rule.arguments[0]);
 
 		_redirect = std::string(rule.arguments[0].str);
-		DEBUG("RedirectRule: redirect set to " << _redirect);
 		_is_set = true;
 	}
 }
