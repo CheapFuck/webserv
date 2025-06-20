@@ -51,7 +51,6 @@ void Response::setBody(const std::string& body) {
 /// @brief Sets default headers for the response, including Content-Type and Date.
 void Response::setDefaultHeaders() {
     headers.replace(HeaderKey::Date, get_time_as_readable_string());
-    headers.replace(HeaderKey::ContentType, "text/html");
     headers.replace(HeaderKey::ContentLength, std::to_string(_body.length()));
 }
 
@@ -90,6 +89,33 @@ std::string Response::getAsString() const {
     response_stream << *this;
     DEBUG("Response as string: " << response_stream.str());
     return (response_stream.str());
+}
+
+void Response::updateFromCGIOutput(const std::string &cgiOutput) {
+    size_t headerEnd = cgiOutput.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        ERROR("Invalid CGI output format, no headers found.");
+        setStatusCode(HttpStatusCode::InternalServerError);
+        return ;
+    }
+
+    std::istringstream headerStream(cgiOutput.substr(0, headerEnd));
+    headers.merge(Headers(headerStream));
+
+    try {
+        int code = std::stoi(headers.getHeader(HeaderKey::Status, "-1"));
+        if (code != -1) {
+            headers.remove(HeaderKey::Status);
+            setStatusCode(static_cast<HttpStatusCode>(code));
+            setBody(cgiOutput.substr(headerEnd + 4));
+        } else {
+            ERROR("Invalid status code in CGI output headers: " << headers.getHeader(HeaderKey::Status));
+            setStatusCode(HttpStatusCode::InternalServerError);
+        }
+    } catch (const std::exception &e) {
+        ERROR("Failed to parse status code from CGI output headers: " << e.what());
+        setStatusCode(HttpStatusCode::InternalServerError);
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Response& obj) {

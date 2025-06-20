@@ -1,8 +1,8 @@
 #pragma once
 
+#include "sessionManager.hpp"
 #include "config/consts.hpp"
 #include "requestline.hpp"
-#include "session.hpp"
 #include "headers.hpp"
 #include "cookie.hpp"
 
@@ -17,21 +17,21 @@ private:
     size_t _contentLength = 0;
     std::vector<Cookie> _cookies;
     std::string _body;
-    
+
     bool _headersParsed = false;
-    
+
     bool _fetch_config_from_headers();
-    
+
 public:
     RequestLine metadata;
     Headers headers;
-    std::shared_ptr<UserSession> session;
-    
+    std::shared_ptr<SessionMetaData> session;
+
     Request() = default;
     Request(const Request &other);
     Request &operator=(const Request &other);
     ~Request() = default;
-    
+
     bool isComplete(const std::string &buffer) const;
     bool parseRequestHeaders(std::string &buffer);
 

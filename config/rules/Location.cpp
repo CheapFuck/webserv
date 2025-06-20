@@ -4,7 +4,7 @@
 #include <functional>
 #include <iostream>
 
-LocationRule::LocationRule() : _path(), methods(), root(), upload_dir(), autoIndex(), index(), redirect(), errorPages(), CGI() {}
+LocationRule::LocationRule() : _path(), methods(), root(), upload_dir(), autoIndex(), index(), redirect(), errorPages(), CGI(), cgiTimeout() {}
 
 LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNonEmpty) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
@@ -27,7 +27,7 @@ void LocationRule::adjustFromDefault(const LocationRule &defaultLocation) {
 	if (!methods.isSet() && defaultLocation.methods.isSet())
 		methods = defaultLocation.methods;
 	if (!root.isSet() && defaultLocation.root.isSet())
-		root = defaultLocation.root;
+		root = RootRule::fromGlobalRule(defaultLocation.root, _path);
 	if (!upload_dir.isSet() && defaultLocation.upload_dir.isSet())
 		upload_dir = defaultLocation.upload_dir;
 	if (!autoIndex.isSet() && defaultLocation.autoIndex.isSet())

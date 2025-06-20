@@ -31,13 +31,12 @@ static std::string generateSessionId() {
 UserSessionManager::UserSessionManager(const std::string &storagePath) : 
 	_lastCleanupTime(0),
 	_storagePath(storagePath),
+	_absExecutablePath(std::filesystem::current_path().string()),
 	_currentSessions()
 {
 	if (_storagePath.empty() || _storagePath.back() != '/')
 		_storagePath += '/';
 	_lastCleanupTime = 0;
-
-	#include <filesystem>
 
 	try {
 		if (!std::filesystem::exists(_storagePath)) {
@@ -61,10 +60,7 @@ UserSessionManager::UserSessionManager(const std::string &storagePath) :
 			offset += SESSION_ID_LENGTH;
 			time_t lastAccessTime = *reinterpret_cast<const time_t *>(buffer.data() + offset);
 			offset += sizeof(time_t);
-			_currentSessions[sessionId] = {
-				.lastAccessTime = lastAccessTime,
-				.sessionPtr = nullptr
-			};
+			_currentSessions[sessionId] = std::make_shared<SessionMetaData>(lastAccessTime, sessionId, getAbsoluteStoragePath(sessionId));
 		}
 		DEBUG("Loaded " << _currentSessions.size() << " sessions from session manager file: " << managerFile);
 		inFile.close();
@@ -76,20 +72,16 @@ UserSessionManager::UserSessionManager(const std::string &storagePath) :
 /// @brief Creates a new UserSession with a unique session ID.
 /// @return A UserSession object initialized with a unique session ID.
 /// @throws std::runtime_error if a unique session ID cannot be generated after multiple attempts.
-std::shared_ptr<UserSession> UserSessionManager::createNewSession() {
+std::shared_ptr<SessionMetaData> UserSessionManager::createNewSession() {
 	size_t attempts = 0;
 
 	do {
 		std::string sessionId = generateSessionId();
 		if (_currentSessions.find(sessionId) == _currentSessions.end()) {
-			std::shared_ptr<UserSession> newSession = std::make_shared<UserSession>(sessionId);
+			std::shared_ptr<SessionMetaData> newSession = std::make_shared<SessionMetaData>(time(nullptr), sessionId, getAbsoluteStoragePath(sessionId));
 			if (!newSession) return (nullptr);
 
-			newSession->updateLastAccessTime();
-			_currentSessions[sessionId] = {
-				.lastAccessTime = newSession->getLastAccessTime(),
-				.sessionPtr = newSession
-			};
+			_currentSessions[sessionId] = newSession;
 			return (newSession);
 		}
 	} while (++attempts < 100);
@@ -100,55 +92,33 @@ std::shared_ptr<UserSession> UserSessionManager::createNewSession() {
 /// @brief Gets or creates a UserSession based on the provided session ID.
 /// @param sessionId The session ID to look for or create a new session with.
 /// @return A reference to the UserSession associated with the given session ID.
-std::shared_ptr<UserSession> UserSessionManager::getOrCreateNewSession(const std::string &sessionId) {
-	std::shared_ptr<UserSession> existingSession = nullptr;
-
+std::shared_ptr<SessionMetaData> UserSessionManager::getOrCreateNewSession(const std::string &sessionId) {
 	auto it = _currentSessions.find(sessionId);
 	if (it != _currentSessions.end()) {
-		if (!it->second.sessionPtr)
-			existingSession = _loadSession(sessionId);
-		else
-			existingSession = it->second.sessionPtr;
+		it->second->lastAccessTime = time(nullptr);
+		return (it->second);
 	}
 
-	if (!existingSession)
-		existingSession = std::make_shared<UserSession>(sessionId);
+	std::shared_ptr<SessionMetaData> newSession = std::make_shared<SessionMetaData>(time(nullptr), sessionId, getAbsoluteStoragePath(sessionId));
+	if (!newSession) return (nullptr);
 
-	if (existingSession) {
-		existingSession->updateLastAccessTime();
-		_currentSessions[sessionId] = {
-			.lastAccessTime = existingSession->getLastAccessTime(),
-			.sessionPtr = existingSession
-		};
-	}
-	return (existingSession);
-}
-
-/// @brief Stores a UserSession to the session manager's storage path.
-bool UserSessionManager::storeSession(const UserSession &session) const {
-	std::string storageFile = _storagePath + session.getSessionId() + ".session";
-	return (session.store(storageFile));
-}
-
-/// @brief Loads a UserSession from the session manager's storage path.
-std::shared_ptr<UserSession> UserSessionManager::_loadSession(const std::string &sessionId) const {
-	std::string storageFile = _storagePath + sessionId + ".session";
-	return (UserSession::load(sessionId, storageFile));
+	_currentSessions[sessionId] = newSession;
+	return (newSession);
 }
 
 /// @brief Deletes a UserSession by its session ID.
-bool UserSessionManager::_deleteSession(std::map<std::string, SessionMetaData>::iterator it) {
+bool UserSessionManager::_deleteSession(std::map<std::string, std::shared_ptr<SessionMetaData>>::iterator it) {
 	if (it == _currentSessions.end()) {
 		ERROR("Session " << it->first << " not found in current sessions | aborting deletion");
 		return (false);
 	}
 
-	if (it->second.sessionPtr.use_count() > 0) {
+	if (it->second.use_count() > 0) {
 		ERROR("Cannot delete session " << it->first << " with current references");
 		return (false);
 	}
 
-	std::string storageFile = _storagePath + it->first + ".session";
+	std::string storageFile = getAbsoluteStoragePath(it->first);
 	if (std::remove(storageFile.c_str()) != 0) {
 		ERROR("Failed to delete session file: " << storageFile);
 		return (false);
@@ -166,8 +136,8 @@ bool UserSessionManager::sessionHasCurrentReferences(const std::string &sessionI
 	if (it == _currentSessions.end())
 		return (false);
 
-	DEBUG("Session " << sessionId << " has " << it->second.sessionPtr.use_count() << " current references");
-	return (it->second.sessionPtr.use_count() > 0);
+	DEBUG("Session " << sessionId << " has " << it->second.use_count() << " current references");
+	return (it->second.use_count() > 0);
 }
 
 /// @brief Cleans up expired sessions from the session manager.
@@ -177,26 +147,18 @@ void UserSessionManager::cleanUpExpiredSessions() {
 	DEBUG("Cleaning up expired sessions");
 
     for (auto it = _currentSessions.begin(); it != _currentSessions.end(); ) {
-		if (it->second.sessionPtr.use_count() > 0) {
+		if (it->second.use_count() > 0) {
 			++it;
 			continue;
 		}
 
-        if (it->second.lastAccessTime + SESSION_MAX_STORAGE_AGE < currentTime) {
+        if (it->second->lastAccessTime + SESSION_MAX_STORAGE_AGE < currentTime) {
 			DEBUG("Session " << it->first << " has expired and will be removed");
-			DEBUG("Session last access time: " << it->second.lastAccessTime << ", current time: " << currentTime);
-            DEBUG((it->second.lastAccessTime + SESSION_MAX_STORAGE_AGE) << " < " << currentTime);
+			DEBUG("Session last access time: " << it->second->lastAccessTime << ", current time: " << currentTime);
+            DEBUG((it->second->lastAccessTime + SESSION_MAX_STORAGE_AGE) << " < " << currentTime);
 
             _deleteSession(it);
 			it = _currentSessions.erase(it);
-        } 
-		else if (it->second.lastAccessTime + SESSION_MAX_CACHE_AGE < currentTime && it->second.sessionPtr) {
-			DEBUG("Session " << it->first << " is still valid but will be cleaned up from cache");
-			DEBUG("Session last access time: " << it->second.lastAccessTime << ", current time: " << currentTime);
-			DEBUG((it->second.lastAccessTime + SESSION_MAX_CACHE_AGE) << " < " << currentTime);
-
-			it->second.sessionPtr.reset();
-			++it;
 		} else {
 			++it;
 		}
@@ -214,7 +176,7 @@ void UserSessionManager::shutdown() {
 
 		for (const auto &pair : _currentSessions) {
 			buffer.insert(buffer.end(), pair.first.begin(), pair.first.end());
-			BUFFER_INSERT(buffer, pair.second.lastAccessTime);
+			BUFFER_INSERT(buffer, pair.second->lastAccessTime);
 		}
 		outFile.write(buffer.data(), buffer.size());
 		outFile.close();
@@ -223,4 +185,11 @@ void UserSessionManager::shutdown() {
 	}
 
 	_currentSessions.clear();
+}
+
+/// @brief Gets the absolute storage path for a session based on its session ID.
+std::string UserSessionManager::getAbsoluteStoragePath(const std::string &sessionId) const {
+	if (_storagePath.starts_with("/"))
+  		return _storagePath + sessionId + ".json";
+	return _absExecutablePath + "/" + _storagePath + sessionId + ".json";
 }

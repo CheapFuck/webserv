@@ -146,7 +146,14 @@ private:
 
 public:
 	RootRule();
+	RootRule(const Path &root);
 	RootRule(const Rules &rules, bool required = false);
+	RootRule(const RootRule &other) = default;
+	RootRule &operator=(const RootRule &other) = default;
+	 ~RootRule() = default;
+
+	static RootRule fromGlobalRule(const RootRule &globalRule, const std::string &locationPath);
+
 	const Path &get() const;
 	bool isSet() const;
 };

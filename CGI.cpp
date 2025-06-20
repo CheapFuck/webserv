@@ -3,8 +3,10 @@
 #include "print.hpp"
 #include "CGI.hpp"
 
+#include <sys/wait.h>
 #include <filesystem>
 #include <signal.h>
+#include <cstring>
 #include <chrono>
 
 /// @brief Parses the given URL and extracts the script path, path info, and query string.
@@ -12,19 +14,40 @@
 /// @param route The location rule to use for parsing the URL.
 /// @return A ParsedUrl struct containing the extracted information.
 static ParsedUrl parseUrl(const std::string &url, const LocationRule &route) {
+    DEBUG("Parsing URL: " << url);
     std::string baseUrl = url.substr(0, url.find('?'));
     Path path = Path::createFromUrl(baseUrl, route);
 
     Path tmp = path;
+    DEBUG("Initial path for CGI script search: " << tmp.str());
     while (!tmp.str().empty()) {
-        if (std::filesystem::exists(tmp.str()) && std::filesystem::is_regular_file(tmp.str())) {
-            DEBUG("Found CGI script: " << tmp.str());
-            return (ParsedUrl{
-                .scriptPath = tmp.str(),
-                .pathInfo = path.str().substr(tmp.str().length()),
-                .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
-                .isValid = true
-            });
+        DEBUG("Checking for CGI script: " << tmp.str());
+        if (std::filesystem::exists(tmp.str())) {
+            if (std::filesystem::is_regular_file(tmp.str())) {
+                DEBUG("Found CGI script: " << tmp.str());
+                return (ParsedUrl{
+                    .scriptPath = tmp.str(),
+                    .pathInfo = path.str().substr(tmp.str().length()),
+                    .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
+                    .isValid = true
+                });
+            } else if (route.index.isSet() && std::filesystem::is_directory(tmp.str())) {
+                DEBUG("Found directory: " << tmp.str());
+                for (const auto &indexFile : route.index.get()) {
+                    Path indexPath = tmp;
+                    indexPath.append(indexFile);
+                    DEBUG("Checking for index file: " << indexPath.str());
+                    if (std::filesystem::exists(indexPath.str()) && std::filesystem::is_regular_file(indexPath.str())) {
+                        DEBUG("Found index file: " << indexPath.str());
+                        return (ParsedUrl{
+                            .scriptPath = indexPath.str(),
+                            .pathInfo = path.str().substr(tmp.str().length()),
+                            .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
+                            .isValid = true
+                        });
+                    }
+                }
+            }
         }
         tmp.pop();
     }
@@ -41,7 +64,15 @@ CGIClient::CGIClient(Client &client) : _client(client), _processTimerId(-1), _is
     DEBUG("CGIClient created for client: " << &_client);
 }
 
-CGIClient::CGIClient(const CGIClient &other) : _client(other._client), _processTimerId(other._processTimerId), _isRunning(other._isRunning), _pid(other._pid), _toCGIProcessFd(other._toCGIProcessFd), _fromCGIProcessFd(other._fromCGIProcessFd), _environmentVariables(other._environmentVariables) {
+CGIClient::CGIClient(const CGIClient &other)
+    : std::enable_shared_from_this<CGIClient>(other),
+      _client(other._client),
+      _processTimerId(other._processTimerId),
+      _isRunning(other._isRunning),
+      _pid(other._pid),
+      _toCGIProcessFd(other._toCGIProcessFd),
+      _fromCGIProcessFd(other._fromCGIProcessFd),
+      _environmentVariables(other._environmentVariables) {
     DEBUG("CGIClient copied for client: " << &_client);
 }
 
@@ -61,10 +92,13 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     _environmentVariables["REQUEST_METHOD"] = methodToStr(_client.request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
-    _environmentVariables["SCRIPT_NAME"] = std::string(parsedUrl.scriptPath);
+    _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
     _environmentVariables["REMOTE_ADDR"] = _client.getClientIP();
     _environmentVariables["REMOTE_PORT"] = _client.getClientPort();
+
+    if (_client.request.session && !_client.request.session->sessionId.empty())
+        _environmentVariables["HTTP_SESSION_FILE"] = _client.request.session->absoluteFilePath;
 
     const std::string contentHeader = _client.request.headers.getHeader(HeaderKey::ContentType, "");
     if (!contentHeader.empty())
@@ -80,13 +114,19 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
         std::transform(envVarKey.begin(), envVarKey.end(), envVarKey.begin(), ::toupper);
         _environmentVariables[envVarKey] = headerValue;
     }
+
+    for (const auto &[key, value] : _environmentVariables) {
+        DEBUG("Environment variable: " << key << " = " << value);
+    }
 }
 
 char * const *CGIClient::_createEnvironmentArray() const {
+    static std::vector<std::string> envStrings;
     static std::vector<char*> envPtrs;
     envPtrs.clear();
     for (auto &env : _environmentVariables) {
-        envPtrs.push_back(const_cast<char*>(env.first.c_str()));
+        envStrings.push_back(env.first + "=" + env.second);
+        envPtrs.push_back(const_cast<char*>(envStrings.back().c_str()));
     }
     envPtrs.push_back(nullptr); // Null-terminate the array
     return envPtrs.data();
@@ -132,6 +172,18 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
 
     if (_pid == 0) {
         // Child process
+
+        Path scriptDir = Path(parsedUrl.scriptPath).pop();
+        DEBUG("CGI script directory: " << scriptDir.str());
+        if (chdir(scriptDir.str().c_str()) == -1) {
+            ERROR("Failed to change directory to CGI script path: " << parsedUrl.scriptPath << ", errno: " << errno << " (" << strerror(errno) << ")");
+            close(cin[0]);
+            close(cin[1]);
+            close(cout[0]);
+            close(cout[1]);
+            exit(EXIT_FAILURE);
+        }
+
         FD childStdin = FD::fromPipeReadEnd(cin);
         FD childStdout = FD::fromPipeWriteEnd(cout);
         if (dup2(childStdin.get(), STDIN_FILENO) == -1 || dup2(childStdout.get(), STDOUT_FILENO) == -1) {
@@ -144,8 +196,9 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         childStdin.close();
         childStdout.close();
 
-        char * const argv[] = {const_cast<char *>(parsedUrl.scriptPath.c_str()), nullptr};
-        if (execve(parsedUrl.scriptPath.c_str(), argv, _createEnvironmentArray()) == -1) {
+        std::string scriptName = Path(parsedUrl.scriptPath).getFilename();
+        char * const argv[] = {const_cast<char *>(scriptName.c_str()), nullptr};
+        if (execve(scriptName.c_str(), argv, _createEnvironmentArray()) == -1) {
             ERROR("Failed to execute CGI script: " << parsedUrl.scriptPath << ", errno: " << errno << " (" << strerror(errno) << ")");
             exit(EXIT_FAILURE);
         }
@@ -222,9 +275,12 @@ void CGIClient::handleDisconnectCallback(FD &fd) {
     _fromCGIProcessFd = -1;
 
     if (_isRunning) {
-        DEBUG("CGIClient exited normally, PID: " << _pid);
-        _client.response.setStatusCode(HttpStatusCode::OK);
-        _client.response.setBody(fd.readBuffer);
+        int exitStatus = 0;
+        waitpid(_pid, &exitStatus, 0);
+        DEBUG("CGIClient exited normally, PID: " << _pid << ", exit status: " << exitStatus);
+        _client.getServer().getTimer().deleteEvent(_processTimerId);
+        if (exitStatus == 0) _client.response.updateFromCGIOutput(fd.readBuffer);
+        else _client.response.setStatusCode(HttpStatusCode::InternalServerError);
         _client.handleCGIResponse();
         _isRunning = false;
     }

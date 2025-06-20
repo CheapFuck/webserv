@@ -1,6 +1,6 @@
 #include "config/rules/rules.hpp"
+#include "sessionManager.hpp"
 #include "request.hpp"
-#include "session.hpp"
 #include "cookie.hpp"
 #include "server.hpp"
 #include "print.hpp"
@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <cstring>
 #include <thread>
 #include <memory>
 
@@ -224,6 +225,28 @@ ServerConfig &Server::loadRequestConfig(Request &request, int serverFd) {
 	}
 	DEBUG("No matching server found for request, using default: " << _portToConfigs[serverFd][0].serverName.get());
 	return _portToConfigs[serverFd][0];
+}
+
+/// @brief Fetch the user session for a request.
+/// @param request The Request object containing the session cookie
+/// @param response The Response object to set the session cookie if a new session is created
+/// @return A shared pointer to the SessionMetaData object associated with the user session.
+std::shared_ptr<SessionMetaData> Server::fetchUserSession(Request &request, Response &response) {
+    const Cookie *sessionCookie = Cookie::getCookie(request, SESSION_COOKIE_NAME);
+    if (!sessionCookie) {
+        DEBUG("No session cookie found in request, creating new session");
+        request.session = _sessionManager.createNewSession();
+        if (!request.session) {
+            ERROR("Failed to create new session, returning null");
+            return (request.session);
+        }
+        response.headers.add(HeaderKey::SetCookie, Cookie::createSessionCookie(request.session->sessionId).getHeaderInitializationString());
+        return (request.session);
+    } else {
+        DEBUG("Session cookie found: " << sessionCookie->getValue());
+        request.session = _sessionManager.getOrCreateNewSession(sessionCookie->getValue());
+        return (request.session);
+    }
 }
 
 /// @brief Remove a file descriptor from the server's descriptor map.

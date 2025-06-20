@@ -22,6 +22,9 @@ public:
     void add(const std::string &key, const std::string &value);
     void add(HeaderKey key, const std::string &value);
     void replace(HeaderKey key, const std::string &value);
+    void remove(HeaderKey key);
+
+    void merge(const Headers &other);
 
     const std::string &getHeader(HeaderKey key) const;
     const std::string &getHeader(HeaderKey key, const std::string &default_value) const;

@@ -159,7 +159,7 @@ constexpr const char* getDefaultBodyForCode(HttpStatusCode code)
         case HttpStatusCode::RequestHeaderFieldsTooLarge: return "Oh good heavens, RequestHeaderFieldsTooLarge!!!";
         case HttpStatusCode::UnavailableForLegalReasons: return "Oh good heavens, UnavailableForLegalReasons!!!";
 
-            // 5xx
+        // 5xx
         case HttpStatusCode::InternalServerError: return "Oh good heavens, InternalServerError!!!";
         case HttpStatusCode::NotImplemented: return "Oh good heavens, NotImplemented!!!";
         case HttpStatusCode::BadGateway: return "Oh good heavens, BadGateway!!!";
@@ -174,8 +174,6 @@ constexpr const char* getDefaultBodyForCode(HttpStatusCode code)
         default: return "Oh good heavens, How did you get here?!!!!";
     }
 }
-
-
 
 enum class HeaderKey {
     ContentType,
@@ -192,6 +190,7 @@ enum class HeaderKey {
     Date,
     Location,
     Referer,
+    Status,
 };
 
 std::string headerKeyToString(HeaderKey key);

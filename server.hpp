@@ -3,7 +3,6 @@
 
 #include "config/rules/rules.hpp"
 #include "sessionManager.hpp"
-#include "session.hpp"
 #include "client.hpp"
 #include "timer.hpp"
 #include "CGI.hpp"
@@ -50,6 +49,7 @@ public:
 
     // Request processing
     ServerConfig &loadRequestConfig(Request &request, int serverFd);
+    std::shared_ptr<SessionMetaData> fetchUserSession(Request &request, Response &response);
 
     void untrackDescriptor(int fd);
 

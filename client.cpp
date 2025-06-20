@@ -41,6 +41,7 @@ Response &Client::_processRequestByMethod(const ServerConfig &config, const Loca
 /// @param config The server configuration
 Response &Client::_processRequest(const ServerConfig &config) {
     DEBUG("Processing client request");
+    _server.fetchUserSession(request, response);
     response.setDefaultHeaders();
 
     if (!request.isComplete(request.getBody())) {

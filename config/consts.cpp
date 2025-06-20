@@ -142,6 +142,7 @@ std::string headerKeyToString(HeaderKey key) {
         case HeaderKey::Date: return "Date";
         case HeaderKey::Location: return "Location";
         case HeaderKey::Referer: return "Referer";
+        case HeaderKey::Status: return "Status";
 
         default:
             ERROR("Unknown Header Key: " << static_cast<int>(key));

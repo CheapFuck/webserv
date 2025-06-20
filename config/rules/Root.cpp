@@ -1,8 +1,11 @@
 #include "rules.hpp"
+#include "../../print.hpp"
 
 #include <iostream>
 
 RootRule::RootRule() : _root(), _is_set(false) {}
+
+RootRule::RootRule(const Path &root) : _root(root), _is_set(true) {}
 
 RootRule::RootRule(const Rules &rules, bool required) : _root(), _is_set(false) {
 	if (rules.empty() && required)
@@ -20,6 +23,21 @@ RootRule::RootRule(const Rules &rules, bool required) : _root(), _is_set(false) 
 		_root = Path(rule.arguments[0].str);
 		_is_set = true;
 	}
+}
+
+/// @brief  Create a RootRule from a global rule and a location path.
+/// @param globalRule The global RootRule to base the new rule on.
+/// @param locationPath The location path to append to the global root.
+/// @return A new RootRule constructed from the global rule and location path.
+RootRule RootRule::fromGlobalRule(const RootRule &globalRule, const std::string &locationPath) {
+	if (globalRule.isSet()) {
+		Path globalRoot = globalRule.get();
+		std::string trimmedPath = locationPath;
+		trimmedPath.erase(0, trimmedPath.find_first_not_of('/'));
+		globalRoot.append(trimmedPath);
+		return RootRule(globalRoot);
+	}
+	return RootRule();
 }
 
 inline const Path &RootRule::get() const {

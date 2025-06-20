@@ -1,7 +1,7 @@
 #pragma once
 
-#include "config/consts.hpp"
 #include "config/rules/rules.hpp"
+#include "config/consts.hpp"
 #include "headers.hpp"
 
 #include <string>
@@ -34,6 +34,7 @@ public:
     const std::string& getBody() const;
 
     std::string getAsString() const;
+    void updateFromCGIOutput(const std::string &cgiOutput);
 };
 
 std::ostream& operator<<(std::ostream& os, const Response& obj);

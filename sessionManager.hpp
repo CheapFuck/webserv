@@ -1,7 +1,5 @@
 #pragma once
 
-#include "session.hpp"
-
 #include <iostream>
 #include <fstream>
 #include <cstdint>
@@ -11,21 +9,31 @@
 #include <zlib.h>
 #include <map>
 
+#define SESSION_ID_LENGTH 32
+#define SESSION_MAX_STORAGE_AGE 60 * 60 * 24 // 1 day
+#define SESSION_CLEANUP_INTERVAL 60 // 1 minute
+
+#define SESSION_COOKIE_NAME "webservSessionId"
+
+#define BUFFER_INSERT(buffer, data) \
+	buffer.insert(buffer.end(), reinterpret_cast<const char *>(&data), reinterpret_cast<const char *>(&data) + sizeof(data))
+
 constexpr char SESSION_MANAGER_FILE[] = "session_manager.sm";
 
 struct SessionMetaData {
-	time_t							lastAccessTime;
-	std::shared_ptr<UserSession>	sessionPtr;
+	time_t		lastAccessTime;
+	std::string	sessionId;
+	std::string absoluteFilePath;
 };
 
 class UserSessionManager {
 private:
 	time_t _lastCleanupTime;
     std::string _storagePath;
-	std::map<std::string, SessionMetaData> _currentSessions;
+	std::string _absExecutablePath;
+	std::map<std::string, std::shared_ptr<SessionMetaData>> _currentSessions;
 
-	std::shared_ptr<UserSession> _loadSession(const std::string &sessionId) const;
-	bool _deleteSession(std::map<std::string, SessionMetaData>::iterator it);
+	bool _deleteSession(std::map<std::string, std::shared_ptr<SessionMetaData>>::iterator it);
 
 public:
     UserSessionManager(const std::string &storagePath);
@@ -33,12 +41,12 @@ public:
     UserSessionManager &operator=(const UserSessionManager &other) = default;
     ~UserSessionManager() = default;
 
-	std::shared_ptr<UserSession> createNewSession();
-	std::shared_ptr<UserSession> getOrCreateNewSession(const std::string &sessionId);
-	
-	bool storeSession(const UserSession &session) const;
+	std::shared_ptr<SessionMetaData> createNewSession();
+	std::shared_ptr<SessionMetaData> getOrCreateNewSession(const std::string &sessionId);
 	
 	bool sessionHasCurrentReferences(const std::string &sessionId) const;
 	void cleanUpExpiredSessions();
 	void shutdown();
+
+	std::string getAbsoluteStoragePath(const std::string &sessionId) const;
 };

@@ -72,6 +72,16 @@ void Headers::add(HeaderKey key, const std::string &value) {
     _headers.insert(std::make_pair(headerKeyToString(key), value));
 }
 
+/// @brief Removes a header by its key.
+/// @param key The key of the header to remove.
+void Headers::remove(HeaderKey key) {
+    std::string keyStr = headerKeyToString(key);
+    auto it = _headers.find(keyStr);
+    if (it != _headers.end()) {
+        _headers.erase(it);
+    }
+}
+
 /// @brief Replaces the value of an existing header - even if multiple headers have been set already.
 void Headers::replace(HeaderKey key, const std::string &value) {
     std::string keyStr = headerKeyToString(key);
@@ -94,6 +104,15 @@ const std::string &Headers::getHeader(HeaderKey key, const std::string &default_
     if (it != _headers.end())
         return it->second;
     return default_value;
+}
+
+/// @brief Merges another Headers object into this one, adding all headers from the other object.
+/// This will not overwrite existing headers, but will add new ones.
+/// @param other The Headers object to merge
+void Headers::merge(const Headers &other) {
+    for (const auto &header : other.getHeaders()) {
+        _headers.insert(header);
+    }
 }
 
 /// @brief Returns a constant reference to the internal headers map.

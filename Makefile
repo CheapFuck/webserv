@@ -17,15 +17,14 @@ SRCS := main.cpp \
 	response.cpp \
 	methods.cpp \
 	requestline.cpp \
-	sessionManager.cpp \
 	get.cpp \
 	timer.cpp \
 	post.cpp \
 	delete.cpp \
 	fd.cpp \
 	CGI.cpp \
+	sessionManager.cpp \
 	cookie.cpp \
-	session.cpp \
 	Utils.cpp \
 	config/tokenizer.cpp \
 	config/lexer.cpp \
