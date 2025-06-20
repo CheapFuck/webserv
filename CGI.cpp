@@ -114,19 +114,16 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
         std::transform(envVarKey.begin(), envVarKey.end(), envVarKey.begin(), ::toupper);
         _environmentVariables[envVarKey] = headerValue;
     }
-
-    for (const auto &[key, value] : _environmentVariables) {
-        DEBUG("Environment variable: " << key << " = " << value);
-    }
 }
 
 char * const *CGIClient::_createEnvironmentArray() const {
-    static std::vector<std::string> envStrings;
+    static std::vector<std::string> envStrings(_environmentVariables.size());
     static std::vector<char*> envPtrs;
     envPtrs.clear();
     for (auto &env : _environmentVariables) {
         envStrings.push_back(env.first + "=" + env.second);
         envPtrs.push_back(const_cast<char*>(envStrings.back().c_str()));
+        ERROR("CGI ENV: " << env.first << "=" << env.second);
     }
     envPtrs.push_back(nullptr); // Null-terminate the array
     return envPtrs.data();
@@ -198,6 +195,7 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
 
         std::string scriptName = Path(parsedUrl.scriptPath).getFilename();
         char * const argv[] = {const_cast<char *>(scriptName.c_str()), nullptr};
+
         if (execve(scriptName.c_str(), argv, _createEnvironmentArray()) == -1) {
             ERROR("Failed to execute CGI script: " << parsedUrl.scriptPath << ", errno: " << errno << " (" << strerror(errno) << ")");
             exit(EXIT_FAILURE);
@@ -239,8 +237,6 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         _client.getServer().trackDescriptor(fromCGIProccess);
         DEBUG("CGI process started with PID: " << _pid << ", toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd);
     }
-
-        DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _pid);
 }
 
 void CGIClient::_handleTimeout() {

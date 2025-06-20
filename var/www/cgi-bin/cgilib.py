@@ -1,5 +1,4 @@
 import http.cookies
-import logging
 import typing
 import fcntl
 import json
@@ -11,8 +10,6 @@ from enum import Enum
 
 CGI_COOKIE_PREFIX = 'HTTP_COOKIE_'
 CGI_SESSION_FILE_KEY = 'HTTP_SESSION_FILE'
-
-logging.basicConfig(filename='python.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class HttpStatusCode(Enum):
     # 1xx

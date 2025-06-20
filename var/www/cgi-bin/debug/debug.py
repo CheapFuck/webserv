@@ -22,9 +22,9 @@ def createDebugResponse():
     cgi.setStatus(cgilib.HttpStatusCode.OK)
 
     cgi.sendBody(json.dumps({
-        "script": cgi.getEnvironmentVariable('SCRIPT_NAME', '?'),
-        "path": cgi.getEnvironmentVariable('PATH_INFO', '?'),
-        "query": cgi.getEnvironmentVariable('QUERY_STRING', '?'),
+        "script": cgi.getEnvironmentVariable('SCRIPT_NAME', '<empty>'),
+        "path": cgi.getEnvironmentVariable('PATH_INFO', '<empty>'),
+        "query": cgi.getEnvironmentVariable('QUERY_STRING', '<empty>'),
         "sessionData": dict(cgi.session),
         "envVars": dict(os.environ),
     }))
