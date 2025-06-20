@@ -11,8 +11,6 @@ ServerConfig::ServerConfig(Object &object) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
 		{LISTEN, [this](const Rules &rules) { port = PortRule(rules, true); }},
 		{SERVER_NAME, [this](const Rules &rules) { serverName = ServerNameRule(rules, false); }},
-		{MAX_BODY_SIZE, [this](const Rules &rules) { clientMaxBodySize = MaxBodySizeRule(rules, true); }},
-		{ERROR_PAGE, [this](const Rules &rules) { errorPages = ErrorPageRule(rules, false); }},
 		{LOCATION, [this](Rules &rules) { routes = RouteRules(rules, defaultLocation, false); }}
 	};
 
@@ -43,8 +41,6 @@ std::vector<ServerConfig> fetchServerConfigs(Object &object) {
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
 	os << config.port << std::endl;
 	os << config.serverName << std::endl;
-	os << config.clientMaxBodySize << std::endl;
-	os << config.errorPages << std::endl;
 	os << config.routes << std::endl;
 	os << "Default Location: " << config.defaultLocation << std::endl;
 

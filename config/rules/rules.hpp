@@ -91,11 +91,17 @@ public:
 class MaxBodySizeRule {
 private:
 	Size _size;
+	bool _is_set;
 
 public:
 	MaxBodySizeRule();
 	MaxBodySizeRule(const Rules &rules, bool required = true);
-	size_t get() const;
+	MaxBodySizeRule(const MaxBodySizeRule &other) = default;
+	MaxBodySizeRule &operator=(const MaxBodySizeRule &other) = default;
+	~MaxBodySizeRule() = default;
+
+	inline size_t get() const { return _size.get(); }
+	inline bool isSet() const { return _is_set; }
 };
 
 class CGIRule {
@@ -253,6 +259,7 @@ public:
 	IndexRule index;
 	RedirectRule redirect;
 	ErrorPageRule errorPages;
+	MaxBodySizeRule clientMaxBodySize;
 	CGIRule CGI;
 	CGITimeoutRule cgiTimeout;
 
@@ -286,8 +293,6 @@ class ServerConfig {
 public:
 	PortRule port;
 	ServerNameRule serverName;
-	MaxBodySizeRule clientMaxBodySize;
-	ErrorPageRule errorPages;
 	RouteRules routes;
 	LocationRule defaultLocation;
 

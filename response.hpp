@@ -26,7 +26,7 @@ public:
     void setStatusCode(HttpStatusCode code);
     void setBody(const std::string& body);
     void setDefaultHeaders();
-    void setDefaultBody(ServerConfig& config);
+    void setDefaultBody(const LocationRule &rule);
 
     HttpStatusCode getStatusCode() const;
     const char *getProtocol() const;

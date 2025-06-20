@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-static Rule parse_rule(std::vector<Token> &tokens, size_t &i);
-static Object parse_object(std::vector<Token> &tokens, size_t &i, TokenType end_token);
+static Rule parse_rule(std::vector<Token> &tokens, size_t &i, LexerContext &context);
+static Object parse_object(std::vector<Token> &tokens, size_t &i, TokenType end_token, LexerContext &context);
 
 const char* ConfigParsingException::what() const noexcept {
 	return _message.c_str();
@@ -54,6 +54,8 @@ static Key getRuleKey(const Token &token) {
 		{"upload_store", UPLOAD_DIR},
 		{"cgi", CGI_PASS},
 		{"cgi_timeout", CGI_TIMEOUT},
+		{"define", DEFINE},
+		{"include", INCLUDE},
 	};
 
 	auto it = keyMap.find(token.value);
@@ -80,23 +82,56 @@ static Keyword getKeyword(const std::string &str) {
 	return it->second;
 }
 
-static Object parse_object(std::vector<Token> &tokens, size_t &i, TokenType end_token) {
+static void handleNewDefine(const Rule &rule, LexerContext &context) {
+	if (rule.arguments.size() != 2 || rule.arguments[0].type != STRING || rule.arguments[1].type != OBJECT)
+		throw ConfigParsingException("Invalid DEFINE rule format");
+	context.includes.push_back({rule.arguments[0].str, rule.arguments[1].rules});
+}
+
+static void handleInclude(Object &rules, const Rule &rule, LexerContext &context) {
+	if (rule.arguments.size() != 1 || rule.arguments[0].type != STRING)
+		throw ConfigParsingException("Invalid INCLUDE rule format");
+
+	const std::string &includeFile = rule.arguments[0].str;
+	for (const auto &[name, includedObject] : context.includes) {
+		if (name == includeFile) {
+			for (const auto &[key, includedRules] : includedObject) {
+				auto it = rules.find(key);
+				if (it != rules.end())
+					it->second.insert(it->second.end(), includedRules.begin(), includedRules.end());
+				else
+					rules[key] = {includedRules};
+			}
+			return;
+		}
+	}
+
+	throw ConfigParsingException("Include rule not found: " + includeFile);
+}
+
+static Object parse_object(std::vector<Token> &tokens, size_t &i, TokenType end_token, LexerContext &context) {
 	Object rules;
 
 	while (tokens[i].type != end_token) {
-		Rule rule = parse_rule(tokens, i);
-		auto it = rules.find(rule.key);
-		if (it != rules.end())
-			it->second.push_back(rule);
-		else 
-			rules[rule.key] = {rule};
+		Rule rule = parse_rule(tokens, i, context);
+		if (rule.key == DEFINE)
+			handleNewDefine(rule, context);
+		else if (rule.key == INCLUDE)
+			handleInclude(rules, rule, context);
+		else {
+			auto it = rules.find(rule.key);
+			if (it != rules.end())
+				it->second.push_back(rule);
+			else 
+				rules[rule.key] = {rule};
+		}
 	}
 
 	++i;
 	return rules;
 }
 
-static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
+static Rule parse_rule(std::vector<Token> &tokens, size_t &i, LexerContext &context) {
 	if (tokens[i].type != STR)
 		throw ConfigParsingException("Expected a string token");
 
@@ -110,7 +145,7 @@ static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
 
 		else if (tokens[i].type == BRACE_OPEN) {
 			++i;
-			rule.arguments.push_back({OBJECT, "", NO_KEYWORD, parse_object(tokens, i, BRACE_CLOSE)});
+			rule.arguments.push_back({OBJECT, "", NO_KEYWORD, parse_object(tokens, i, BRACE_CLOSE, context)});
 			break;
 		}
 
@@ -130,6 +165,8 @@ static Rule parse_rule(std::vector<Token> &tokens, size_t &i) {
 }
 
 Object lexer(std::vector<Token> &tokens) {
+	LexerContext context;
 	size_t i = 0;
-	return parse_object(tokens, i, END);
+
+	return parse_object(tokens, i, END, context);
 }

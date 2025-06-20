@@ -1,9 +1,9 @@
 #include "rules.hpp"
 #include <iostream>
 
-MaxBodySizeRule::MaxBodySizeRule() : _size() {}
+MaxBodySizeRule::MaxBodySizeRule() : _size(), _is_set(false) {}
 
-MaxBodySizeRule::MaxBodySizeRule(const Rules &rules, bool required) {
+MaxBodySizeRule::MaxBodySizeRule(const Rules &rules, bool required) : _size(), _is_set(false) {
 	if (rules.empty() && required)
 		throw ConfigParsingException("Missing max body size rule");
 	
@@ -17,11 +17,8 @@ MaxBodySizeRule::MaxBodySizeRule(const Rules &rules, bool required) {
 			throw ConfigParsingException("Invalid max body size argument type");
 
 		_size = Size(rule.arguments[0].str);
+		_is_set = true;
 	}
-}
-
-inline size_t MaxBodySizeRule::get() const {
-	return _size.get();
 }
 
 std::ostream& operator<<(std::ostream& os, const MaxBodySizeRule& rule) {

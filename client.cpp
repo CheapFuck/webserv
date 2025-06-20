@@ -63,8 +63,8 @@ Response &Client::_processRequest(const ServerConfig &config) {
         return (response);
     }
 
-    if (request.getContentLength() > config.clientMaxBodySize.get()
-        || request.getBody().length() > config.clientMaxBodySize.get()) {
+    if (route->clientMaxBodySize.isSet() && (request.getContentLength() > route->clientMaxBodySize.get()
+        || request.getBody().length() > route->clientMaxBodySize.get())) {
         response.setStatusCode(HttpStatusCode::PayloadTooLarge);
         DEBUG("Request body exceeds maximum size");
         return response;
@@ -100,6 +100,10 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
 void Client::handleCGIResponse() {
     if (!_CGIWriteFd) return ;
 
+    const LocationRule *route = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getPath());
+    if (route)
+        response.setDefaultBody(*route);
+
     _CGIWriteFd->writeToBuffer(response.getAsString());
     if (_CGIWriteFd->write() == -1) {
         ERROR("Failed to write CGI response for Client: " << _CGIWriteFd->get());
@@ -131,7 +135,10 @@ void Client::handleWriteCallback(FD &fd) {
         return ;
     }
 
-    response.setDefaultBody(_server.loadRequestConfig(request, _serverFd));
+    const LocationRule *rule = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getPath());
+    if (rule)
+        response.setDefaultBody(*rule);
+
     fd.writeToBuffer(response.getAsString());
 
     if (fd.write() == -1) {

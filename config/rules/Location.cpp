@@ -15,6 +15,7 @@ LocationRule::LocationRule(const std::string &path, Object &obj, bool throwOnNon
 		{INDEX, [this](const Rules &rules) { index = IndexRule(rules, false); }},
 		{REDIRECT, [this](const Rules &rules) { redirect = RedirectRule(rules, false); }},
 		{ERROR_PAGE, [this](const Rules &rules) { errorPages = ErrorPageRule(rules, false); }},
+		{MAX_BODY_SIZE, [this](const Rules &rules) { clientMaxBodySize = MaxBodySizeRule(rules, false); }},
 		{CGI_PASS, [this](const Rules &rules) { CGI = CGIRule(rules, false); }},
 		{CGI_TIMEOUT, [this](const Rules &rules) { cgiTimeout = CGITimeoutRule(rules, false); }}
 	};
@@ -40,6 +41,8 @@ void LocationRule::adjustFromDefault(const LocationRule &defaultLocation) {
 		CGI = defaultLocation.CGI;
 	if (!cgiTimeout.isSet())
 		cgiTimeout = defaultLocation.cgiTimeout;
+	if (!clientMaxBodySize.isSet() && defaultLocation.clientMaxBodySize.isSet())
+		clientMaxBodySize = defaultLocation.clientMaxBodySize;
 	errorPages.updateFromDefault(defaultLocation.errorPages);
 }
 
@@ -48,6 +51,6 @@ inline const std::string &LocationRule::getPath() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationRule& rule) {
-	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi_paths: " << rule.CGI << ", cgi_timeout: " << rule.cgiTimeout << ", error_pages: " << rule.errorPages << ")";
+	os << "LocationRule(path: " << rule.getPath() << ", methods: " << rule.methods << ", root: " << rule.root << ", upload_dir: " << rule.upload_dir << ", autoindex: " << rule.autoIndex << ", index: " << rule.index << ", redirect: " << rule.redirect << ", cgi: " << rule.CGI << ", cgi_timeout: " << rule.cgiTimeout << ", error_pages: " << rule.errorPages << ", max body size: " << rule.clientMaxBodySize << ")";
 	return os;
 }

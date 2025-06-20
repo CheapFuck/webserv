@@ -55,6 +55,8 @@ enum Key {
 	UPLOAD_DIR = 1 << 11,
 	CGI_PASS = 1 << 12,
 	CGI_TIMEOUT = 1 << 13,
+	DEFINE = 1 << 14,
+	INCLUDE = 1 << 15,
 };
 
 #define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | SEMICOLON | KEYWORD | END))
@@ -84,6 +86,10 @@ struct Argument {
 struct Rule {
 	Key key;
 	std::vector<Argument> arguments;
+};
+
+struct LexerContext {
+	std::vector<std::pair<std::string, Object>> includes; 
 };
 
 std::ostream& operator<<(std::ostream& os, const TokenType& type);
