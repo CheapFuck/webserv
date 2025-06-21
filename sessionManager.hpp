@@ -24,6 +24,10 @@ struct SessionMetaData {
 	time_t		lastAccessTime;
 	std::string	sessionId;
 	std::string absoluteFilePath;
+	std::string _storagePath;
+
+	SessionMetaData(long t, const std::string& id, const std::string& path)
+        : lastAccessTime(t), sessionId(id), _storagePath(path) {}
 };
 
 class UserSessionManager {

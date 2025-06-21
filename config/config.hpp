@@ -59,6 +59,10 @@ struct Token {
 	TokenType type;
 	std::string value;
 	int filePos;
+
+	int line;
+    Token(TokenType t, const std::string& v, int l)
+    : type(t), value(v), line(l) {}
 };
 
 typedef std::vector<Rule> Rules;
