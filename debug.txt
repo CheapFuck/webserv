@@ -1,0 +1,132 @@
+./config/rules/../config.hpp:142:14: warning: 'ParserTokenException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from server.cpp:1:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:153:14: warning: 'ParserDuplicationException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from server.cpp:1:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:164:14: warning: 'ParserMissingException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from request.cpp:1:
+In file included from ./request.hpp:3:
+./sessionManager.hpp:29:45: error: member initializer 'storagePath' does not name a non-static data member or base class
+        : lastAccessTime(t), sessionId(id), storagePath(path) {}
+                                            ^~~~~~~~~~~~~~~~~
+In file included from request.cpp:1:
+In file included from ./request.hpp:7:
+In file included from ./cookie.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:142:14: warning: 'ParserTokenException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from request.cpp:1:
+In file included from ./request.hpp:7:
+In file included from ./cookie.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:153:14: warning: 'ParserDuplicationException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from request.cpp:1:
+In file included from ./request.hpp:7:
+In file included from ./cookie.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:164:14: warning: 'ParserMissingException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from client.cpp:1:
+In file included from ./client.hpp:4:
+In file included from ./response.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:142:14: warning: 'ParserTokenException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from client.cpp:1:
+In file included from ./client.hpp:4:
+In file included from ./response.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:153:14: warning: 'ParserDuplicationException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from client.cpp:1:
+In file included from ./client.hpp:4:
+In file included from ./response.hpp:3:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:164:14: warning: 'ParserMissingException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from main.cpp:11:
+In file included from ./server.hpp:4:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:142:14: warning: 'ParserTokenException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from main.cpp:11:
+In file included from ./server.hpp:4:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:153:14: warning: 'ParserDuplicationException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from main.cpp:11:
+In file included from ./server.hpp:4:
+In file included from ./config/rules/rules.hpp:3:
+./config/rules/../config.hpp:164:14: warning: 'ParserMissingException::what' hides overloaded virtual function [-Woverloaded-virtual]
+        std::string what(ConfigurationParser &parser) const noexcept;
+                    ^
+/usr/bin/../lib/gcc/x86_64-linux-gnu/12/../../../../include/c++/12/bits/exception.h:76:5: note: hidden overloaded virtual function 'std::exception::what' declared here: different number of parameters (0 vs 1)
+    what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+    ^
+In file included from client.cpp:1:
+In file included from ./client.hpp:5:
+In file included from ./request.hpp:3:
+./sessionManager.hpp:29:45: error: member initializer 'storagePath' does not name a non-static data member or base class
+        : lastAccessTime(t), sessionId(id), storagePath(path) {}
+                                            ^~~~~~~~~~~~~~~~~
+In file included from server.cpp:2:
+./sessionManager.hpp:29:45: error: member initializer 'storagePath' does not name a non-static data member or base class
+        : lastAccessTime(t), sessionId(id), storagePath(path) {}
+                                            ^~~~~~~~~~~~~~~~~
+3 warnings and 1 error generated.
+make: *** [Makefile:66: objs/request.o] Error 1
+make: *** Waiting for unfinished jobs....
+In file included from main.cpp:11:
+In file included from ./server.hpp:5:
+./sessionManager.hpp:29:45: error: member initializer 'storagePath' does not name a non-static data member or base class
+        : lastAccessTime(t), sessionId(id), storagePath(path) {}
+                                            ^~~~~~~~~~~~~~~~~
