@@ -78,3 +78,11 @@ footer {
 .cgi-list li a:hover {
   text-decoration: underline;
 }
+
+.project h4 {
+  margin-top: 1.2rem;
+  font-size: 1.1rem;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.3rem;
+}
