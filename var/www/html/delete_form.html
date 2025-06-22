@@ -1,32 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delete File</title>
-    <script>
-        function deleteFile(filePath) {
-            fetch(`/upload?file=${encodeURIComponent(filePath)}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.text())
-            .then(data => {
-                alert(data);
-            })
-            .catch(error => {
-                alert('Error deleting file: ' + error);
-            });
-        }
-    </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Delete File</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    function deleteFile(filePath) {
+      fetch(`/upload?file=${encodeURIComponent(filePath)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => response.text())
+      .then(data => alert(data))
+      .catch(error => alert('Error deleting file: ' + error));
+    }
+  </script>
 </head>
 <body>
-    <h1>Delete a File</h1>
-    <p>Click the button to delete a file.</p>
+  <h1>Delete a File</h1>
+  <form onsubmit="event.preventDefault(); deleteFile(document.getElementById('filePath').value);">
+    <label for="filePath">Enter file path to delete:</label>
+    <input type="text" id="filePath" name="filePath" required placeholder="e.g., uploads/test.txt">
 
-    <input type="text" id="filePath" placeholder="Enter file path to delete"><br><br>
-    <button onclick="deleteFile(document.getElementById('filePath').value)">Delete File</button>
+    <button type="submit">Delete File</button>
+  </form>
 </body>
 </html>
