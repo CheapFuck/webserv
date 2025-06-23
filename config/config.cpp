@@ -61,13 +61,13 @@ bool ConfigurationParser::fetchConfiguration() {
         _fetchServerConfigs(parsedObject);
         return (true);
     } catch (const ParserTokenException &e) {
-        std::cout << (e.what(*this));
+        std::cout << (e.describe(*this));
         return (false);
     } catch (const ParserDuplicationException &e) {
-        std::cout << (e.what(*this));
+        std::cout << (e.describe(*this));
         return (false);
     } catch (const ParserMissingException &e) {
-        std::cout << (e.what(*this));
+        std::cout << (e.describe(*this));
         return (false);
     } catch (const std::exception &e) {
         std::cerr << "An unexpected error occurred: " << e.what() << std::endl;

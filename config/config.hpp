@@ -140,7 +140,7 @@ public:
 	ParserTokenException(const std::string &message, const Rule &rule);
 	ParserTokenException(const std::string &message, const Token &token);
 	ParserTokenException(const std::string &message, const Argument &argument);
-	std::string what(ConfigurationParser &parser) const noexcept;
+	std::string describe(ConfigurationParser &parser) const noexcept;
 };
 
 class ParserDuplicationException : public std::exception {
@@ -151,7 +151,7 @@ private:
 
 public:
 	ParserDuplicationException(const std::string &message, const Rule &firstRule, const Rule &secondRule);
-	std::string what(ConfigurationParser &parser) const noexcept;
+	std::string describe(ConfigurationParser &parser) const noexcept;
 };
 
 class ParserMissingException : public std::exception {
@@ -162,7 +162,7 @@ private:
 
 public:
 	ParserMissingException(const std::string &message);
-	std::string what(ConfigurationParser &parser) const noexcept;
+	std::string describe(ConfigurationParser &parser) const noexcept;
 
 	void attachObject(const Object &object);
 	inline bool isObjectAttached() const noexcept { return _firstFilePos != 0 && _secondFilePos != 0; };
