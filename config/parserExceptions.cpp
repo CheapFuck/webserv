@@ -12,7 +12,7 @@ ParserTokenException::ParserTokenException(const std::string &message, const Tok
 ParserTokenException::ParserTokenException(const std::string &message, const Argument &argument)
     : _message(message), _filePos(argument.filePos) {}
 
-std::string ParserTokenException::what(ConfigurationParser &parser) const noexcept {
+std::string ParserTokenException::describe(ConfigurationParser &parser) const noexcept {
     ErrorContext context = parser.getErrorContext(_filePos);
     std::ostringstream oss;
     oss << TERM_COLOR_RED << "[ParserTokenException]" << TERM_COLOR_RESET << ": " << _message << "\n";
@@ -25,7 +25,7 @@ std::string ParserTokenException::what(ConfigurationParser &parser) const noexce
 ParserDuplicationException::ParserDuplicationException(const std::string &message, const Rule &firstRule, const Rule &secondRule)
     : _message(message.empty() ? "Duplicate rule found" : message), _firstFilePos(firstRule.filePos), _secondFilePos(secondRule.filePos) {}
 
-std::string ParserDuplicationException::what(ConfigurationParser &parser) const noexcept {
+std::string ParserDuplicationException::describe(ConfigurationParser &parser) const noexcept {
     ErrorContext firstContext = parser.getErrorContext(_firstFilePos);
     ErrorContext secondContext = parser.getErrorContext(_secondFilePos);
 
@@ -43,7 +43,7 @@ std::string ParserDuplicationException::what(ConfigurationParser &parser) const 
 ParserMissingException::ParserMissingException(const std::string &message)
     : _message(message), _firstFilePos(0), _secondFilePos(0) {}
 
-std::string ParserMissingException::what(ConfigurationParser &parser) const noexcept {
+std::string ParserMissingException::describe(ConfigurationParser &parser) const noexcept {
     ErrorContext openingContext = parser.getErrorContext(_firstFilePos);
     ErrorContext closingContext = parser.getErrorContext(_secondFilePos);
 
