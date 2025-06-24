@@ -312,7 +312,7 @@ void Server::untrackDescriptor(int fd) {
 void Server::runOnce() {
     epoll_event events[EPOLL_MAX_EVENTS];
 
-    int event_count = epoll_wait(_epoll_fd, events, EPOLL_MAX_EVENTS, _timer.getNextEventTimeoutMS());
+    int event_count = epoll_wait(_epoll_fd, events, EPOLL_MAX_EVENTS, std::min(1000, _timer.getNextEventTimeoutMS()));
     if (event_count == -1) {
         ERROR("epoll_wait failed: " << strerror(errno));
         return ;

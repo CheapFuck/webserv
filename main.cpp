@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
 
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
+    signal(SIGQUIT, signalHandler);
 
     PRINT("Configuration loaded successfully from " << configPath);
     Server server(parser.getResult());
