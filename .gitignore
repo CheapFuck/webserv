@@ -5,3 +5,9 @@ webserv_db
 .vscode/
 sessions*/
 __pycache__/
+*.swp
+YoupiBanane/
+default2.conf
+defaultbak.conf
+ubuntu_cgi_tester
+vartest/
