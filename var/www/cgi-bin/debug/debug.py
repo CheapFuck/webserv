@@ -25,6 +25,7 @@ def createDebugResponse():
         "script": cgi.getEnvironmentVariable('SCRIPT_NAME', '<empty>'),
         "path": cgi.getEnvironmentVariable('PATH_INFO', '<empty>'),
         "query": cgi.getEnvironmentVariable('QUERY_STRING', '<empty>'),
+        "body": cgi.getBody(),
         "sessionData": dict(cgi.session),
         "envVars": dict(os.environ),
     }))
@@ -33,7 +34,7 @@ with cgi.session:
     debugVisitCounter = int(cgi.session.get("debugVisitCounter", 0)) + 1
     cgi.session["debugVisitCounter"] = debugVisitCounter
 
-    if cgi.getEnvironmentVariable('PATH_INFO', '') == '/zen':
+    if cgi.getPathParameter(0) == 'zen':
         createZenResponse()
     else:
         createDebugResponse()

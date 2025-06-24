@@ -96,7 +96,7 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     _environmentVariables["REMOTE_ADDR"] = _client.getClientIP();
     _environmentVariables["REMOTE_PORT"] = _client.getClientPort();
     _environmentVariables["SERVER_ADDR"] = _client.getServer().getServerAddress();
-    _environmentVariables["SERVER_PORT"] = _client.getServer().getServerPort();
+    _environmentVariables["SERVER_PORT"] = std::to_string(config.port.get());
     _environmentVariables["REDIRECT_STATUS"] = "200";
 
     if (_client.request.session && !_client.request.session->sessionId.empty())

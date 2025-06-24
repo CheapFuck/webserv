@@ -60,7 +60,6 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _timer(),
     _descriptors(),
     _serverAddress(),
-    _serverPort(),
     _serverExecutablePath(std::filesystem::current_path().string())
 {
     try {
@@ -87,7 +86,6 @@ Server::Server(const Server &other) :
     _timer(other._timer),
     _descriptors(other._descriptors),
     _serverAddress(other._serverAddress),
-    _serverPort(other._serverPort),
     _serverExecutablePath(other._serverExecutablePath) {}
 
 Server &Server::operator=(const Server &other) {
@@ -99,7 +97,6 @@ Server &Server::operator=(const Server &other) {
         _timer = other._timer;
         _descriptors = other._descriptors;
         _serverAddress = other._serverAddress;
-        _serverPort = other._serverPort;
         _serverExecutablePath = other._serverExecutablePath;
     }
     return *this;
@@ -147,7 +144,6 @@ void Server::_setupSocket(int listenPort, const std::vector<ServerConfig> &confi
 
     _portToConfigs[serverFd] = configs;
     _serverAddress = inet_ntoa(address.sin_addr);
-    _serverPort = std::to_string(listenPort);
 
     PRINT("Server " << configs[0].serverName.get() << " is listening on port " << listenPort);
 }
