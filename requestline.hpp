@@ -1,14 +1,23 @@
 #pragma once
 
+#include "config/rules/rules.hpp"
 #include "config/consts.hpp"
 
 #include <sstream>
+#include <string>
+
+typedef struct stat PathStat;
 
 class RequestLine {
 private:
     Method _method;
-    std::string _path;
+    std::string _url;
     std::string _version;
+
+    Path _path;
+    bool _pathIsDirectory;
+
+    bool _fetchCorrectPathFromIndexRule(const IndexRule &rule);
 
 public:
     RequestLine();
@@ -17,11 +26,15 @@ public:
     RequestLine &operator=(const RequestLine &other);
     ~RequestLine();
 
+    void translateUrl(const std::string &serverRelativePath, const LocationRule &route);
+
     bool isValid() const;
 
     const Method &getMethod() const;
-    const std::string &getPath() const;
+    const std::string &getRawUrl() const;
     const std::string &getVersion() const;
+    const Path &getPath() const;
+    bool pathIsDirectory() const;
 };
 
 std::ostream &operator<<(std::ostream &os, const RequestLine &request_line);

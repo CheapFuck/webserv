@@ -6,6 +6,17 @@
 
 Client::Client(Server &server, int serverFd, const char *clientIP, int clientPort) : _cgiClient(nullptr), _CGIWriteFd(nullptr), _server(server), _serverFd(serverFd), _clientIP(std::string(clientIP)), _clientPort(std::to_string(clientPort)) {}
 
+Response &Client::_createCGIClient(const ServerConfig &config, const LocationRule &route) {
+    _cgiClient = std::make_shared<CGIClient>(*this);
+    if (!_cgiClient) {
+        ERROR("Failed to create CGIClient for request processing");
+        response.setStatusCode(HttpStatusCode::InternalServerError);
+        return (response);
+    }
+    _cgiClient->start(config, route);
+    return (response);
+}
+
 /// @brief Processes the request based on its HTTP method.
 /// @param config The server configuration
 /// @param route The location rule that matches the request path
@@ -13,16 +24,8 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
 Response &Client::_processRequestByMethod(const ServerConfig &config, const LocationRule &route) {
     (void)config;
 
-    if (route.CGI.isSet()) {
-        _cgiClient = std::make_shared<CGIClient>(*this);
-        if (!_cgiClient) {
-            ERROR("Failed to create CGIClient for request processing");
-            response.setStatusCode(HttpStatusCode::InternalServerError);
-            return (response);
-        }
-        _cgiClient->start(config, route);
-        return (response);
-    }
+    if (route.CGI.isSet() || (!request.metadata.pathIsDirectory() && config.cgiExtention.isCGI(request.metadata.getPath())))
+        return _createCGIClient(config, route);
 
     switch (request.metadata.getMethod()) {
         case Method::GET:
@@ -49,7 +52,7 @@ Response &Client::_processRequest(const ServerConfig &config) {
         return (response);
     }
 
-    const LocationRule *route = config.routes.find(request.metadata.getPath());
+    const LocationRule *route = config.routes.find(request.metadata.getRawUrl());
     if (route == nullptr) {
         response.setStatusCode(HttpStatusCode::NotFound);
         return (response);
@@ -57,6 +60,21 @@ Response &Client::_processRequest(const ServerConfig &config) {
 
     DEBUG("Route found: " << *route);
     DEBUG("Url Path: " << request.metadata);
+
+    if (!route->root.isSet()) {
+        DEBUG("Root not set for route: " << route);
+        response.setStatusCode(HttpStatusCode::NotFound);
+        return response;
+    }
+
+    request.metadata.translateUrl(_server.getServerExecutablePath(), *route);
+    DEBUG("Translated request path: " << request.metadata.getPath().str());
+
+    if (!request.metadata.getPath().isValid()) {
+        DEBUG("Invalid request path: " << request.metadata.getPath().str());
+        response.setStatusCode(HttpStatusCode::BadRequest);
+        return (response);
+    }
 
     if (!route->methods.isAllowed(request.metadata.getMethod())) {
         response.setStatusCode(HttpStatusCode::MethodNotAllowed);
@@ -111,7 +129,7 @@ void Client::handleWriteCallback(FD &fd) {
         return ;
     }
 
-    const LocationRule *rule = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getPath());
+    const LocationRule *rule = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getRawUrl());
     if (rule)
         response.setDefaultBody(*rule);
 

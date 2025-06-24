@@ -84,7 +84,7 @@ Path Path::createFromUrl(const std::string &url, const LocationRule &route) {
 	if (url.empty() || !route.root.isSet())
 		return Path::createDummy();
 
-	Path path(url);
+	Path path(url.substr(0, url.find('?')));
 	path.updateFromUrl(route.getPath(), route.root.get().str());
 
 	return path;

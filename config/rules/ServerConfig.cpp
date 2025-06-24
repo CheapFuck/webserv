@@ -11,7 +11,8 @@ ServerConfig::ServerConfig(Object &object) {
 	std::unordered_map<Key, std::function<void(Rules &)>> ruleParsers = {
 		{LISTEN, [this](const Rules &rules) { port = PortRule(rules, true); }},
 		{SERVER_NAME, [this](const Rules &rules) { serverName = ServerNameRule(rules, false); }},
-		{LOCATION, [this](Rules &rules) { routes = RouteRules(rules, defaultLocation, false); }}
+		{LOCATION, [this](Rules &rules) { routes = RouteRules(rules, defaultLocation, false); }},
+		{CGI_EXTENTION, [this](const Rules &rules) { cgiExtention = CGIExtentionRule(rules, false); }},
 	};
 
 	extractRules(object, ruleParsers, true);
@@ -43,6 +44,7 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
 	os << config.port << std::endl;
 	os << config.serverName << std::endl;
 	os << config.routes << std::endl;
+	os << config.cgiExtention << std::endl;
 	os << "Default Location: " << config.defaultLocation << std::endl;
 
 	return os;

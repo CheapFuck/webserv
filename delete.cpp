@@ -36,8 +36,8 @@ Response &DeleteMethod::processRequest(
     Response &response,
     const LocationRule &route
 ) {
-    DEBUG("Processing DELETE request for path: " << request.metadata.getPath());
-    std::map<std::string, std::string> queryParams = parseQueryParams(request.metadata.getPath());
+    DEBUG("Processing DELETE request for path: " << request.metadata.getRawUrl());
+    std::map<std::string, std::string> queryParams = parseQueryParams(request.metadata.getRawUrl());
 
     response.headers.replace(HeaderKey::ContentType, "text/plain");
 

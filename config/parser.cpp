@@ -52,6 +52,7 @@ static Key getRuleKey(const Token &token) {
 		{"cgi_timeout", CGI_TIMEOUT},
 		{"define", DEFINE},
 		{"include", INCLUDE},
+		{"cgi_extention", CGI_EXTENTION},
 	};
 
 	auto it = keyMap.find(token.value);

@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include <filesystem>
 #include <exception>
 #include <unistd.h>
 #include <iostream>
@@ -57,7 +58,10 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _server_fd(-1),
     _epoll_fd(-1),
     _timer(),
-    _descriptors()
+    _descriptors(),
+    _serverAddress(),
+    _serverPort(),
+    _serverExecutablePath(std::filesystem::current_path().string())
 {
     try {
         for (const auto &pair : configs)
@@ -81,7 +85,10 @@ Server::Server(const Server &other) :
     _server_fd(other._server_fd),
     _epoll_fd(other._epoll_fd),
     _timer(other._timer),
-    _descriptors(other._descriptors) {}
+    _descriptors(other._descriptors),
+    _serverAddress(other._serverAddress),
+    _serverPort(other._serverPort),
+    _serverExecutablePath(other._serverExecutablePath) {}
 
 Server &Server::operator=(const Server &other) {
     if (this != &other) {
@@ -91,6 +98,9 @@ Server &Server::operator=(const Server &other) {
         _epoll_fd = other._epoll_fd;
         _timer = other._timer;
         _descriptors = other._descriptors;
+        _serverAddress = other._serverAddress;
+        _serverPort = other._serverPort;
+        _serverExecutablePath = other._serverExecutablePath;
     }
     return *this;
 }
@@ -136,6 +146,9 @@ void Server::_setupSocket(int listenPort, const std::vector<ServerConfig> &confi
 		throw ServerCreationException("Failed to listen on socket");
 
     _portToConfigs[serverFd] = configs;
+    _serverAddress = inet_ntoa(address.sin_addr);
+    _serverPort = std::to_string(listenPort);
+
     PRINT("Server " << configs[0].serverName.get() << " is listening on port " << listenPort);
 }
 

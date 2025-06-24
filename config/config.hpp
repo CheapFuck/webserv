@@ -51,6 +51,7 @@ enum Key {
 	CGI_TIMEOUT = 1 << 13,
 	DEFINE = 1 << 14,
 	INCLUDE = 1 << 15,
+	CGI_EXTENTION = 1 << 16,
 };
 
 #define IS_USABLE_TOKEN(type) ((type) & (STR | BRACE_OPEN | BRACE_CLOSE | LINE_END | KEYWORD | END))
@@ -60,9 +61,8 @@ struct Token {
 	std::string value;
 	int filePos;
 
-	int line;
     Token(TokenType t, const std::string& v, int l)
-    : type(t), value(v), line(l) {}
+    : type(t), value(v), filePos(l) {}
 };
 
 typedef std::vector<Rule> Rules;

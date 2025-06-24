@@ -20,6 +20,13 @@ ErrorPageRule::ErrorPageRule(const Rules &rules, bool required): _error_pages() 
 		for (const Argument &arg : rule.arguments) {
 			if (arg.type != STRING)
 				throw ParserTokenException("Invalid error page code argument type", arg);
+			
+			if (arg.str.size() == 1 && arg.str[0] == '*') {
+				if (rule_size != 2)
+					throw ParserTokenException("Wildcard error page rule must have exactly one code", rule);
+				_error_pages[-1] = path;
+				break;
+			}
 
 			int code;
 			try {code = std::stoi(arg.str); }
@@ -47,6 +54,22 @@ void ErrorPageRule::updateFromDefault(const ErrorPageRule &defaultRule) {
 		if (_error_pages.find(code) == _error_pages.end())
 			_error_pages[code] = pair.second;
 	}
+}
+
+/// @brief Returns the error page for the given code.
+/// @param code The HTTP status code for which to retrieve the error page.
+/// @return The path to the error page as a string, or an empty string if not found.
+/// If the code is not found, it will return the wildcard error page if it exists.
+std::string ErrorPageRule::getErrorPage(int code) const {
+	auto it = _error_pages.find(code);
+	if (it != _error_pages.end())
+		return it->second.str();
+
+	auto wildcardIt = _error_pages.find(-1);
+	if (wildcardIt != _error_pages.end())
+		return wildcardIt->second.str();
+
+	return "";
 }
 
 inline const std::map<int, Path> &ErrorPageRule::getErrorPages() const {

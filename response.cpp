@@ -71,9 +71,9 @@ void Response::setDefaultBody(const LocationRule& rule) {
 		return ;
 
 	error_int = static_cast<int>(_statusCode);
-	error_templates = rule.errorPages.getErrorPages();
-	if (error_templates.find(error_int) == error_templates.end() 
-		|| tryCreateResponseFromFile(error_templates[error_int], *this) == false)
+    std::string defaultErrorPage = rule.errorPages.getErrorPage(error_int);
+	if (defaultErrorPage.empty() 
+		|| tryCreateResponseFromFile(defaultErrorPage, *this) == false)
 	{
 		setBody(getDefaultBodyForCode(_statusCode));
 	}

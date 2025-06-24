@@ -207,13 +207,11 @@ class SessionHandler:
                     json.dump({}, f)
 
             with open(filename, 'r') as file:
-                fcntl.flock(file, fcntl.LOCK_EX)
                 try:
                     self._data = json.load(file)
                     return True
                 except json.JSONDecodeError:
                     self._data = {}
-                    fcntl.flock(file, fcntl.LOCK_UN)
                     return False
         
         return self._is_loaded and bool(self._filename)
@@ -225,7 +223,6 @@ class SessionHandler:
         
         with open(self._filename, 'w') as file:
             json.dump(self._data, file)
-            fcntl.flock(file, fcntl.LOCK_UN)
             self._is_loaded = False
 
     def __getitem__(self, key: str) -> typing.Any:
@@ -264,6 +261,19 @@ class CGIClient:
         self.session: SessionHandler = SessionHandler(os.environ.get(CGI_SESSION_FILE_KEY))
         self._cgiStatus: CGIStatus = CGIStatus.INIT
         self._body: str | None = None
+
+        self.pathParameters: list[str] = os.environ.get('PATH_INFO', '').strip('/').split('/') if 'PATH_INFO' in os.environ else []
+        self.queryParameters: dict[str, str] = {k: v for k, v in (param.split('=') for param in os.environ.get('QUERY_STRING', '').split('&') if '=' in param)}
+
+    def getPathParameter(self, index: int, default: str | None = None) -> str | None:
+        """Returns the path parameter at the specified index. If the index is out of bounds, returns the default value."""
+        if 0 <= index < len(self.pathParameters):
+            return self.pathParameters[index]
+        return default
+
+    def getQueryParameter(self, name: str, default: str | None = None) -> str | None:
+        """Returns the value of a query parameter by name. If no default value is provided and the parameter does not exist, returns None."""
+        return self.queryParameters.get(name, default)
 
     def getCookie(self, name: str, default: str | None = None) -> str | None:
         """Returns the value of a cookie by name. If no default value is provided and the cookie does not exist, returns None."""

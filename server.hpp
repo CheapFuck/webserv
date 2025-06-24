@@ -26,6 +26,10 @@ private:
     Timer _timer;
     std::map<int, FD> _descriptors;
 
+    std::string _serverAddress;
+    std::string _serverPort;
+    std::string _serverExecutablePath;
+
     // Socket and epoll setup
     void _setupEpoll();
     void _setupSocket(int listenPort, const std::vector<ServerConfig> &configs);
@@ -56,6 +60,9 @@ public:
     inline Timer &getTimer() { return _timer; }
     inline int getEpollFd() const { return _epoll_fd; }
     inline void trackDescriptor(const FD &fd) { _descriptors[fd.get()] = fd; }
+    inline std::string getServerAddress() { return _serverAddress; }
+    inline std::string getServerPort() { return _serverPort; }
+    inline std::string getServerExecutablePath() { return _serverExecutablePath; }
 };
 
 #endif // SERVER_HPP

@@ -140,6 +140,7 @@ public:
 	~ErrorPageRule() = default;
 
 	const std::map<int, Path> &getErrorPages() const;
+	std::string getErrorPage(int code) const;
 	void updateFromDefault(const ErrorPageRule &defaultRule);
 };
 
@@ -259,6 +260,21 @@ public:
 	inline bool isSet() const { return _is_set; }
 };
 
+class CGIExtentionRule {
+private:
+	std::vector<std::string> _extentions;
+
+public:
+	CGIExtentionRule();
+	CGIExtentionRule(const Rules &rules, bool required = false);
+	CGIExtentionRule(const CGIExtentionRule &other) = default;
+	CGIExtentionRule &operator=(const CGIExtentionRule &other) = default;
+	~CGIExtentionRule() = default;
+
+	bool isCGI(const Path &path) const;
+	const std::vector<std::string> &getExtentions() const;
+};
+
 class LocationRule {
 private:
 	std::string _path;
@@ -307,6 +323,7 @@ public:
 	ServerNameRule serverName;
 	RouteRules routes;
 	LocationRule defaultLocation;
+	CGIExtentionRule cgiExtention;
 
 	ServerConfig() = default;
 	ServerConfig(Object &object);
@@ -330,3 +347,4 @@ std::ostream& operator<<(std::ostream& os, const IndexRule& rule);
 std::ostream& operator<<(std::ostream& os, const AutoIndexRule& rule);
 std::ostream& operator<<(std::ostream& os, const RedirectRule& rule);
 std::ostream& operator<<(std::ostream& os, const CGITimeoutRule& rule);
+std::ostream& operator<<(std::ostream& os, const CGIExtentionRule& rule);

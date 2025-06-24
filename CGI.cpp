@@ -13,10 +13,8 @@
 /// @param url The URL to parse, which may include a query string.
 /// @param route The location rule to use for parsing the URL.
 /// @return A ParsedUrl struct containing the extracted information.
-static ParsedUrl parseUrl(const std::string &url, const LocationRule &route) {
+static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Path path) {
     DEBUG("Parsing URL: " << url);
-    std::string baseUrl = url.substr(0, url.find('?'));
-    Path path = Path::createFromUrl(baseUrl, route);
 
     Path tmp = path;
     DEBUG("Initial path for CGI script search: " << tmp.str());
@@ -92,10 +90,14 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     _environmentVariables["REQUEST_METHOD"] = methodToStr(_client.request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
+    _environmentVariables["SCRIPT_FILENAME"] = parsedUrl.scriptPath;
     _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
     _environmentVariables["REMOTE_ADDR"] = _client.getClientIP();
     _environmentVariables["REMOTE_PORT"] = _client.getClientPort();
+    _environmentVariables["SERVER_ADDR"] = _client.getServer().getServerAddress();
+    _environmentVariables["SERVER_PORT"] = _client.getServer().getServerPort();
+    _environmentVariables["REDIRECT_STATUS"] = "200";
 
     if (_client.request.session && !_client.request.session->sessionId.empty())
         _environmentVariables["HTTP_SESSION_FILE"] = _client.request.session->absoluteFilePath;
@@ -130,7 +132,7 @@ char * const *CGIClient::_createEnvironmentArray() const {
 
 void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
     DEBUG("Starting CGIClient for client: " << &_client);
-    const ParsedUrl parsedUrl = parseUrl(_client.request.metadata.getPath(), route);
+    const ParsedUrl parsedUrl = parseUrl(_client.request.metadata.getRawUrl(), route, _client.request.metadata.getPath());
 
     DEBUG("Parsed URL: scriptPath=" << parsedUrl.scriptPath
           << ", pathInfo=" << parsedUrl.pathInfo
@@ -138,8 +140,22 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
           << ", isValid=" << parsedUrl.isValid);
 
     if (!parsedUrl.isValid) {
-        DEBUG("Invalid URL for CGI processing: " << _client.request.metadata.getPath());
-        _client.response.setStatusCode(HttpStatusCode::BadRequest);
+        DEBUG("Unknown URL for CGI processing: " << _client.request.metadata.getRawUrl());
+        _client.response.setStatusCode(HttpStatusCode::NotFound);
+        _isRunning = false;
+        return;
+    }
+
+    if (!config.cgiExtention.isCGI(Path(parsedUrl.scriptPath))) {
+        ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
+        _client.response.setStatusCode(HttpStatusCode::Forbidden);
+        _isRunning = false;
+        return;
+    }
+
+    if (!config.cgiExtention.isCGI(Path(parsedUrl.scriptPath))) {
+        ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
+        _client.response.setStatusCode(HttpStatusCode::Forbidden);
         _isRunning = false;
         return;
     }
@@ -272,11 +288,12 @@ void CGIClient::handleDisconnectCallback(FD &fd) {
     if (_isRunning) {
         int exitStatus = 0;
         waitpid(_pid, &exitStatus, 0);
-        DEBUG("CGIClient exited normally, PID: " << _pid << ", exit status: " << exitStatus);
+        DEBUG("CGIClient exited normally, PID: " << _pid << ", exit status: " << WEXITSTATUS(exitStatus));
         _isRunning = false;
         _client.getServer().getTimer().deleteEvent(_processTimerId);
         if (exitStatus == 0) _client.response.updateFromCGIOutput(fd.readBuffer);
         else _client.response.setStatusCode(HttpStatusCode::InternalServerError);
+        DEBUG(fd.readBuffer);
         _client.handleCGIResponse();
     }
     DEBUG("CGIClient disconnect callback, fd: " << fd.get());

@@ -115,7 +115,7 @@ Response &PostMethod::processRequest(
     const LocationRule &route
 ) {
     (void)config;
-    DEBUG("Processing POST request for path: " << request.metadata.getPath());
+    DEBUG("Processing POST request for path: " << request.metadata.getRawUrl());
 
     std::string content_type = request.headers.getHeader(HeaderKey::ContentType, "");
     if (content_type.empty()) {
