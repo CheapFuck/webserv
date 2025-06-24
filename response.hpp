@@ -25,6 +25,7 @@ public:
 
     void setStatusCode(HttpStatusCode code);
     void setBody(const std::string& body);
+    void setTitle(const std::string& title);
     void setDefaultHeaders();
     void setDefaultBody(const LocationRule &rule);
 

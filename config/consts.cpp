@@ -154,3 +154,115 @@ std::ostream& operator<<(std::ostream& os, HeaderKey key) {
     os << headerKeyToString(key);
     return os;
 }
+
+const std::string default_err_body(const char *error_text, HttpStatusCode error_code)
+{
+	std::string todisplay = std::to_string(static_cast<int>(error_code)) + " - " + error_text;
+	std::string s = R"(<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	<meta charset="UTF-8">
+	<title>[TITLEPLACE]</title>
+	<style>
+		html, body {
+		height: 100%;
+		margin: 0px;
+		}
+		body {
+		display: flex;
+		justify-content: center;
+		border-style: inset;
+		border-width: 9px;
+		align-items: center;
+		font-size: 2em;
+		background-color: #f0f0f0;
+		}
+	</style>
+	</head>
+	<body>
+	Error [ERRORTEXTPLACE]
+	</body>
+	</html>)";
+	s.replace(s.find("[ERRORTEXTPLACE]"), 16, todisplay);
+	s.replace(s.find("[TITLEPLACE]"), 12, todisplay);
+
+	return (s);
+}
+
+const std::string getDefaultBodyForCode(HttpStatusCode code)
+{
+    switch(code)
+    {
+        case HttpStatusCode::Continue: return default_err_body("Continue", code);
+        case HttpStatusCode::SwitchingProtocols: return default_err_body("SwitchingProtocols", code);
+        case HttpStatusCode::Processing: return default_err_body("Processing", code);
+        case HttpStatusCode::EarlyHints: return default_err_body("EarlyHints", code);
+
+        // 2xx
+        case HttpStatusCode::OK: return default_err_body("OK", code);
+        case HttpStatusCode::Created: return default_err_body("Created", code);
+        case HttpStatusCode::Accepted: return default_err_body("Accepted", code);
+        case HttpStatusCode::NonAuthoritativeInformation: return default_err_body("NonAuthoritativeInformation", code);
+        case HttpStatusCode::NoContent: return default_err_body("NoContent", code);
+        case HttpStatusCode::ResetContent: return default_err_body("ResetContent", code);
+        case HttpStatusCode::PartialContent: return default_err_body("PartialContent", code);
+        case HttpStatusCode::MultiStatus: return default_err_body("MultiStatus", code);
+        case HttpStatusCode::AlreadyReported: return default_err_body("AlreadyReported", code);
+        case HttpStatusCode::IMUsed: return default_err_body("IMUsed", code);
+
+        // 3xx
+        case HttpStatusCode::MultipleChoices: return default_err_body("MultipleChoices", code);
+        case HttpStatusCode::MovedPermanently: return default_err_body("MovedPermanently", code);
+        case HttpStatusCode::Found: return default_err_body("Found", code);
+        case HttpStatusCode::SeeOther: return default_err_body("SeeOther", code);
+        case HttpStatusCode::NotModified: return default_err_body("NotModified", code);
+        case HttpStatusCode::UseProxy: return default_err_body("UseProxy", code);
+        case HttpStatusCode::TemporaryRedirect: return default_err_body("TemporaryRedirect", code);
+        case HttpStatusCode::PermanentRedirect: return default_err_body("PermanentRedirect", code);
+
+        // 4xx
+        case HttpStatusCode::BadRequest: return default_err_body("BadRequest", code);
+        case HttpStatusCode::Unauthorized: return default_err_body("Unauthorized", code);
+        case HttpStatusCode::PaymentRequired: return default_err_body("PaymentRequired", code);
+        case HttpStatusCode::Forbidden: return default_err_body("Forbidden", code);
+        case HttpStatusCode::NotFound: return default_err_body("NotFound", code);
+        case HttpStatusCode::MethodNotAllowed: return default_err_body("MethodNotAllowed", code);
+        case HttpStatusCode::NotAcceptable: return default_err_body("NotAcceptable", code);
+        case HttpStatusCode::ProxyAuthenticationRequired: return default_err_body("ProxyAuthenticationRequired", code);
+        case HttpStatusCode::RequestTimeout: return default_err_body("RequestTimeout", code);
+        case HttpStatusCode::Conflict: return default_err_body("Conflict", code);
+        case HttpStatusCode::Gone: return default_err_body("Gone", code);
+        case HttpStatusCode::LengthRequired: return default_err_body("LengthRequired", code);
+        case HttpStatusCode::PreconditionFailed: return default_err_body("PreconditionFailed", code);
+        case HttpStatusCode::PayloadTooLarge: return default_err_body("PayloadTooLarge", code);
+        case HttpStatusCode::URITooLong: return default_err_body("URITooLong", code);
+        case HttpStatusCode::UnsupportedMediaType: return default_err_body("UnsupportedMediaType", code);
+        case HttpStatusCode::RangeNotSatisfiable: return default_err_body("RangeNotSatisfiable", code);
+        case HttpStatusCode::ExpectationFailed: return default_err_body("ExpectationFailed", code);
+        case HttpStatusCode::ImATeapot: return default_err_body("ImATeapot", code);
+        case HttpStatusCode::MisdirectedRequest: return default_err_body("MisdirectedRequest", code);
+        case HttpStatusCode::UnprocessableEntity: return default_err_body("UnprocessableEntity", code);
+        case HttpStatusCode::Locked: return default_err_body("Locked", code);
+        case HttpStatusCode::FailedDependency: return default_err_body("FailedDependency", code);
+        case HttpStatusCode::TooEarly: return default_err_body("TooEarly", code);
+        case HttpStatusCode::UpgradeRequired: return default_err_body("UpgradeRequired", code);
+        case HttpStatusCode::PreconditionRequired: return default_err_body("PreconditionRequired", code);
+        case HttpStatusCode::TooManyRequests: return default_err_body("TooManyRequests", code);
+        case HttpStatusCode::RequestHeaderFieldsTooLarge: return default_err_body("RequestHeaderFieldsTooLarge", code);
+        case HttpStatusCode::UnavailableForLegalReasons: return default_err_body("UnavailableForLegalReasons", code);
+
+        // 5xx
+        case HttpStatusCode::InternalServerError: return default_err_body("InternalServerError", code);
+        case HttpStatusCode::NotImplemented: return default_err_body("NotImplemented", code);
+        case HttpStatusCode::BadGateway: return default_err_body("BadGateway", code);
+        case HttpStatusCode::ServiceUnavailable: return default_err_body("ServiceUnavailable", code);
+        case HttpStatusCode::GatewayTimeout: return default_err_body("GatewayTimeout", code);
+        case HttpStatusCode::HTTPVersionNotSupported: return default_err_body("HTTPVersionNotSupported", code);
+        case HttpStatusCode::VariantAlsoNegotiates: return default_err_body("VariantAlsoNegotiates", code);
+        case HttpStatusCode::InsufficientStorage: return default_err_body("InsufficientStorage", code);
+        case HttpStatusCode::LoopDetected: return default_err_body("LoopDetected", code);
+        case HttpStatusCode::NotExtended: return default_err_body("NotExtended", code);
+        case HttpStatusCode::NetworkAuthenticationRequired: return default_err_body("NetworkAuthenticationRequired", code);
+        default: return default_err_body("How did you get here?!", code);
+    }
+}

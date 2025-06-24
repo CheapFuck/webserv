@@ -72,11 +72,9 @@ void Response::setDefaultBody(const LocationRule& rule) {
 
 	error_int = static_cast<int>(_statusCode);
 	error_templates = rule.errorPages.getErrorPages();
-	if (error_templates.find(error_int) == error_templates.end())
-    	setBody(getDefaultBodyForCode(_statusCode));
-	else if (tryCreateResponseFromFile(error_templates[error_int], *this) == false)
+	if (error_templates.find(error_int) == error_templates.end() 
+		|| tryCreateResponseFromFile(error_templates[error_int], *this) == false)
 	{
-		DEBUG("Sunhappiness -- Sunhappiness -- Sunhappiness -- Sunhappiness --  \n\n");
 		setBody(getDefaultBodyForCode(_statusCode));
 	}
 }
