@@ -10,7 +10,6 @@ from selenium.common.exceptions import NoSuchElementException
 import inspect
 
 REMOTE_SERVER = "http://localhost:8080"
-WEBSERV_ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEBTESTER_ROOT = pathlib.Path(__file__).resolve().parent
 
 def test_get(browser):
