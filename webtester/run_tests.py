@@ -5,6 +5,7 @@ from webdriver_manager.firefox import GeckoDriverManager
 import pathlib
 import time
 import os
+import tempfile
 from selenium.common.exceptions import NoSuchElementException
 import inspect
 
@@ -41,6 +42,19 @@ def test_post(browser):
 	except NoSuchElementException as e:
 		print(f"Element not found in test_post")
 
+def test_post_upload_not_existing(browser):
+	print(f"Running function {inspect.stack()[0][3]}")
+	browser.get(f"{REMOTE_SERVER}/home/upload_form.html")
+	try:
+		browser.find_element(By.NAME, "description").send_keys("Optinally filled out")
+		with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+			browser.find_element(By.ID, "file").send_keys(temp_file.name)
+			temp_file.flush()
+		browser.find_element(By.XPATH, '//input[@type="submit" and @value="Upload"]').click()
+		assert "No files uploaded" in browser.page_source
+	except NoSuchElementException as e:
+		print(f"Element not found in test_post")
+
 def test_delete(browser):
 	print(f"Running function {inspect.stack()[0][3]}")
 	browser.get(f"{REMOTE_SERVER}/home/delete_form.html")
@@ -55,10 +69,25 @@ def test_delete(browser):
 	except NoSuchElementException as e:
 		print(f"Element not found in test_delete")
 
+def test_delete_doesntexist(browser):
+	print(f"Running function {inspect.stack()[0][3]}")
+	browser.get(f"{REMOTE_SERVER}/home/delete_form.html")
+	try:
+		browser.find_element(By.ID, "filePath").send_keys(f"feline.txt")
+		assert not os.path.exists(f"{WEBTESTER_ROOT}/var/www/uploads/feline.txt")
+		browser.find_element(By.XPATH, '//button[@type="submit"]').click()
+		time.sleep(1)
+		assert (browser.switch_to.alert.text == "File not found")
+		browser.switch_to.alert.accept()
+	except NoSuchElementException as e:
+		print(f"Element not found in test_delete")
+
 
 
 def run_tests(browser):
 	test_get(browser)
 	test_get2(browser)
 	test_post(browser)
+	test_post_upload_not_existing(browser)
 	test_delete(browser)
+	test_delete_doesntexist(browser)
