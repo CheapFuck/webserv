@@ -12,11 +12,11 @@ TMPDIR = "tmp"
 
 all: env install download_driver extract_driver
 
-run: install extract_driver
+run: 
 	tmux new-session -d -s testsession \; \
 		split-window -h\; \
 		select-pane -t 0 \; \
-		send-keys '../webserv testconf.conf' C-m\; \
+		send-keys 'cd ../ && make && ./webserv webtester/testconf.conf' C-m\; \
 		select-pane -t 1 \; \
 		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME)' C-m\; \
 		attach-session
