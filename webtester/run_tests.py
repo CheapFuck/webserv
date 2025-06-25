@@ -43,13 +43,15 @@ def test_post(browser):
 
 def test_delete(browser):
 	print(f"Running function {inspect.stack()[0][3]}")
-	assert os.path.exists(f"{WEBTESTER_ROOT}/var/www/uploads/feline.txt")
 	browser.get(f"{REMOTE_SERVER}/home/delete_form.html")
 	try:
 		browser.find_element(By.ID, "filePath").send_keys(f"feline.txt")
+		assert os.path.exists(f"{WEBTESTER_ROOT}/var/www/uploads/feline.txt")
 		browser.find_element(By.XPATH, '//button[@type="submit"]').click()
-		assert "deleted" in browser.page_source.lower()
+		time.sleep(1)
+		assert (browser.switch_to.alert.text == "File deleted successfully")
 		assert not os.path.exists(f"{WEBTESTER_ROOT}/var/www/uploads/feline.txt")
+		browser.switch_to.alert.accept()
 	except NoSuchElementException as e:
 		print(f"Element not found in test_delete")
 
