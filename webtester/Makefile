@@ -25,7 +25,7 @@ env:
 	mkdir -p $(TMPDIR)
 	$(PYTHON) -m venv $(VENV_NAME)
 
-install: env test_folders_make
+install: env 
 	$(ACTIVATE) && pip install --upgrade pip
 	$(ACTIVATE) && pip install selenium webdriver-manager
 
