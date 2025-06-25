@@ -3,7 +3,7 @@ from run_tests import run_tests
 import time
 
 def main():
-	print("If a test fails, the console will output assertion errors and stop there.")
+	print("\n\n ======= TESTING WEBSERV \nIf a test fails, the console will output assertion errors and stop there.")
 
 	try:
 		browser = get_browser()

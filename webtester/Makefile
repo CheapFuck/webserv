@@ -13,12 +13,12 @@ TMPDIR = "tmp"
 all: env install download_driver extract_driver
 
 run: 
-	tmux new-session -d -s testsession \; \
+	@tmux new-session -d -s testsession \; \
 		split-window -h\; \
 		select-pane -t 0 \; \
 		send-keys 'cd ../ && make && ./webserv webtester/testconf.conf' C-m\; \
 		select-pane -t 1 \; \
-		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME)' C-m\; \
+		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME);echo Test windows will close in 4 seconds; sleep 4;tmux kill-session -t testsession' C-m\; \
 		attach-session
 	
 env:

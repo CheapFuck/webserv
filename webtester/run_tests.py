@@ -55,6 +55,21 @@ def test_post_upload_not_existing(browser):
 	except NoSuchElementException as e:
 		print(f"Element not found in test_post")
 
+def test_post_large_file(browser):
+	print(f"Running function {inspect.stack()[0][3]}")
+	browser.get(f"{REMOTE_SERVER}/home/upload_form.html")
+	try:
+		browser.find_element(By.NAME, "description").send_keys("Optinally filled out")
+		with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+			temp_file.write(b'A' * 1024 * 1024 * 3)
+			temp_file.flush()
+			browser.find_element(By.ID, "file").send_keys(temp_file.name)
+			browser.find_element(By.XPATH, '//input[@type="submit" and @value="Upload"]').click()
+		assert "413 - PayloadTooLarge" in browser.title
+		assert "Error 413 - PayloadTooLarge" in browser.page_source
+	except NoSuchElementException as e:
+		print(f"Element not found in test_post")
+
 def test_delete(browser):
 	print(f"Running function {inspect.stack()[0][3]}")
 	browser.get(f"{REMOTE_SERVER}/home/delete_form.html")
@@ -89,5 +104,6 @@ def run_tests(browser):
 	test_get2(browser)
 	test_post(browser)
 	test_post_upload_not_existing(browser)
+	test_post_large_file(browser)
 	test_delete(browser)
 	test_delete_doesntexist(browser)
