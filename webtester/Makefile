@@ -18,7 +18,7 @@ run:
 		select-pane -t 0 \; \
 		send-keys 'cd ../ && make && ./webserv webtester/testconf.conf' C-m\; \
 		select-pane -t 1 \; \
-		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME);echo Test windows will close in 4 seconds; sleep 4;tmux kill-session -t testsession' C-m\; \
+		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME);echo TESTING DONE; echo These two terminals will close in 4 seconds; sleep 4;tmux kill-session -t testsession' C-m\; \
 		attach-session
 	
 env:
