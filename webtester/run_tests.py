@@ -8,12 +8,14 @@ import os
 import tempfile
 from selenium.common.exceptions import NoSuchElementException
 import inspect
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 REMOTE_SERVER = "http://localhost:8080"
 WEBTESTER_ROOT = pathlib.Path(__file__).resolve().parent
 
-def test_get(browser):
-	print(f"Running function {inspect.stack()[0][3]}")
+def test_get(browser, debugprint=True):
+	if debugprint:
+		print(f"Running function {inspect.stack()[0][3]}")
 	browser.get(f"{REMOTE_SERVER}/home")
 	assert "Our Showcase" in browser.title
 	assert "your own HTTP server." in browser.page_source
@@ -97,6 +99,21 @@ def test_delete_doesntexist(browser):
 		print(f"Element not found in test_delete")
 
 
+def spamalittle(browser, spamount):
+	print("Spamming with 500 get requests")
+	results = list()
+	with ThreadPoolExecutor(max_workers=spamount) as executor:
+		futures = [executor.submit(test_get, browser, False) for i in range(spamount)]
+
+		for future in as_completed(futures):
+			try:
+				result = future.result()  # This gets the return value or raises any exception
+				results.append(result)
+			except Exception as e:
+				print(f"Unexpected error in thread: {e}")
+				results.append(False)
+
+
 
 def run_tests(browser):
 	test_get(browser)
@@ -106,3 +123,5 @@ def run_tests(browser):
 	test_post_large_file(browser)
 	test_delete(browser)
 	test_delete_doesntexist(browser)
+	spamalittle(browser, 500)
+
