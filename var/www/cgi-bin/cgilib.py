@@ -1,6 +1,5 @@
 import http.cookies
 import typing
-import fcntl
 import json
 import enum
 import sys
@@ -203,17 +202,9 @@ class SessionHandler:
 
             # Create the file if it does not exist
             if not os.path.exists(filename):
-                with open(filename, 'x') as f:
-                    json.dump({}, f)
+                self._data = {}
+                return True
 
-            with open(filename, 'r') as file:
-                try:
-                    self._data = json.load(file)
-                    return True
-                except json.JSONDecodeError:
-                    self._data = {}
-                    return False
-        
         return self._is_loaded and bool(self._filename)
 
     def save(self) -> None:

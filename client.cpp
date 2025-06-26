@@ -143,6 +143,10 @@ void Client::handleWriteCallback(FD &fd) {
         _server.untrackDescriptor(fd.get());
     }
 
+    fd.readBuffer.clear();
+    fd.writeBuffer.clear();
+    _CGIWriteFd = nullptr;
+
     if (request.headers.getHeader(HeaderKey::Connection, "keep-alive") == "close") {
         DEBUG("Connection header indicates 'close', disconnecting Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
@@ -151,9 +155,6 @@ void Client::handleWriteCallback(FD &fd) {
 
     request = Request();
     response = Response();
-    fd.readBuffer.clear();
-    fd.writeBuffer.clear();
-    _CGIWriteFd = nullptr;
 }
 
 void Client::handleDisconnectCallback(FD &fd) {

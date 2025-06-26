@@ -33,7 +33,7 @@ private:
 public:
     CGIClient(Client &client);
     CGIClient(const CGIClient &other);
-    // CGIClient &operator=(const CGIClient &other) = default;
+    CGIClient &operator=(const CGIClient &other) = delete;
     ~CGIClient() = default;
 
     void start(const ServerConfig &config, const LocationRule &route);

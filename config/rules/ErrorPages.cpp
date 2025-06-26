@@ -20,13 +20,6 @@ ErrorPageRule::ErrorPageRule(const Rules &rules, bool required): _error_pages() 
 		for (const Argument &arg : rule.arguments) {
 			if (arg.type != STRING)
 				throw ParserTokenException("Invalid error page code argument type", arg);
-			
-			if (arg.str.size() == 1 && arg.str[0] == '*') {
-				if (rule_size != 2)
-					throw ParserTokenException("Wildcard error page rule must have exactly one code", rule);
-				_error_pages[-1] = path;
-				break;
-			}
 
 			int code;
 			try {code = std::stoi(arg.str); }

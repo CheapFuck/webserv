@@ -16,7 +16,7 @@
 static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Path path) {
     DEBUG("Parsing URL: " << url);
 
-    Path tmp = path;
+    Path tmp = Path::createFromUrl(url, route);
     DEBUG("Initial path for CGI script search: " << tmp.str());
     while (!tmp.str().empty()) {
         DEBUG("Checking for CGI script: " << tmp.str());
