@@ -134,7 +134,7 @@ void Client::handleWriteCallback(FD &fd) {
         response.setDefaultBody(*rule);
 
     fd.writeToBuffer(response.getAsString());
-
+    
     if (fd.write() == -1) {
         ERROR("Failed to write response for Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
@@ -151,6 +151,9 @@ void Client::handleWriteCallback(FD &fd) {
         DEBUG("Connection header indicates 'close', disconnecting Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
         return ;
+    } else if (fd.setEpollIn() == -1) {
+        ERROR("Failed to set EPOLLIN for Client: " << fd.get());
+        _server.untrackDescriptor(fd.get());
     }
 
     request = Request();
