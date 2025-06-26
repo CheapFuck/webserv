@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
+from get_browser import get_browser
 from selenium.webdriver.common.by import By
 from webdriver_manager.firefox import GeckoDriverManager
 import pathlib
@@ -13,9 +14,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 REMOTE_SERVER = "http://localhost:8080"
 WEBTESTER_ROOT = pathlib.Path(__file__).resolve().parent
 
-def test_get(browser, debugprint=True):
-	if debugprint:
-		print(f"Running function {inspect.stack()[0][3]}")
+def test_get(browser):
+	print(f"Running function {inspect.stack()[0][3]}")
 	browser.get(f"{REMOTE_SERVER}/home")
 	assert "Our Showcase" in browser.title
 	assert "your own HTTP server." in browser.page_source
@@ -35,11 +35,13 @@ def test_post(browser):
 	except:
 		pass
 	try:
-		browser.find_element(By.NAME, "description").send_keys("Optinally filled out")
+		browser.find_element(By.NAME, "description").send_keys("Optionally filled out")
 		browser.find_element(By.ID, "file").send_keys(f"{WEBTESTER_ROOT}/feline.txt")
 		browser.find_element(By.XPATH, '//input[@type="submit" and @value="Upload"]').click()
 		assert "File(s) uploaded successfully" in browser.page_source
 		assert os.path.exists(f"{WEBTESTER_ROOT}/var/www/uploads/feline.txt")
+		browser.get(f"{REMOTE_SERVER}/view_uploaded/feline.txt")
+		time.sleep(1)
 	except NoSuchElementException as e:
 		print(f"Element not found in test_post")
 
@@ -98,12 +100,12 @@ def test_delete_doesntexist(browser):
 	except NoSuchElementException as e:
 		print(f"Element not found in test_delete")
 
-
-def spamalittle(browser, spamount):
-	print("Spamming with 500 get requests")
+def spamalittle(browser):
+	spamount = 200
+	print(f"Spamming with {spamount} + 1 get requests to the debug cgi endpoint")
 	results = list()
 	with ThreadPoolExecutor(max_workers=spamount) as executor:
-		futures = [executor.submit(test_get, browser, False) for i in range(spamount)]
+		futures = [executor.submit(test_get_cgi, browser) for i in range(spamount)]
 
 		for future in as_completed(futures):
 			try:
@@ -112,8 +114,26 @@ def spamalittle(browser, spamount):
 			except Exception as e:
 				print(f"Unexpected error in thread: {e}")
 				results.append(False)
+	test_get_cgi(browser)
+	assert "{\"debugVisitCounter\": 201}," in browser.page_source
 
 
+def test_get_cgi(browser):
+	browser.get(f"{REMOTE_SERVER}/cgi/debug")
+
+def spamalittle_twosessions(browser):
+	spamount = 50
+	print(f"Spamming with {spamount * 2} get requests to the debug cgi endpoint")
+	browser_two = get_browser()
+	for i in range(spamount):
+		test_get_cgi(browser)
+		test_get_cgi(browser_two)
+		
+	time.sleep(2)
+	assert "{\"debugVisitCounter\": 50}," in browser.page_source
+	assert "{\"debugVisitCounter\": 50}," in browser_two.page_source
+	printf(f"Both browsers/sessions hit {spamount} counts of visits to the debug page.")
+	browser_two.quit()
 
 def run_tests(browser):
 	test_get(browser)
@@ -123,5 +143,6 @@ def run_tests(browser):
 	test_post_large_file(browser)
 	test_delete(browser)
 	test_delete_doesntexist(browser)
-	spamalittle(browser, 500)
+	spamalittle_twosessions(browser)
+	spamalittle(browser)
 

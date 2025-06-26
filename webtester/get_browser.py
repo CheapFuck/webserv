@@ -10,5 +10,4 @@ def get_browser():
 
     service = Service(f"{project_root}/geckodriver")
     driver = webdriver.Firefox(service=service)
-    driver.get("https://www.google.com")
     return (driver)

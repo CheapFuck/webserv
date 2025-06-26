@@ -16,9 +16,14 @@ run:
 	@tmux new-session -d -s testsession \; \
 		split-window -h\; \
 		select-pane -t 0 \; \
-		send-keys 'cd ../ && make && ./webserv webtester/testconf.conf' C-m\; \
+		send-keys 'echo Running "siege -c 50 -t 10s http://localhost:8080" in 2 seconds.. && sleep 2 && echo "siege -c 100 -t 10s http://localhost:8080" && siege -c 100 -t 10s http://localhost:8080' C-m\; \
+		split-window -v\; \
 		select-pane -t 1 \; \
-		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME);echo TESTING DONE; echo These two terminals will close in 4 seconds; sleep 4;tmux kill-session -t testsession' C-m\; \
+		send-keys 'cd ../ && make && ./webserv webtester/testconf.conf' C-m\; \
+		select-pane -t 2 \; \
+		send-keys '$(ACTIVATE) && $(PYTHON) $(ENAME);echo TESTING DONE; \
+		echo These two terminals will close in 4 seconds; sleep 4; \
+		tmux kill-session -t testsession' C-m\; \
 		attach-session
 	
 env:
