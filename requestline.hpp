@@ -15,6 +15,7 @@ private:
     std::string _version;
 
     Path _path;
+    Path _serverAbsolutePath;
     bool _pathIsDirectory;
 
     bool _fetchCorrectPathFromIndexRule(const IndexRule &rule);
@@ -33,6 +34,7 @@ public:
     const Method &getMethod() const;
     const std::string &getRawUrl() const;
     const std::string &getVersion() const;
+    const std::string &getServerAbsolutePath() const;
     const Path &getPath() const;
     bool pathIsDirectory() const;
 };

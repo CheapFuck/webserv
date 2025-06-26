@@ -57,6 +57,7 @@ bool RequestLine::_fetchCorrectPathFromIndexRule(const IndexRule &rule) {
 void RequestLine::translateUrl(const std::string &serverRelativePath, const LocationRule &route) {
     _path = Path(serverRelativePath);
     _path.append(Path::createFromUrl(_url, route).str());
+    _serverAbsolutePath = Path(serverRelativePath);
 
     PathStat pathStat{};
     if (stat(_path.str().c_str(), &pathStat) == 0 && S_ISDIR(pathStat.st_mode)) {
@@ -84,6 +85,11 @@ const std::string &RequestLine::getRawUrl() const {
 /// @brief Returns the HTTP version of the request line.
 const std::string &RequestLine::getVersion() const {
     return _version;
+}
+
+/// @brief Returns the server absolute path derived from the request line's URL.
+const std::string &RequestLine::getServerAbsolutePath() const {
+    return _serverAbsolutePath.str();
 }
 
 /// @brief Returns the local path derived from the request line's URL.

@@ -13,37 +13,36 @@
 /// @param url The URL to parse, which may include a query string.
 /// @param route The location rule to use for parsing the URL.
 /// @return A ParsedUrl struct containing the extracted information.
-static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Path path) {
-    DEBUG("Parsing URL: " << url);
-    Path originalPath = path;
+static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
+    DEBUG("Parsing URL: " << requestLine.getRawUrl());
 
-    Path tmp = Path::createFromUrl(url, route);
+    Path originalUrl = Path::createFromUrl(requestLine.getRawUrl(), route);
+    Path tmp = originalUrl;
     DEBUG("Initial path for CGI script search: " << tmp.str());
     while (!tmp.str().empty()) {
         DEBUG("Checking for CGI script: " << tmp.str());
         if (std::filesystem::exists(tmp.str())) {
             if (std::filesystem::is_regular_file(tmp.str())) {
+                Path CGIPath = Path(requestLine.getServerAbsolutePath()).append(tmp.str());
                 DEBUG("Found CGI script: " << tmp.str());
                 return (ParsedUrl{
-                    .scriptPath = path.str(),
-                    .pathInfo = originalPath.str().substr(path.str().length()),
-                    .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
+                    .scriptPath = CGIPath.str(),
+                    .pathInfo = originalUrl.str().substr(tmp.str().length()),
+                    .query = (originalUrl.str().find('?') != std::string::npos ? originalUrl.str().substr(originalUrl.str().find('?') + 1) : ""),
                     .isValid = true
                 });
             } else if (route.index.isSet() && std::filesystem::is_directory(tmp.str())) {
                 DEBUG("Found directory: " << tmp.str());
                 for (const auto &indexFile : route.index.get()) {
                     Path indexPath = tmp;
-                    Path fullIndexPath = path;
                     indexPath.append(indexFile);
-                    fullIndexPath.append(indexFile);
                     DEBUG("Checking for index file: " << indexPath.str());
                     if (std::filesystem::exists(indexPath.str()) && std::filesystem::is_regular_file(indexPath.str())) {
                         DEBUG("Found index file: " << indexPath.str());
                         return (ParsedUrl{
-                            .scriptPath = fullIndexPath.str(),
-                            .pathInfo = originalPath.str().substr(fullIndexPath.pop().str().length()),
-                            .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
+                            .scriptPath = indexPath.str(),
+                            .pathInfo = originalUrl.str().substr(tmp.str().length()),
+                            .query = (originalUrl.str().find('?') != std::string::npos ? originalUrl.str().substr(originalUrl.str().find('?') + 1) : ""),
                             .isValid = true
                         });
                     }
@@ -51,7 +50,6 @@ static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Pat
             }
         }
         tmp.pop();
-        path.pop();
     }
 
     return (ParsedUrl{
@@ -136,7 +134,7 @@ char * const *CGIClient::_createEnvironmentArray() const {
 
 void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
     DEBUG("Starting CGIClient for client: " << &_client);
-    const ParsedUrl parsedUrl = parseUrl(_client.request.metadata.getRawUrl(), route, _client.request.metadata.getPath());
+    const ParsedUrl parsedUrl = parseUrl(route, _client.request.metadata);
 
     DEBUG("Parsed URL: scriptPath=" << parsedUrl.scriptPath
           << ", pathInfo=" << parsedUrl.pathInfo
