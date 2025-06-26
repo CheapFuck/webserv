@@ -30,11 +30,18 @@ def createDebugResponse():
         "envVars": dict(os.environ),
     }))
 
+def createTeapotResponse():
+    cgi.setHeader("Content-Type", "text/plain; charset=utf-8")
+    cgi.setStatus(cgilib.HttpStatusCode.ImATeapot)
+    cgi.sendBody("I'm a teapot, not a web server!\n")
+
 with cgi.session:
     debugVisitCounter = int(cgi.session.get("debugVisitCounter", 0)) + 1
     cgi.session["debugVisitCounter"] = debugVisitCounter
 
     if cgi.getPathParameter(0) == 'zen':
         createZenResponse()
+    elif cgi.getPathParameter(0) == 'tea':
+        createTeapotResponse()
     else:
         createDebugResponse()

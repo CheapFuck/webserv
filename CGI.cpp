@@ -15,6 +15,7 @@
 /// @return A ParsedUrl struct containing the extracted information.
 static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Path path) {
     DEBUG("Parsing URL: " << url);
+    Path originalPath = path;
 
     Path tmp = Path::createFromUrl(url, route);
     DEBUG("Initial path for CGI script search: " << tmp.str());
@@ -24,8 +25,8 @@ static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Pat
             if (std::filesystem::is_regular_file(tmp.str())) {
                 DEBUG("Found CGI script: " << tmp.str());
                 return (ParsedUrl{
-                    .scriptPath = tmp.str(),
-                    .pathInfo = path.str().substr(tmp.str().length()),
+                    .scriptPath = path.str(),
+                    .pathInfo = originalPath.str().substr(path.str().length()),
                     .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
                     .isValid = true
                 });
@@ -33,13 +34,15 @@ static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Pat
                 DEBUG("Found directory: " << tmp.str());
                 for (const auto &indexFile : route.index.get()) {
                     Path indexPath = tmp;
+                    Path fullIndexPath = path;
                     indexPath.append(indexFile);
+                    fullIndexPath.append(indexFile);
                     DEBUG("Checking for index file: " << indexPath.str());
                     if (std::filesystem::exists(indexPath.str()) && std::filesystem::is_regular_file(indexPath.str())) {
                         DEBUG("Found index file: " << indexPath.str());
                         return (ParsedUrl{
-                            .scriptPath = indexPath.str(),
-                            .pathInfo = path.str().substr(tmp.str().length()),
+                            .scriptPath = fullIndexPath.str(),
+                            .pathInfo = originalPath.str().substr(fullIndexPath.pop().str().length()),
                             .query = (url.find('?') != std::string::npos ? url.substr(url.find('?') + 1) : ""),
                             .isValid = true
                         });
@@ -48,6 +51,7 @@ static ParsedUrl parseUrl(const std::string &url, const LocationRule &route, Pat
             }
         }
         tmp.pop();
+        path.pop();
     }
 
     return (ParsedUrl{
