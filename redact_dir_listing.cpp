@@ -64,6 +64,7 @@ static void addRowToIndex(std::string& html,const std::filesystem::directory_ent
 {
 	html.append("<tr><td><a href=\"");
 	html.append(publicPath);
+	html.append("\\");
 	html.append(e.path().filename());
 	html.append("\">");
 	html.append(e.path().filename());
