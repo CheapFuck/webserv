@@ -17,7 +17,7 @@ static std::string get_time_as_readable_string() {
     return std::string(buffer);
 }
 
-Response::Response() : _statusCode(HttpStatusCode::OK), _body(""), headers() {}
+Response::Response() : _statusCode(HttpStatusCode::OK), _body(""), _body_set(false), headers() {}
 
 Response::Response(const Response& other) 
     : _statusCode(other._statusCode), _body(other._body), _body_set(other._body_set), headers(other.headers) {}

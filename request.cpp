@@ -4,12 +4,13 @@
 #include <sys/socket.h>
 
 Request::Request(const Request &other)
-    : _cookies(other._cookies), metadata(other.metadata), headers(other.headers), session(other.session) {}
+    : _contentLength(other._contentLength), _cookies(other._cookies), _body(other._body), _headersParsed(other._headersParsed), metadata(other.metadata), headers(other.headers), session(other.session) {}
 
 Request &Request::operator=(const Request &other) {
     if (this != &other) {
-        _cookies = other._cookies;
         _contentLength = other._contentLength;
+        _cookies = other._cookies;
+        _body = other._body;
         _headersParsed = other._headersParsed;
         metadata = other.metadata;
         headers = other.headers;
