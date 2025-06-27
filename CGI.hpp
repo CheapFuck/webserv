@@ -42,5 +42,7 @@ public:
     void handleWriteCallback(FD &fd) override;
     void handleDisconnectCallback(FD &fd) override;
 
+    void exitProcess();
+
     inline bool isRunning() const { return _isRunning; }
 };
