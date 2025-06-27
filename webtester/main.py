@@ -9,5 +9,12 @@ def main():
 	run_tests(browser)
 	browser.quit()
 
+def get_incepted():
+	try:
+		main()
+	except Exception as e:
+		print(e)
+		input("Something went wrong, press enter when youre done reading the assert or other errors.")
+
 if __name__ == "__main__":
-	main()
+	get_incepted()

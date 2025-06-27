@@ -10,4 +10,5 @@ def get_browser():
 
     service = Service(f"{project_root}/geckodriver")
     driver = webdriver.Firefox(service=service)
+    driver.set_page_load_timeout(2)
     return (driver)
