@@ -63,7 +63,7 @@ bool Request::isComplete(const std::string &buffer) const {
         case Method::GET:
         case Method::HEAD:
         case Method::DELETE:
-            return (buffer.empty());
+            // return (buffer.empty());
         case Method::POST:
         case Method::PUT:
             return (buffer.length() >= _contentLength);
