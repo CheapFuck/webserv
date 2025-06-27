@@ -224,9 +224,6 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         FD toCGIProccess = FD::fromPipeWriteEnd(cin, cgiClient);
         FD fromCGIProccess = FD::fromPipeReadEnd(cout, cgiClient);
 
-        this->_toCGIProcessFd = toCGIProccess.get();
-        this->_fromCGIProcessFd = fromCGIProccess.get();
-
         if (toCGIProccess.setNonBlocking() == -1 || fromCGIProccess.setNonBlocking() == -1) {
             ERROR("Failed to set non-blocking mode for CGI pipes: " << strerror(errno));
             toCGIProccess.close();
@@ -246,6 +243,9 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
             return;
         }
 
+        this->_toCGIProcessFd = toCGIProccess.get();
+        this->_fromCGIProcessFd = fromCGIProccess.get();
+
         _processTimerId = _client.getServer().getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.get() * 1000.0)), [this]() {
             _handleTimeout();
         });
@@ -261,17 +261,23 @@ void CGIClient::_handleTimeout() {
 
     DEBUG("CGIClient timeout handler called for client: " << &_client);
     if (_isRunning) {
+        exitProcess();
+        _client.response.setStatusCode(HttpStatusCode::GatewayTimeout);
+        _client.handleCGIResponse();
+    }
+}
+
+void CGIClient::exitProcess() {
+    if (_isRunning) {
         _isRunning = false;
 
         if (_toCGIProcessFd != -1) _client.getServer().untrackDescriptor(_toCGIProcessFd);
         if (_fromCGIProcessFd != -1) _client.getServer().untrackDescriptor(_fromCGIProcessFd);
-        DEBUG("Set _toCGIProcessFd and _fromCGIProcessFd to -1");
+
         _toCGIProcessFd = -1;
         _fromCGIProcessFd = -1;
 
         kill(_pid, SIGKILL);
-        _client.response.setStatusCode(HttpStatusCode::GatewayTimeout);
-        _client.handleCGIResponse();
     }
 }
 

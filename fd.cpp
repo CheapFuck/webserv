@@ -10,10 +10,12 @@
 #include <string>
 #include <memory>
 
-FD::FD() : _fd(-1), _epollFd(-1), _epollEvents(0), _type(FDType::DEFAULT), _connectedObject(nullptr) {}
+FD::FD() : _fd(-1), _epollFd(-1), _epollEvents(0), _type(FDType::DEFAULT), _connectedObject(nullptr), readBuffer(), writeBuffer() {}
 
 FD::FD(int fd, FDType type, std::shared_ptr<BaseHandlerObject> connectedObject)
-    : _fd(fd), _epollFd(-1), _epollEvents(0), _type(type), _connectedObject(std::move(connectedObject)) {}
+    : _fd(fd), _epollFd(-1), _epollEvents(0), _type(type), _connectedObject(std::move(connectedObject)), readBuffer(), writeBuffer() {
+        ERROR("FD created with fd: " << _fd << ", type: " << static_cast<int>(_type) << ", connectedObject: " << (_connectedObject ? "set" : "not set"));
+    }
 
 bool FD::operator<(const FD& other) const {
     return _fd < other._fd;
@@ -38,10 +40,12 @@ int FD::_cleanUp() {
 
     if (isValidFd()) {
         int result = ::close(_fd);
+        ERROR("FD cleanUp called on fd: " << _fd << ", result: " << result << ", errno: " << errno << " (" << strerror(errno) << ")");
         _fd = -1;
         return (result);
     }
 
+    // ERROR("FD cleanUp called on an invalid file descriptor: " << _fd);
     return (0);
 }
 
@@ -253,6 +257,7 @@ int FD::read() {
     if (_connectedObject)
         _connectedObject->handleReadCallback(*this, ret);
 
+    DEBUG("Read " << ret << " bytes from fd: " << _fd);
     return (ret);
 }
 

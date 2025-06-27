@@ -5,19 +5,48 @@
 #include <sys/stat.h>
 #include <sstream>
 
-RequestLine::RequestLine() : _method(UNKNOWN_METHOD), _url(), _version("HTTP/1.1"), _path(), _pathIsDirectory(false) {}
+static int hexCharToInt(char c) {
+    if ('0' <= c && c <= '9') return c - '0';
+    if ('a' <= c && c <= 'f') return c - 'a' + 10;
+    if ('A' <= c && c <= 'F') return c - 'A' + 10;
+    return -1; // invalid hex char
+}
+
+static std::string urlDecode(const std::string& str) {
+    std::string result;
+    for (std::size_t i = 0; i < str.length(); ++i) {
+        if (str[i] == '%' && i + 2 < str.length()) {
+            int high = hexCharToInt(str[i + 1]);
+            int low = hexCharToInt(str[i + 2]);
+            if (high != -1 && low != -1) {
+                char decodedChar = static_cast<char>((high << 4) | low);
+                result += decodedChar;
+                i += 2;
+            } else {
+                result += str[i];
+            }
+        } else if (str[i] == '+') {
+            result += ' ';
+        } else {
+            result += str[i];
+        }
+    }
+    return result;
+}
+
+RequestLine::RequestLine() : _method(UNKNOWN_METHOD), _url(), _version("HTTP/1.1"), _path(), _serverAbsolutePath(Path::createDummy()), _pathIsDirectory(false) {}
 
 RequestLine::RequestLine(std::istringstream &source) {
     std::string method_str;
     source >> method_str >> _url >> _version;
 
-    _url = Utils::trim(_url);
+    _url = urlDecode(Utils::trim(_url));
     _version = Utils::trim(_version);
     _method = stringToMethod(Utils::trim(method_str));
 }
 
 RequestLine::RequestLine(const RequestLine &other)
-    : _method(other._method), _url(other._url), _version(other._version), _path(other._path), _pathIsDirectory(false) {}
+    : _method(other._method), _url(other._url), _version(other._version), _path(other._path), _serverAbsolutePath(other._serverAbsolutePath), _pathIsDirectory(false) {}
 
 RequestLine &RequestLine::operator=(const RequestLine &other) {
     if (this != &other) {
@@ -25,6 +54,8 @@ RequestLine &RequestLine::operator=(const RequestLine &other) {
         _url = other._url;
         _version = other._version;
         _path = other._path;
+        _serverAbsolutePath = other._serverAbsolutePath;
+        _pathIsDirectory = other._pathIsDirectory;
     }
     return *this;
 }

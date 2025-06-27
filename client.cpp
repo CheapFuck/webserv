@@ -104,12 +104,13 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
 
     request.parseRequestHeaders(fd.readBuffer);
     if (request.isComplete(fd.readBuffer)) {
+        DEBUG(request.headers);
         request.setBody(fd.readBuffer);
         _processRequest(_server.loadRequestConfig(request, _serverFd));
         DEBUG("Request is complete, processing request for fd: " << fd.get());
         if (fd.setEpollOut() == -1) {
             ERROR("Failed to set EPOLLOUT for Client: " << fd.get());
-            fd.close();
+            _server.untrackDescriptor(fd.get());
             return;
         }
     }
@@ -132,15 +133,17 @@ void Client::handleWriteCallback(FD &fd) {
     const LocationRule *rule = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getRawUrl());
     if (rule)
         response.setDefaultBody(*rule);
+    
+    // if (request.headers.getHeader(HeaderKey::Connection) == "close") {
+    //     response.headers.replace(HeaderKey::Connection, "close");
+    // }
 
     fd.writeToBuffer(response.getAsString());
     
     if (fd.write() == -1) {
         ERROR("Failed to write response for Client: " << fd.get());
         _server.untrackDescriptor(fd.get());
-    } else if (fd.setEpollIn() == -1) {
-        ERROR("Failed to set EPOLLIN for Client: " << fd.get());
-        _server.untrackDescriptor(fd.get());
+        return ;
     }
 
     fd.readBuffer.clear();
@@ -163,4 +166,9 @@ void Client::handleWriteCallback(FD &fd) {
 void Client::handleDisconnectCallback(FD &fd) {
     DEBUG("Disconnect callback for Client, fd: " << fd.get());
     (void)fd;
+
+    if (_cgiClient && _cgiClient->isRunning()) {
+        ERROR("CGIClient is still running, exiting process");
+        _cgiClient->exitProcess();
+    }
 }

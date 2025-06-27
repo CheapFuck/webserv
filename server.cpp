@@ -173,29 +173,31 @@ void Server::_handleNewConnection(int sourceFd) {
     sockaddr_in client_address{};
     socklen_t client_len = sizeof(client_address);
 
-    int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
-    FD clientFD(fd, FDType::SOCKET, std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port)));
-    if (!clientFD)
-        return ;
+    while (true) {
+        int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
+        FD clientFD(fd, FDType::SOCKET, std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port)));
+        if (!clientFD)
+            return ;
 
-    if (clientFD.setNonBlocking() == -1) {
-        clientFD.close();
-        return ;
+        if (clientFD.setNonBlocking() == -1) {
+            clientFD.close();
+            return ;
+        }
+
+        if (clientFD.connectToEpoll(_epoll_fd) == -1) {
+            clientFD.close();
+            return ;
+        }
+
+        auto it = _descriptors.emplace(clientFD.get(), std::move(clientFD));
+        if (it.second == false) {
+            clientFD.close();
+            return ;
+        }
+
+        DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
+        DEBUG("Client FD: " << it.first->second.get() << ", Server FD: " << sourceFd);
     }
-
-    if (clientFD.connectToEpoll(_epoll_fd) == -1) {
-        clientFD.close();
-        return ;
-    }
-
-    auto it = _descriptors.emplace(clientFD.get(), std::move(clientFD));
-    if (it.second == false) {
-        clientFD.close();
-        return ;
-    }
-
-    DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
-    DEBUG("Client FD: " << it.first->second.get() << ", Server FD: " << sourceFd);
 }
 
 /// @brief Modify the epoll events for a given file descriptor.
@@ -273,6 +275,7 @@ void Server::_handleFDIO(FD &fd, short revents) {
     DEBUG_IF(revents & EPOLLERR, "EPOLLERR event detected for fd: " << fd.get());
     DEBUG_IF(revents & EPOLLHUP, "EPOLLHUP event detected for fd: " << fd.get());
     DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd.get());
+    ERROR_IF(!fd.isValidFd(), "Invalid file descriptor: " << fd.get() << ", revents: " << revents);
     DEBUG("-----------");
 
     int fdNum = fd.get();
