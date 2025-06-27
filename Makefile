@@ -54,6 +54,7 @@ SRCS := main.cpp \
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
 DEPS := $(OBJS:%.o=%.d)
 DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
+DBDEPS := $(DBOBJS:%.o=%.d)
 
 all: $(NAME)
 	@$(CXX) --version
@@ -104,5 +105,6 @@ gdb: $(DBNAME)
 	gdb --args ./$(DBNAME)
 
 -include $(DEPS)
+-include $(DBDEPS)
 
 .PHONY: all clean fclean re run rerun debug dbrun dbrerun gdb
