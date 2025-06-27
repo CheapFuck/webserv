@@ -6,24 +6,46 @@
   <title>Delete File</title>
   <link rel="stylesheet" href="style.css" />
   <script>
-    function deleteFile(filePath) {
-      fetch(`/upload?file=${encodeURIComponent(filePath)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(response => response.text())
-      .then(data => alert(data))
-      .catch(error => alert('Error deleting file: ' + error));
+    function fetchFiles() {
+      fetch('/cgi/list_files.php')
+        .then(response => response.json())
+        .then(files => {
+          const fileList = document.getElementById('fileList');
+          fileList.innerHTML = '';
+          files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file;
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = () => deleteFile(file);
+            li.appendChild(deleteBtn);
+            fileList.appendChild(li);
+          });
+        })
+        .catch(error => console.error('Error fetching files:', error));
     }
+
+function deleteFile(file) {
+  fetch('delete_file.php', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `action=delete&file=${encodeURIComponent(file)}`
+  })
+  .then(response => response.text())
+  .then(data => {
+    // alert(data);
+    fetchFiles();
+  })
+  .catch(error => alert('Error deleting file: ' + error));
+}
+
+
+
+    window.onload = fetchFiles;
   </script>
 </head>
 <body>
-  <h1>Delete a File</h1>
-  <form onsubmit="event.preventDefault(); deleteFile(document.getElementById('filePath').value);">
-    <label for="filePath">Enter file path to delete:</label>
-    <input type="text" id="filePath" name="filePath" required placeholder="e.g., uploads/test.txt">
-
-    <button type="submit">Delete File</button>
-  </form>
+  <h1>Delete aa File</h1>
+  <ul id="fileList"></ul>
 </body>
 </html>

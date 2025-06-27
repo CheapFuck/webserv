@@ -8,6 +8,29 @@
 #include <string>
 #include <map>
 
+
+#include <iomanip>
+#include <sstream>
+
+// std::string urlDecode(const std::string& str) {
+//     std::string result;
+//     char ch;
+//     int i, ii;
+//     for (i=0; i < (int)str.length(); i++) {
+//         if (str[i] == '%') {
+//             sscanf(str.substr(i + 1,2).c_str(), "%x", &ii);
+//             ch = static_cast<char>(ii);
+//             result += ch;
+//             i = i+2;
+//         } else if (str[i] == '+') {
+//             result += ' ';
+//         } else {
+//             result += str[i];
+//         }
+//     }
+//     return result;
+// }
+
 static std::map<std::string, std::string> parseQueryParams(const std::string& url) {
     std::map<std::string, std::string> params;
     size_t queryStart = url.find("?");
