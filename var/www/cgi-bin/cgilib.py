@@ -1,4 +1,5 @@
 import http.cookies
+import weakref
 import typing
 import json
 import enum
@@ -204,6 +205,9 @@ class SessionHandler:
             if not os.path.exists(filename):
                 self._data = {}
                 return True
+            
+            with open(filename, 'r') as file:
+                self._data = json.load(file)
 
         return self._is_loaded and bool(self._filename)
 
@@ -255,6 +259,39 @@ class CGIClient:
 
         self.pathParameters: list[str] = os.environ.get('PATH_INFO', '').strip('/').split('/') if 'PATH_INFO' in os.environ else []
         self.queryParameters: dict[str, str] = {k: v for k, v in (param.split('=') for param in os.environ.get('QUERY_STRING', '').split('&') if '=' in param)}
+
+        self.routes: dict[str, typing.Callable[[], None]] = {}
+    
+    def route(self, path: str) -> typing.Callable[[typing.Callable[[], None]], typing.Callable[[], None]]:
+        """Decorator to register a route with a specific path."""
+        def decorator(func: typing.Callable[[], None]) -> typing.Callable[[], None]:
+            self.routes[path] = func
+            return func
+        return decorator
+    
+    def run(self) -> None:
+        """Runs the CGI client, executing the route based on the path parameters."""
+        if not self.routes:
+            raise RuntimeError('No routes provided.')
+
+        best_path: str | None = None
+        path_info = self.getEnvironmentVariable('PATH_INFO', '/') or '/'
+        assert isinstance(path_info, str)
+
+        for route in self.routes:
+            if path_info.startswith(route) and (not best_path or len(route) > len(best_path)):
+                best_path = route
+
+        if best_path is None:
+            self.setStatus(HttpStatusCode.NotFound)
+            return
+
+        count: int = len([s for s in best_path.split('/') if len(s)])
+        for _ in range(count):
+            if self.pathParameters:
+                self.pathParameters.pop(0)
+
+        self.routes[best_path]()
 
     def getPathParameter(self, index: int, default: str | None = None) -> str | None:
         """Returns the path parameter at the specified index. If the index is out of bounds, returns the default value."""
@@ -310,10 +347,20 @@ class CGIClient:
         """Sends the body of the response."""
         if self._cgiStatus < CGIStatus.SEND_BODY:
             print('', end='\r\n', flush=True)
-        if self._cgiStatus == CGIStatus.SEND_BODY:
-            raise RuntimeError('Body cannot be sent multiple times.')
         elif self._cgiStatus > CGIStatus.SEND_BODY:
             raise RuntimeError('Cannot send body after ending the response.')
         self._cgiStatus = CGIStatus.SEND_BODY
 
-        print(body, flush=True)
+        if body:
+            print(body, flush=True, end='')
+
+    def wrapUpResponse(self) -> None:
+        if self._cgiStatus < CGIStatus.SEND_BODY:
+            self.sendBody('')
+        if self._cgiStatus < CGIStatus.END:
+            print('', flush=True, end='\r\n')
+        self._cgiStatus = CGIStatus.END
+
+    def onDelete(self, callback: typing.Callable[[], None]) -> None:
+        """Registers a callback to be called when the CGIClient is deleted."""
+        weakref.finalize(self, callback)

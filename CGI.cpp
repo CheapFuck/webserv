@@ -28,7 +28,7 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
                 return (ParsedUrl{
                     .scriptPath = CGIPath.str(),
                     .pathInfo = originalUrl.str().substr(tmp.str().length()),
-                    .query = (originalUrl.str().find('?') != std::string::npos ? originalUrl.str().substr(originalUrl.str().find('?') + 1) : ""),
+                    .query = (requestLine.getRawUrl().find('?') != std::string::npos ? requestLine.getRawUrl().substr(requestLine.getRawUrl().find('?') + 1) : ""),
                     .isValid = true
                 });
             } else if (route.index.isSet() && std::filesystem::is_directory(tmp.str())) {
@@ -42,7 +42,7 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
                         return (ParsedUrl{
                             .scriptPath = indexPath.str(),
                             .pathInfo = originalUrl.str().substr(tmp.str().length()),
-                            .query = (originalUrl.str().find('?') != std::string::npos ? originalUrl.str().substr(originalUrl.str().find('?') + 1) : ""),
+                            .query = (requestLine.getRawUrl().find('?') != std::string::npos ? requestLine.getRawUrl().substr(requestLine.getRawUrl().find('?') + 1) : ""),
                             .isValid = true
                         });
                     }

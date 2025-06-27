@@ -9,6 +9,7 @@ import json
 
 cgi: cgilib.CGIClient = cgilib.CGIClient()
 
+@cgi.route('/zen')
 def createZenResponse():
     with open('zenOfPython', 'r') as f:
         zen = f.read()
@@ -17,6 +18,13 @@ def createZenResponse():
     cgi.setStatus(cgilib.HttpStatusCode.OK)
     cgi.sendBody(zen)
 
+@cgi.route('/tea')
+def createTeapotResponse():
+    cgi.setHeader("Content-Type", "text/plain; charset=utf-8")
+    cgi.setStatus(cgilib.HttpStatusCode.ImATeapot)
+    cgi.sendBody("I'm a teapot, not a web server!\n")
+
+@cgi.route('/')
 def createDebugResponse():
     cgi.setHeader("Content-Type", "application/json; charset=utf-8")
     cgi.setStatus(cgilib.HttpStatusCode.OK)
@@ -30,18 +38,7 @@ def createDebugResponse():
         "envVars": dict(os.environ),
     }))
 
-def createTeapotResponse():
-    cgi.setHeader("Content-Type", "text/plain; charset=utf-8")
-    cgi.setStatus(cgilib.HttpStatusCode.ImATeapot)
-    cgi.sendBody("I'm a teapot, not a web server!\n")
-
 with cgi.session:
     debugVisitCounter = int(cgi.session.get("debugVisitCounter", 0)) + 1
     cgi.session["debugVisitCounter"] = debugVisitCounter
-
-    if cgi.getPathParameter(0) == 'zen':
-        createZenResponse()
-    elif cgi.getPathParameter(0) == 'tea':
-        createTeapotResponse()
-    else:
-        createDebugResponse()
+    cgi.run()
