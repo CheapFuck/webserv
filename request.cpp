@@ -19,6 +19,36 @@ Request &Request::operator=(const Request &other) {
     return *this;
 }
 
+
+int hexCharToInt(char c) {
+    if ('0' <= c && c <= '9') return c - '0';
+    if ('a' <= c && c <= 'f') return c - 'a' + 10;
+    if ('A' <= c && c <= 'F') return c - 'A' + 10;
+    return -1; // invalid hex char
+}
+
+static std::string urlDecode(const std::string& str) {
+    std::string result;
+    for (std::size_t i = 0; i < str.length(); ++i) {
+        if (str[i] == '%' && i + 2 < str.length()) {
+            int high = hexCharToInt(str[i + 1]);
+            int low = hexCharToInt(str[i + 2]);
+            if (high != -1 && low != -1) {
+                char decodedChar = static_cast<char>((high << 4) | low);
+                result += decodedChar;
+                i += 2;
+            } else {
+                // Invalid encoding, keep the '%'
+                result += str[i];
+            }
+        } else if (str[i] == '+') {
+            result += ' ';
+        } else {
+            result += str[i];
+        }
+    }
+    return result;
+}
 /// @brief Extracts the most relevant configuration settings from the request headers
 /// for reading the request body. Other headers are ignored; and up to the rest of
 /// the program to handle.
