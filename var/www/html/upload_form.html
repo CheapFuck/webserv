@@ -4,13 +4,129 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Upload File</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f2f2f2;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #282c34;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #444;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: #ffffff;
+    }
+
+    form {
+      background: #fff;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 30px 40px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .custom-file-label {
+      display: inline-block;
+      background-color: #28a745; /* ✅ ← Change this to your desired button color */
+      color: white;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      border-radius: 0;
+      transition: background 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    .custom-file-label:hover {
+      background-color: #218838; /* darker shade for hover */
+    }
+
+    .custom-file-label:active {
+      transform: scale(0.97);
+    }
+
+    .file-name {
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 2px;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+
+    input[type="submit"] {
+      background-color: #28a745; /* ✅ ← Match this to the file button if you want consistency */
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 0.3s ease;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #218838;
+    }
+
+    input[type="submit"]:active {
+      transform: scale(0.97);
+    }
+  </style>
+
+  <script>
+    // Script to show selected file name
+    window.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('file');
+      const fileNameDisplay = document.getElementById('file-name');
+      const fileLabel = document.getElementById('file-label');
+
+      fileInput.addEventListener('change', () => {
+        const fileName = fileInput.files.length > 0 ? fileInput.files[0].name : 'No file chosen';
+        fileNameDisplay.textContent = fileName;
+      });
+    });
+  </script>
 </head>
 <body>
-  <h1>Upload Your File</h1>
+  <header>
+    <h1>Upload Your File</h1>
+  </header>
+
   <form action="/upload" method="POST" enctype="multipart/form-data">
     <label for="file">Choose a file:</label>
+    <label class="custom-file-label" id="file-label" for="file">Browse...</label>
     <input type="file" id="file" name="file" required>
+    <div class="file-name" id="file-name">No file chosen</div>
 
     <label for="description">File Description:</label>
     <input type="text" id="description" name="description" placeholder="Optional">

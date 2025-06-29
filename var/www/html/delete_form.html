@@ -4,7 +4,72 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Delete File</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f2f2f2; /* Light grey background */
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header with original dark background */
+    header {
+      background-color: #282c34;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #444;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: #ffffff; /* Changed to white */
+    }
+
+    #fileList {
+      list-style: none;
+      padding: 0;
+      margin: 40px auto;
+      max-width: 600px;
+    }
+
+    #fileList li {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 15px 20px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s;
+    }
+
+    #fileList li:hover {
+      background: #f9f9f9;
+    }
+
+    button {
+      background: #ff4b5c;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #ff1f3d;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+  </style>
+
   <script>
     function fetchFiles() {
       fetch('/cgi/list_files.php')
@@ -25,27 +90,26 @@
         .catch(error => console.error('Error fetching files:', error));
     }
 
-function deleteFile(file) {
-  fetch('delete_file.php', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `action=delete&file=${encodeURIComponent(file)}`
-  })
-  .then(response => response.text())
-  .then(data => {
-    // alert(data);
-    fetchFiles();
-  })
-  .catch(error => alert('Error deleting file: ' + error));
-}
-
-
+    function deleteFile(file) {
+      fetch('delete_file.php', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=delete&file=${encodeURIComponent(file)}`
+      })
+      .then(response => response.text())
+      .then(data => {
+        fetchFiles();
+      })
+      .catch(error => alert('Error deleting file: ' + error));
+    }
 
     window.onload = fetchFiles;
   </script>
 </head>
 <body>
-  <h1>Delete aa File</h1>
+  <header>
+    <h1>Delete a File</h1>
+  </header>
   <ul id="fileList"></ul>
 </body>
 </html>
