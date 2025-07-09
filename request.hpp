@@ -1,7 +1,7 @@
 #pragma once
 
+#include "config/types/consts.hpp"
 #include "sessionManager.hpp"
-#include "config/consts.hpp"
 #include "requestline.hpp"
 #include "headers.hpp"
 #include "cookie.hpp"

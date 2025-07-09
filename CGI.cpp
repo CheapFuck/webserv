@@ -33,7 +33,7 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
                 });
             } else if (route.index.isSet() && std::filesystem::is_directory(tmp.str())) {
                 DEBUG("Found directory: " << tmp.str());
-                for (const auto &indexFile : route.index.get()) {
+                for (const auto &indexFile : route.index.getIndexFiles()) {
                     Path indexPath = tmp;
                     indexPath.append(indexFile);
                     DEBUG("Checking for index file: " << indexPath.str());
@@ -84,11 +84,11 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     (void)route;
     _environmentVariables.clear();
     _environmentVariables["SERVER_SOFTWARE"] = "webserv/1.0";
-    _environmentVariables["SERVER_NAME"] = std::string(config.serverName.get());
+    _environmentVariables["SERVER_NAME"] = std::string(config.serverName.getServerName());
     _environmentVariables["GATEWAY_INTERFACE"] = "CGI/1.1";
 
     _environmentVariables["SERVER_PROTOCOL"] = Response::protocol + std::string("/") + Response::tlsVersion;
-    _environmentVariables["SERVER_PORT"] = std::to_string(config.port.get());
+    _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REQUEST_METHOD"] = methodToStr(_client.request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
@@ -98,7 +98,7 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     _environmentVariables["REMOTE_ADDR"] = _client.getClientIP();
     _environmentVariables["REMOTE_PORT"] = _client.getClientPort();
     _environmentVariables["SERVER_ADDR"] = _client.getServer().getServerAddress();
-    _environmentVariables["SERVER_PORT"] = std::to_string(config.port.get());
+    _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";
 
     if (_client.request.session && !_client.request.session->sessionId.empty())
@@ -148,14 +148,14 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         return;
     }
 
-    if (!config.cgiExtention.isCGI(Path(parsedUrl.scriptPath))) {
+    if (!route.cgiExtension.isCGI(Path(parsedUrl.scriptPath))) {
         ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
         _client.response.setStatusCode(HttpStatusCode::Forbidden);
         _isRunning = false;
         return;
     }
 
-    if (!config.cgiExtention.isCGI(Path(parsedUrl.scriptPath))) {
+    if (!route.cgiExtension.isCGI(Path(parsedUrl.scriptPath))) {
         ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
         _client.response.setStatusCode(HttpStatusCode::Forbidden);
         _isRunning = false;
@@ -246,7 +246,7 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         this->_toCGIProcessFd = toCGIProccess.get();
         this->_fromCGIProcessFd = fromCGIProccess.get();
 
-        _processTimerId = _client.getServer().getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.get() * 1000.0)), [this]() {
+        _processTimerId = _client.getServer().getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.timeout.getSeconds() * 1000.0)), [this]() {
             _handleTimeout();
         });
 

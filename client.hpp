@@ -22,6 +22,7 @@ private:
     std::string _clientPort;
 
     Response &_processRequest(const ServerConfig &config);
+    Response &_handleReturnRuleResponse(const ReturnRule &returnRule);
     Response &_createCGIClient(const ServerConfig &config, const LocationRule &route);
     Response &_processRequestByMethod(const ServerConfig &config, const LocationRule &route);
 

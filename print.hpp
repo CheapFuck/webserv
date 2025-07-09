@@ -13,6 +13,9 @@
 #define TERM_COLOR_MAGENTA "\033[35m"
 #define TERM_COLOR_CYAN "\033[36m"
 
+#define TERM_BOLD "\033[1m"
+#define TERM_UNDERLINE "\033[4m"
+
 inline std::ostream& print_time(std::ostream& os) {
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);

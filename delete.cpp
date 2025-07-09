@@ -47,13 +47,13 @@ Response &DeleteMethod::processRequest(
         return (response);
     }
 
-    if (!route.upload_dir.isSet()) {
+    if (!route.uploadStore.isSet()) {
         response.setStatusCode(HttpStatusCode::InternalServerError);
         response.setBody("Upload directory not configured");
         return (response);
     }
 
-    Path filepath(route.upload_dir.get());
+    Path filepath(route.uploadStore.getUploadDir());
     filepath.append(queryParams["file"]);
     if (!filepath.isValid()) {
         response.setStatusCode(HttpStatusCode::BadRequest);

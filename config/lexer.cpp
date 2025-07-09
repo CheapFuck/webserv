@@ -1,106 +1,101 @@
+#include "parserExceptions.hpp"
+#include "../print.hpp"
 #include "config.hpp"
 
-#include <iostream>
+#include <ostream>
 #include <cstring>
-#include <fstream>
+#include <string>
 
-std::ostream& operator<<(std::ostream& os, const TokenType& type) {
-	switch (type) {
-		case STR: os << "STR"; break;
-		case BRACE_OPEN: os << "BRACE_OPEN"; break;
-		case BRACE_CLOSE: os << "BRACE_CLOSE"; break;
-		case LINE_END: os << "LINE_END"; break;
-		case WHITESPACE: os << "WHITESPACE"; break;
-		case COMMENT: os << "COMMENT"; break;
-		case END: os << "END"; break;
-		default: os << "UNKNOWN"; break;
-	}
-	return os;
+static const TokenPattern tokenPatterns[] = {
+    {"{", 1, TokenType::OBJECT_OPEN},
+    {"}", 1, TokenType::OBJECT_CLOSE},
+    {";", 1, TokenType::RULE_END},
+    {"#", 1, TokenType::COMMENT},
+    {"'", 1, TokenType::QUOTE1},
+    {" ", 1, TokenType::WHITESPACE},
+    {"\"", 1, TokenType::QUOTE2},
+    {"\n", 1, TokenType::LINE_END},
+    {"\t", 1, TokenType::WHITESPACE},
+    {"\r", 1, TokenType::WHITESPACE},
+    {"\v", 1, TokenType::WHITESPACE},
+    {"\f", 1, TokenType::WHITESPACE},
+};
+
+Token *ConfigurationParser::getNextToken(ConfigFile *configFile, size_t &pos) {
+    for (const TokenPattern &pattern : tokenPatterns) {
+        if (configFile->fileContent.compare(pos, pattern.length, pattern.pattern) == 0) {
+            pos += pattern.length;
+            return (_arena.alloc<Token>(
+                pattern.type,
+                pattern.pattern,
+                configFile,
+                pos - pattern.length
+            ));
+        }
+    }
+
+    pos++;
+    return (_arena.alloc<Token>(
+        configFile->fileContent[pos] ? TokenType::WEAK_STR : TokenType::END,
+        std::string(1, configFile->fileContent[pos - 1]),
+        configFile,
+        pos - 1
+    ));
 }
 
-std::ostream& operator<<(std::ostream& os, const Token& token) {
-	os << "Token(type: " << token.type << ", value: \"" << token.value << "\")";
-	return os;
+Token *ConfigurationParser::parseContinuousToken(ConfigFile *configFile, size_t &pos, Token *currentToken, TokenType endOfStringTypeMask) {
+    while (true) {
+        Token *nextToken = getNextToken(configFile, pos);
+        if (nextToken->type & endOfStringTypeMask)
+            return (nextToken);
+        else
+            currentToken->value += nextToken->value;
+    }
 }
 
-static TokenType getTokenType(const char *str, size_t &i, bool advance = true) {
-	static const std::pair<const char *, TokenType> tokens[] = {
-		{"{",  BRACE_OPEN},
-		{"}", BRACE_CLOSE},
-		{";", LINE_END},
-		{"#", COMMENT},
-	};
+void ConfigurationParser::_tokenize(ConfigFile *configFile) {
+    size_t pos = 0;
 
-	for (auto &token : tokens) {
-		if (std::strncmp(str + i, token.first, std::strlen(token.first)) == 0) {
-			if (advance) i += strlen(token.first);
-			return token.second;
-		}
-	}
+    Token *previousToken;
+    Token *currentToken = _arena.alloc<Token>(TokenType::OBJECT_OPEN, "<sys>", configFile, 0);
+    do {
+        previousToken = currentToken;
 
-	if (str[i] == '\0')
-		return END;
+        switch (previousToken->type) {
+            case TokenType::END:
+                configFile->tokens.push_back(_arena.alloc<Token>(TokenType::OBJECT_CLOSE, "<sys>", configFile, pos));
+                break ;
 
-	if (std::isspace(str[i]))
-	{
-		if (advance) while (std::isspace(str[i])) ++i;
-		return WHITESPACE;
-	}
+            case TokenType::WEAK_STR:
+                currentToken = parseContinuousToken(configFile, pos, previousToken, EOS_MASK_DEFAULT);
+                break ;
 
-	if (advance) ++i;
-	return STR;
+            case TokenType::COMMENT:
+                previousToken->value.clear();
+                currentToken = parseContinuousToken(configFile, pos, previousToken, COMMENT_MASK);
+                break ;
+
+            case TokenType::QUOTE1:
+            case TokenType::QUOTE2:
+                currentToken = getNextToken(configFile, pos);
+                if (currentToken->type == previousToken->type)
+                    throw ParserTokenException("Quote without content in configuration file", previousToken, "Put some content in the quotes; or remove them if not needed!");
+                if (parseContinuousToken(configFile, pos, currentToken, EOS_MASK_QUOTE(previousToken->type))->type != previousToken->type)
+                    throw ParserTokenException("Unmatched quote in configuration file", previousToken, "Close it dummy!");
+                currentToken->type = TokenType::STR; // Promote to STR type
+                previousToken = currentToken;
+                [[fallthrough]];
+
+            default:
+                currentToken = getNextToken(configFile, pos);
+        }
+
+        if (IS_USABLE_TOKEN_TYPE(previousToken->type))
+            configFile->tokens.push_back(previousToken);
+
+    } while (previousToken->type != TokenType::END);
 }
 
-static std::string getWhitespaceTokenValue(const char *str, size_t &i) {
-	while (getTokenType(str, i, false) == WHITESPACE) ++i;
-	return "";
-}
-
-static std::string getCommentTokenValue(const char *str, size_t &i) {
-	size_t start = i;
-	while (str[i] && str[i] != '\n') ++i;
-	return (std::string(str + start, (i++) - start));
-}
-
-static std::string getStringTokenValue(const char *str, size_t &i) {
-	size_t start = i - 1;
-	while (getTokenType(str, i, false) == STR) ++i;
-	return (std::string(str + start, i - start));
-}
-
-static Token get_next_token(const char *str, size_t &i) {
-	int filePos = i;
-	TokenType type = getTokenType(str, i);
-
-	switch (type) {
-		case WHITESPACE:
-			return Token{type, getWhitespaceTokenValue(str, i), filePos};
-		case COMMENT:
-			return Token{type, getCommentTokenValue(str, i), filePos};
-		case STR:
-			return Token{type, getStringTokenValue(str, i), filePos};
-		case BRACE_OPEN:
-		case BRACE_CLOSE:
-		case LINE_END:
-		case END:
-		default:
-			return Token{type, "", filePos};
-	}
-}
-
-std::vector<Token> ConfigurationParser::_tokenize() const {
-	std::vector<Token> tokens = {Token(BRACE_OPEN, "", 0)};
-	size_t i = 0;
-
-	while (true) {
-		Token token = get_next_token(_configuration.c_str(), i);
-		if (token.type == END)
-			tokens.push_back(Token(BRACE_CLOSE, "", i));
-		if (IS_USABLE_TOKEN(token.type))
-			tokens.push_back(token);
-		if (token.type == END)
-			break;
-	}
-
-	return tokens;
+std::ostream &operator<<(std::ostream &os, const Token &token) {
+    return os << "Token(type=" << token.type << ", value=\"" << token.value << "\", filePos=" << token.filePos << ")";
 }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "config/rules/rules.hpp"
-#include "config/consts.hpp"
+#include "config/rules/ruleTemplates/locationRule.hpp"
+#include "config/types/consts.hpp"
 #include "headers.hpp"
 
 #include <string>
@@ -24,6 +24,7 @@ public:
     ~Response();
 
     void setStatusCode(HttpStatusCode code);
+    void setStatusCode(StatusCode code);
     void setBody(const std::string& body);
     void setDefaultHeaders();
     void setDefaultBody(const LocationRule &rule);

@@ -26,30 +26,34 @@ SRCS := main.cpp \
 	sessionManager.cpp \
 	cookie.cpp \
 	Utils.cpp \
+	config/arena.cpp \
+	config/config.cpp \
 	config/lexer.cpp \
 	config/parser.cpp \
-	config/consts.cpp \
-	config/config.cpp \
 	config/parserExceptions.cpp \
-	config/custom_types/size.cpp \
-	config/custom_types/path.cpp \
-	config/rules/rules.cpp \
-	config/rules/MaxBodySize.cpp \
-	config/rules/CGITimeout.cpp \
-	config/rules/CGIExtentions.cpp \
-	config/rules/ServerName.cpp \
-	config/rules/Port.cpp \
-	config/rules/CGI.cpp \
-	config/rules/Method.cpp \
-	config/rules/Root.cpp \
-	config/rules/Index.cpp \
-	config/rules/Redirect.cpp \
-	config/rules/ErrorPages.cpp \
-	config/rules/AutoIndex.cpp \
-	config/rules/UploadDir.cpp \
-	config/rules/Location.cpp \
-	config/rules/RouteRules.cpp \
-	config/rules/ServerConfig.cpp \
+	config/types/consts.cpp \
+	config/types/path.cpp \
+	config/types/size.cpp \
+	config/types/timespan.cpp \
+	config/rules/objectParser.cpp \
+	config/rules/ruleParser.cpp \
+	config/rules/ruleTemplates/autoindexRule.cpp \
+	config/rules/ruleTemplates/cgiExtensionRule.cpp \
+	config/rules/ruleTemplates/cgiRule.cpp \
+	config/rules/ruleTemplates/cgiTimeoutRule.cpp \
+	config/rules/ruleTemplates/defineRule.cpp \
+	config/rules/ruleTemplates/errorpageRule.cpp \
+	config/rules/ruleTemplates/includeRule.cpp \
+	config/rules/ruleTemplates/indexRule.cpp \
+	config/rules/ruleTemplates/locationRule.cpp \
+	config/rules/ruleTemplates/maxBodySizeRule.cpp \
+	config/rules/ruleTemplates/methodsRule.cpp \
+	config/rules/ruleTemplates/portRule.cpp \
+	config/rules/ruleTemplates/returnRule.cpp \
+	config/rules/ruleTemplates/rootRule.cpp \
+	config/rules/ruleTemplates/serverconfigRule.cpp \
+	config/rules/ruleTemplates/servernameRule.cpp \
+	config/rules/ruleTemplates/uploadstoreRule.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
 DEPS := $(OBJS:%.o=%.d)

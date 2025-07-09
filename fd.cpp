@@ -14,7 +14,7 @@ FD::FD() : _fd(-1), _epollFd(-1), _epollEvents(0), _type(FDType::DEFAULT), _conn
 
 FD::FD(int fd, FDType type, std::shared_ptr<BaseHandlerObject> connectedObject)
     : _fd(fd), _epollFd(-1), _epollEvents(0), _type(type), _connectedObject(std::move(connectedObject)), readBuffer(), writeBuffer() {
-        ERROR("FD created with fd: " << _fd << ", type: " << static_cast<int>(_type) << ", connectedObject: " << (_connectedObject ? "set" : "not set"));
+        DEBUG("FD created with fd: " << _fd << ", type: " << static_cast<int>(_type) << ", connectedObject: " << (_connectedObject ? "set" : "not set"));
     }
 
 bool FD::operator<(const FD& other) const {
@@ -40,7 +40,7 @@ int FD::_cleanUp() {
 
     if (isValidFd()) {
         int result = ::close(_fd);
-        ERROR("FD cleanUp called on fd: " << _fd << ", result: " << result << ", errno: " << errno << " (" << strerror(errno) << ")");
+        DEBUG("FD cleanUp called on fd: " << _fd << ", result: " << result << ", errno: " << errno << " (" << strerror(errno) << ")");
         _fd = -1;
         return (result);
     }

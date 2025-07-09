@@ -1,4 +1,4 @@
-#include "config/consts.hpp"
+#include "config/types/consts.hpp"
 #include "config/rules/rules.hpp"
 #include "methods.hpp"
 #include "response.hpp"
@@ -40,6 +40,11 @@ void Response::setStatusCode(HttpStatusCode code) {
     _statusCode = code;
 }
 
+/// @brief Sets the status code for the response using a StatusCode enum.
+void Response::setStatusCode(StatusCode code) {
+    setStatusCode(fromStatusCode(code));
+}
+
 /// @brief Sets the body of the response and updates the Content-Length header accordingly.
 /// @param body The body content to set for the response.
 void Response::setBody(const std::string& body) {
@@ -71,7 +76,7 @@ void Response::setDefaultBody(const LocationRule& rule) {
 		return ;
 
 	error_int = static_cast<int>(_statusCode);
-    std::string defaultErrorPage = rule.errorPages.getErrorPage(error_int);
+    std::string defaultErrorPage = rule.errorPages.getErrorPage(StatusCode(error_int));
 	if (defaultErrorPage.empty() 
 		|| tryCreateResponseFromFile(defaultErrorPage, *this) == false)
 	{
@@ -85,7 +90,6 @@ void Response::setDefaultBody(const LocationRule& rule) {
 std::string Response::getAsString() const {
     std::ostringstream response_stream;
     response_stream << *this;
-    DEBUG("Response as string: " << response_stream.str());
     return (response_stream.str());
 }
 

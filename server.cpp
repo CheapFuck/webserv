@@ -145,7 +145,7 @@ void Server::_setupSocket(int listenPort, const std::vector<ServerConfig> &confi
     _portToConfigs[serverFd] = configs;
     _serverAddress = inet_ntoa(address.sin_addr);
 
-    PRINT("Server " << configs[0].serverName.get() << " is listening on port " << listenPort);
+    PRINT("Server " << configs[0].serverName.getServerName() << " is listening on port " << listenPort);
 }
 
 /// @brief Set up the epoll instance and add the server socket to it
@@ -228,12 +228,12 @@ bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 /// or the first config if no direct match was found
 ServerConfig &Server::loadRequestConfig(Request &request, int serverFd) {
 	for (ServerConfig &config : _portToConfigs[serverFd]) {
-		if (config.serverName.get() == request.headers.getHeader(HeaderKey::Host, "")) {
-			DEBUG("Found matching server for request: " << config.serverName.get());
+		if (config.serverName.getServerName() == request.headers.getHeader(HeaderKey::Host, "")) {
+			DEBUG("Found matching server for request: " << config.serverName.getServerName());
 			return (config);
 		}
 	}
-	DEBUG("No matching server found for request, using default: " << _portToConfigs[serverFd][0].serverName.get());
+	DEBUG("No matching server found for request, using default: " << _portToConfigs[serverFd][0].serverName.getServerName());
 	return _portToConfigs[serverFd][0];
 }
 

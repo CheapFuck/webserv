@@ -68,7 +68,7 @@ RequestLine::~RequestLine() {}
 bool RequestLine::_fetchCorrectPathFromIndexRule(const IndexRule &rule) {
     PathStat pathStat{};
 
-    for (const auto &indexPage : rule.get()) {
+    for (const auto &indexPage : rule.getIndexFiles()) {
         Path indexPath = _path;
         indexPath.append(indexPage);
 

@@ -77,10 +77,10 @@ static Response &uploadFile(
     std::vector<PostMethod::FilePart> files;
 
     parseMultipartFormData(request.getBody(), extractBoundary(content_type), formFields, files);
-    tryEnsureUploadDir(route.upload_dir.get().str());
+    tryEnsureUploadDir(route.uploadStore.getUploadDir().str());
 
     for (const PostMethod::FilePart &file : files) {
-        Path uploadDir(route.upload_dir.get());
+        Path uploadDir(route.uploadStore.getUploadDir());
         uploadDir.append(file.filename);
         if (!uploadDir.isValid()) {
             response.setStatusCode(HttpStatusCode::BadRequest);

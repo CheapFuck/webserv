@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config/consts.hpp"
+#include "config/types/consts.hpp"
 
 #include <sstream>
 #include <string>

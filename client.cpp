@@ -24,7 +24,7 @@ Response &Client::_createCGIClient(const ServerConfig &config, const LocationRul
 Response &Client::_processRequestByMethod(const ServerConfig &config, const LocationRule &route) {
     (void)config;
 
-    if (route.CGI.isSet() || (!request.metadata.pathIsDirectory() && config.cgiExtention.isCGI(request.metadata.getPath())))
+    if (route.cgi.isSet() || (!request.metadata.pathIsDirectory() && route.cgiExtension.isCGI(request.metadata.getPath())))
         return _createCGIClient(config, route);
 
     switch (request.metadata.getMethod()) {
@@ -40,6 +40,22 @@ Response &Client::_processRequestByMethod(const ServerConfig &config, const Loca
     }
 }
 
+/// @brief Handles the return rule response.
+/// @param returnRule The return rule to handle
+/// @return Returns a reference to the response object after handling the return rule.
+Response &Client::_handleReturnRuleResponse(const ReturnRule &returnRule) {
+    DEBUG("Handling return rule response: " << returnRule);
+    response.setStatusCode(returnRule.getStatusCode());
+    if (returnRule.isRedirect()) {
+        response.headers.replace(HeaderKey::Location, returnRule.getParameter());
+        DEBUG("Redirecting to: " << returnRule.getParameter());
+    } else {
+        response.setBody(returnRule.getParameter());
+        DEBUG("Returning body: " << returnRule.getParameter());
+    }
+    return response;
+}
+
 /// @brief Processes the request.
 /// @param config The server configuration
 Response &Client::_processRequest(const ServerConfig &config) {
@@ -52,22 +68,33 @@ Response &Client::_processRequest(const ServerConfig &config) {
         return (response);
     }
 
-    const LocationRule *route = config.routes.find(request.metadata.getRawUrl());
-    if (route == nullptr) {
-        response.setStatusCode(HttpStatusCode::NotFound);
+    const LocationRule &route = config.getLocation(request.metadata.getRawUrl());
+
+    DEBUG("Route found: " << route);
+    DEBUG("Url Path: " << request.metadata);
+
+    if (!route.methods.isAllowed(request.metadata.getMethod())) {
+        response.setStatusCode(HttpStatusCode::MethodNotAllowed);
         return (response);
     }
 
-    DEBUG("Route found: " << *route);
-    DEBUG("Url Path: " << request.metadata);
+    if ((route.maxBodySize.isSet() && request.getContentLength() > route.maxBodySize.getMaxBodySize().get())
+        || request.getBody().length() > route.maxBodySize.getMaxBodySize().get()) {
+        response.setStatusCode(HttpStatusCode::PayloadTooLarge);
+        DEBUG("Request body exceeds maximum size");
+        return response;
+    }
 
-    if (!route->root.isSet()) {
+    if (route.returnRule.isSet())
+        return _handleReturnRuleResponse(route.returnRule);
+
+    if (!route.root.isSet()) {
         DEBUG("Root not set for route: " << route);
         response.setStatusCode(HttpStatusCode::NotFound);
         return response;
     }
 
-    request.metadata.translateUrl(_server.getServerExecutablePath(), *route);
+    request.metadata.translateUrl(_server.getServerExecutablePath(), route);
     DEBUG("Translated request path: " << request.metadata.getPath().str());
 
     if (!request.metadata.getPath().isValid()) {
@@ -76,26 +103,7 @@ Response &Client::_processRequest(const ServerConfig &config) {
         return (response);
     }
 
-    if (!route->methods.isAllowed(request.metadata.getMethod())) {
-        response.setStatusCode(HttpStatusCode::MethodNotAllowed);
-        return (response);
-    }
-
-    if (route->clientMaxBodySize.isSet() && (request.getContentLength() > route->clientMaxBodySize.get()
-        || request.getBody().length() > route->clientMaxBodySize.get())) {
-        response.setStatusCode(HttpStatusCode::PayloadTooLarge);
-        DEBUG("Request body exceeds maximum size");
-        return response;
-    }
-
-    if (route->redirect.isSet()) {
-        DEBUG("Redirecting to: " << route->redirect.get());
-        response.setStatusCode(HttpStatusCode::MovedPermanently);
-        response.headers.replace(HeaderKey::Location, route->redirect.get());
-        return (response);
-    }
-
-    return _processRequestByMethod(config, *route);
+    return _processRequestByMethod(config, route);
 }
 
 void Client::handleReadCallback(FD &fd, int funcReturnValue) {
@@ -104,7 +112,6 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
 
     request.parseRequestHeaders(fd.readBuffer);
     if (request.isComplete(fd.readBuffer)) {
-        DEBUG(request.headers);
         request.setBody(fd.readBuffer);
         _processRequest(_server.loadRequestConfig(request, _serverFd));
         DEBUG("Request is complete, processing request for fd: " << fd.get());
@@ -130,9 +137,8 @@ void Client::handleWriteCallback(FD &fd) {
         return ;
     }
 
-    const LocationRule *rule = _server.loadRequestConfig(request, _serverFd).routes.find(request.metadata.getRawUrl());
-    if (rule)
-        response.setDefaultBody(*rule);
+    const LocationRule &rule = _server.loadRequestConfig(request, _serverFd).getLocation(request.metadata.getRawUrl());
+    response.setDefaultBody(rule);
     
     // if (request.headers.getHeader(HeaderKey::Connection) == "close") {
     //     response.headers.replace(HeaderKey::Connection, "close");

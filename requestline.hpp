@@ -1,7 +1,8 @@
 #pragma once
 
+#include "config/types/customTypes.hpp"
+#include "config/types/consts.hpp"
 #include "config/rules/rules.hpp"
-#include "config/consts.hpp"
 
 #include <sstream>
 #include <string>
