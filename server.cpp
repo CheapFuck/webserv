@@ -227,12 +227,22 @@ bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
 /// @return A reference to the ServerConfig object that matches the Host header | 
 /// or the first config if no direct match was found
 ServerConfig &Server::loadRequestConfig(Request &request, int serverFd) {
+    ServerConfig *defaultConfig = nullptr;
+
 	for (ServerConfig &config : _portToConfigs[serverFd]) {
 		if (config.serverName.getServerName() == request.headers.getHeader(HeaderKey::Host, "")) {
 			DEBUG("Found matching server for request: " << config.serverName.getServerName());
 			return (config);
 		}
+        if (config.port.isDefault())
+            defaultConfig = &config;
 	}
+
+    if (defaultConfig) {
+        DEBUG("No matching server found for request, using default: " << defaultConfig->serverName.getServerName());
+        return *defaultConfig;
+    }
+
 	DEBUG("No matching server found for request, using default: " << _portToConfigs[serverFd][0].serverName.getServerName());
 	return _portToConfigs[serverFd][0];
 }
