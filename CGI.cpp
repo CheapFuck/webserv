@@ -148,14 +148,7 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         return;
     }
 
-    if (!route.cgiExtension.isCGI(Path(parsedUrl.scriptPath))) {
-        ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
-        _client.response.setStatusCode(HttpStatusCode::Forbidden);
-        _isRunning = false;
-        return;
-    }
-
-    if (!route.cgiExtension.isCGI(Path(parsedUrl.scriptPath))) {
+    if (!(route.cgiExtension.isCGI(Path(parsedUrl.scriptPath)) || route.cgi.isSet())) {
         ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
         _client.response.setStatusCode(HttpStatusCode::Forbidden);
         _isRunning = false;
