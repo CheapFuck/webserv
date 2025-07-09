@@ -41,8 +41,8 @@ public:
     /// @tparam T The target class type that will be parsed from the rule.
     /// @param target The target class instance that will be filled with the parsed rule data.
     /// @return A reference to the current ObjectParser instance for method chaining.
-    template <typename T>
-    ObjectParser& parseFromOne(T& target) {
+    template <typename T, typename... Args>
+    ObjectParser& parseFromOne(T& target, Args&&... args) {
         _expectedRuleCount = ExpectedRuleCount::ONE;
 
         Key key = T::getKey();
@@ -53,8 +53,10 @@ public:
             throw;
         }
 
-        if (rules.empty()) target = std::move(T(nullptr));
-        else target = std::move(T(rules[0]));
+        if (rules.empty())
+            target = T(nullptr, std::forward<Args>(args)...);
+        else
+            target = T(rules[0], std::forward<Args>(args)...);
 
         return (*this);
     }
@@ -63,8 +65,8 @@ public:
     /// @tparam T The target class type that will be parsed from the rules.
     /// @param target The target class instance that will be filled with the parsed rule data.
     /// @return A reference to the current ObjectParser instance for method chaining.
-    template <typename T>
-    ObjectParser& parseFromRange(T &target) {
+    template <typename T, typename... Args>
+    ObjectParser& parseFromRange(T &target, Args&&... args) {
         _expectedRuleCount = ExpectedRuleCount::MULTIPLE;
 
         Key key = T::getKey();
@@ -75,7 +77,7 @@ public:
             throw;
         }
 
-        target = std::move(T(rules));
+        target = std::move(T(rules, std::forward<Args>(args)...));
 
         return (*this);
     }
@@ -84,8 +86,8 @@ public:
     /// @tparam T The target class type that will be parsed from the rules.
     /// @param target The target vector that will be filled with the parsed rule data.
     /// @return A reference to the current ObjectParser instance for method chaining.
-    template <typename T>
-    ObjectParser& parseRange(std::vector<T>& target) {
+    template <typename T, typename... Args>
+    ObjectParser& parseRange(std::vector<T>& target, Args&&... args) {
         _expectedRuleCount = ExpectedRuleCount::MULTIPLE;
 
         Key key = T::getKey();
@@ -97,7 +99,7 @@ public:
         }
 
         for (Rule* rule : rules)
-            target.emplace_back(T(rule));
+            target.emplace_back(T(rule, std::forward<Args>(args)...));
 
         return (*this);
     }

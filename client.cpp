@@ -88,8 +88,8 @@ Response &Client::_processRequest(const ServerConfig &config) {
     if (route.returnRule.isSet())
         return _handleReturnRuleResponse(route.returnRule);
 
-    if (!route.root.isSet()) {
-        DEBUG("Root not set for route: " << route);
+    if (!(route.root.isSet() || route.alias.isSet())) {
+        DEBUG("Root and/or alias not set for route: " << route);
         response.setStatusCode(HttpStatusCode::NotFound);
         return response;
     }

@@ -87,7 +87,9 @@ public:
 
 	Path &pop();
 	Path &append(const std::string &str);
-	Path &updateFromUrl(const std::string &route, const std::string &root);
+    Path &appendIgnoreAbsolute(const std::string &str);
+	Path &updateFromUrlAlias(const std::string &route, const std::string &alias);
+    Path &updateFromUrlRoot(const std::string &route, const std::string &root);
 
 	std::string getFilename() const;
 	const std::string &str() const;

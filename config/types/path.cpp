@@ -45,20 +45,50 @@ Path &Path::append(const std::string &str) {
 	}
 }
 
+/// @brief Append a subpath to the current path, ignoring leading slashes
+/// @param str The subpath to append, which may start with one or more slashes
+/// @return A reference to itself for chaining
+Path &Path::appendIgnoreAbsolute(const std::string &str) {
+	std::string copy = str;
+	while (!copy.empty() && copy.front() == '/') {
+		copy.erase(copy.begin());
+	}
+	return append(copy);
+}
+
+/// @brief Update the path from a URL and a alias directory
+/// @param route The URL route to update from
+/// @param alias The alias directory to use for the update
+/// @return A reference to itself for chaining
+/// @details Expects the path to be initialized with the URL route.
+/// It replaces the beginning of the path with the alias directory.
+Path &Path::updateFromUrlAlias(const std::string &route, const std::string &alias) {
+	size_t alias_len = alias.length();
+
+	_path.replace(0, route.length(), alias);
+	if (_path[alias_len] && _path[alias_len] != '/')
+		_path.insert(alias_len, "/");
+	if (_path.back() == '/') _path.pop_back();
+
+	return *this;
+}
+
 /// @brief Update the path from a URL and a root directory
 /// @param route The URL route to update from
 /// @param root The root directory to use for the update
 /// @return A reference to itself for chaining
 /// @details Expects the path to be initialized with the URL route.
 /// It replaces the beginning of the path with the root directory.
-Path &Path::updateFromUrl(const std::string &route, const std::string &root) {
+Path &Path::updateFromUrlRoot(const std::string &route, const std::string &root) {
 	size_t root_len = root.length();
 
-	_path.replace(0, route.length(), root);
+	if (root_len > 0 && root[root_len - 1] == '/')
+		_path.replace(0, route.length(), root);
+	else
+		_path.replace(0, route.length(), root + '/');
 	if (_path[root_len] && _path[root_len] != '/')
 		_path.insert(root_len, "/");
 	if (_path.back() == '/') _path.pop_back();
-
 	return *this;
 }
 
@@ -82,11 +112,18 @@ Path &Path::pop() {
 /// @param route The rules for the URL
 /// @return A path to the file or directory represented by the URL.
 Path Path::createFromUrl(const std::string &url, const LocationRule &route) {
-	if (url.empty() || !route.root.isSet())
+	if (url.empty() || !(route.root.isSet() || route.alias.isSet()))
 		return Path::createDummy();
 
 	Path path(url.substr(0, url.find('?')));
-	path.updateFromUrl(route.path.str(), route.root.getRootPath().str());
+	if (route.alias.isSet()) {
+		DEBUG("Using alias path: " << route.alias.getAliasPath().str());
+		path.updateFromUrlAlias(route.path.str(), route.alias.getAliasPath().str());
+	}
+	else {
+		DEBUG("Using root path: " << route.root.getRootPath().str());
+		path.updateFromUrlRoot(route.path.str(), route.root.getRootPath().str());
+	}
 
 	return path;
 }

@@ -77,6 +77,7 @@ enum Key {
 	DEFINE = 1 << 14,
 	INCLUDE = 1 << 15,
     CGI_EXTENSION = 1 << 16,
+    ALIAS = 1 << 17,
 };
 
 enum ArgumentType {

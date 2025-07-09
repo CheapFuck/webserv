@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ruleTemplates/aliasRule.hpp"
 #include "ruleTemplates/autoindexRule.hpp"
 #include "ruleTemplates/cgiExtensionRule.hpp"
 #include "ruleTemplates/cgiRule.hpp"

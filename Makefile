@@ -37,6 +37,7 @@ SRCS := main.cpp \
 	config/types/timespan.cpp \
 	config/rules/objectParser.cpp \
 	config/rules/ruleParser.cpp \
+	config/rules/ruleTemplates/aliasRule.cpp \
 	config/rules/ruleTemplates/autoindexRule.cpp \
 	config/rules/ruleTemplates/cgiExtensionRule.cpp \
 	config/rules/ruleTemplates/cgiRule.cpp \

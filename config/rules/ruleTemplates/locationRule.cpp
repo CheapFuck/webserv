@@ -31,8 +31,8 @@ void LocationRule::_parseFromObject(Object *object) {
     ObjectParser objectParser(object);
 
     objectParser.bound(Key::SERVER).optional()
+        .parseFromOne(root, path.str(), object)
         .parseFromRange(methods)
-        .parseFromOne(root)
         .parseFromOne(uploadStore)
         .parseFromOne(autoIndex)
         .parseFromRange(index)
@@ -41,7 +41,9 @@ void LocationRule::_parseFromObject(Object *object) {
         .parseFromOne(maxBodySize)
         .parseFromOne(cgi)
         .parseFromOne(cgiTimeout)
-        .parseFromRange(cgiExtension);
+        .parseFromRange(cgiExtension)
+        .local() // Local rules are not inherited from parent objects
+        .parseFromOne(alias);
 }
 
 /// @brief Check if the location rule is set (i.e., if it has a non-empty path).
@@ -54,6 +56,7 @@ std::ostream& operator<<(std::ostream &os, const LocationRule &rule) {
     os << "(" << rule.path.str() << ")\n";
     os << rule.methods << "\n";
     os << rule.root << "\n";
+    os << rule.alias << "\n";
     os << rule.uploadStore << "\n";
     os << rule.autoIndex << "\n";
     os << rule.index << "\n";

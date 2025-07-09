@@ -25,6 +25,7 @@ static Key getRuleKeyFromToken(Token *token) {
         {CgiExtensionRule::getRuleName(), CgiExtensionRule::getKey()},
         {DefineRule::getRuleName(), DefineRule::getKey()},
         {IncludeRule::getRuleName(), IncludeRule::getKey()},
+        {AliasRule::getRuleName(), AliasRule::getKey()},
     };
 
     auto it = keyMap.find(token->value);

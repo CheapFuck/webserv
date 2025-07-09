@@ -21,7 +21,7 @@ public:
     RootRule& operator=(const RootRule &other) = default;
     ~RootRule() = default;
 
-    RootRule(Rule *rule);
+    RootRule(Rule *rule, const std::string &location, Object *locationObject);
 
     const Path &getRootPath() const;
     bool isSet() const;

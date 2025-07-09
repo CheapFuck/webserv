@@ -4,7 +4,7 @@
 
 #include <ostream>
 
-RootRule::RootRule(Rule *rule) :
+RootRule::RootRule(Rule *rule, const std::string &location, Object *locationObject) :
     _rootPath(Path::createDummy())
 {
     if (!rule) return;
@@ -12,6 +12,9 @@ RootRule::RootRule(Rule *rule) :
     RuleParser::create(rule, *this)
         .expectArgumentCount(1)
         .parseArgument(_rootPath);
+
+    if (rule->parentObject != locationObject)
+        _rootPath.appendIgnoreAbsolute(location);
 }
 
 /// @brief Check if the root rule is set (i.e., if it has a non-empty root path).

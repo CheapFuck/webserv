@@ -4,6 +4,7 @@
 #include "../../config.hpp"
 #include "../baserule.hpp"
 
+#include "aliasRule.hpp"
 #include "methodsRule.hpp"
 #include "rootRule.hpp"
 #include "uploadstoreRule.hpp"
@@ -29,6 +30,7 @@ public:
     Path path;
     MethodsRule methods;
     RootRule root;
+    AliasRule alias;
     UploadStoreRule uploadStore;
     AutoIndexRule autoIndex;
     IndexRule index;
