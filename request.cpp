@@ -49,7 +49,6 @@ bool Request::parseRequestHeaders(std::string &buffer) {
 
     buffer.erase(0, header_data_end + 4);
     _fetch_config_from_headers();
-	std::cout << "Headers are: '''" << headers << "'''\n";
 	if (headers.isValid())
     	_headersParsed = true;
     return (_headersParsed);
@@ -70,8 +69,16 @@ bool Request::parseRequestBody(std::string &buffer)
 	{
 		if (buffer.find("\r\n") != std::string::npos)
 		{
-			std::cout << "Stoiing : " << buffer << "!!!\n";
-			length_cur = std::stoi(buffer);
+            try
+            {
+			    length_cur = std::stoi(buffer);
+            }
+            catch(const std::exception& e)
+            {
+                buffer.erase(0, buffer.length());
+                _request_complete = true;
+                return (true);
+            }
 			if (buffer.length() < buffer.find("\r\n") + 4 + length_cur) return (false);
 			if (!length_cur)
 				_request_complete = true;
@@ -80,7 +87,6 @@ bool Request::parseRequestBody(std::string &buffer)
 				buffer.erase(0, buffer.find("\r\n") + 4 + length_cur);
 			}
 		}
-		std::cout << "Chunkening : '''" << _body << "'''\n";
 	}
 	else
 	{
