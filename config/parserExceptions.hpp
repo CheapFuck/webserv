@@ -80,3 +80,15 @@ public:
     void attachObject(const Object *object);
     std::string getMessage() const override;
 };
+
+class ParserUnusedRuleException : public ParserException {
+private:
+    std::vector<Rule *> _unusedRules;
+
+public:
+    ParserUnusedRuleException(const std::string &message, const std::string &hint = "");
+    void addUnusedRule(Rule *rule);
+    std::string getMessage() const override;
+
+    bool shouldThrow() const;
+};

@@ -1,5 +1,6 @@
 #include "parserExceptions.hpp"
 #include "../print.hpp"
+#include "../Utils.hpp"
 #include "config.hpp"
 
 #include <sstream>
@@ -56,7 +57,7 @@ void ParserException::_printCompactErrorContext(const ErrorContext &context, con
         errorLength = 1;
 
     oss << context.filename << ":" << context.lineNumber << ":" << context.columnNumber + 1 << ": ";
-    oss << context.line.substr(0, context.columnNumber) << TERM_COLOR_RED << TERM_BOLD << context.line.substr(context.columnNumber, errorLength) << TERM_COLOR_RESET << context.line.substr(context.columnNumber + errorLength);
+    oss << Utils::trimFront(context.line.substr(0, context.columnNumber)) << TERM_COLOR_RED << TERM_BOLD << context.line.substr(context.columnNumber, errorLength) << TERM_COLOR_RESET << context.line.substr(context.columnNumber + errorLength);
 }
 
 void ParserException::_printHint(std::ostream &os) const {
@@ -122,6 +123,9 @@ ParserDuplicateRuleException::ParserDuplicateRuleException(const std::string &me
 ParserMissingException::ParserMissingException(const std::string &message, const std::string &hint)
     : ParserException(message, hint), _object(nullptr) {}
 
+ParserUnusedRuleException::ParserUnusedRuleException(const std::string &message, const std::string &hint)
+    : ParserException(message, hint), _unusedRules() {}
+
 std::string ParserTokenException::getMessage() const {
     ErrorContext context = _token->configFile->getErrorContext(_token->filePos);
 
@@ -184,15 +188,48 @@ std::string ParserMissingException::getMessage() const {
     std::ostringstream oss;
     oss << TERM_COLOR_RED << "[ParserMissingException]" << TERM_COLOR_RESET << ": " << _message << "\n\n";
 
-    ErrorContext openContext = _object->objectOpenToken->configFile->getErrorContext(_object->objectOpenToken->filePos);
-    ErrorContext closeContext = _object->objectCloseToken->configFile->getErrorContext(_object->objectCloseToken->filePos);
-    oss << "Object opened at:\n  > ";
-    _printCompactErrorContext(openContext, _object->objectOpenToken, oss);
-    oss << "Object closed at:\n  > ";
-    _printCompactErrorContext(closeContext, _object->objectCloseToken, oss);
-    oss << "\n";
+    if (_object->objectOpenToken->configFile->fileContent.size() > 1) {
+        ErrorContext openContext = _object->objectOpenToken->configFile->getErrorContext(_object->objectOpenToken->filePos);
+        ErrorContext closeContext = _object->objectCloseToken->configFile->getErrorContext(_object->objectCloseToken->filePos);
+        oss << "Object opened at:\n  > ";
+        _printCompactErrorContext(openContext, _object->objectOpenToken, oss);
+        oss << "Object closed at:\n  > ";
+        _printCompactErrorContext(closeContext, _object->objectCloseToken, oss);
+        oss << "\n\n";
+    }
 
     _printHint(oss);
     _printTraceback(oss);
     return oss.str();
+}
+
+void ParserUnusedRuleException::addUnusedRule(Rule *rule) {
+    _unusedRules.push_back(rule);
+}
+
+std::string ParserUnusedRuleException::getMessage() const {
+    std::ostringstream oss;
+    oss << TERM_COLOR_RED << "[ParserUnusedRuleException]" << TERM_COLOR_RESET << ": " << _message << "\n\n";
+
+    if (_unusedRules.empty()) {
+        oss << "No unused rules found.\n";
+        return oss.str();
+    }
+
+    DEBUG("Unused rules found: " << _unusedRules.size());
+
+    oss << "Unused rules:\n";
+    for (const Rule *rule : _unusedRules) {
+        ErrorContext context = rule->token->configFile->getErrorContext(rule->token->filePos);
+        oss << "  - " << rule->token->value << " at ";
+        _printCompactErrorContext(context, rule->token, oss);
+    }
+
+    oss << "\n";
+    _printHint(oss);
+    return oss.str();
+}
+
+bool ParserUnusedRuleException::shouldThrow() const {
+    return !_unusedRules.empty();
 }

@@ -7,6 +7,39 @@
 #include <fstream>
 #include <variant>
 
+/// @brief Recursively checks for unused rules in the configuration object.
+/// @param object The configuration object to check for unused rules.
+/// @param unusedException The exception to which unused rules will be added.
+static void _checkUnusedRules(Object *object, ParserUnusedRuleException *unusedException) {
+    for (const auto &[key, rules] : object->rules) {
+        for (Rule *rule : rules) {
+            if (!rule->isUsed) {
+                unusedException->addUnusedRule(rule);
+                continue;
+            }
+
+            // If the rule is used, we check its arguments for unused rules.
+            for (Argument *arg : rule->arguments) {
+                if (arg->type == ArgumentType::OBJECT)
+                    _checkUnusedRules(std::get<Object *>(arg->value), unusedException);
+            }
+        }
+    }
+}
+
+/// @brief Checks for unused rules in the configuration object. Only usable after the configuration has been parsed.
+/// @param object The configuration object to check for unused rules.
+/// @throws ParserUnusedRuleException if unused rules are found.
+static void checkUnusedRules(Object *object) {
+    ParserUnusedRuleException exception("Unused rules found in configuration file", \
+        "Remove the rules that are not used; or include them in a valid context.");
+
+    _checkUnusedRules(object, &exception);
+    if (exception.shouldThrow()) {
+        throw exception;
+    }
+}
+
 ConfigFile *ConfigurationParser::_loadConfigFile(const std::string &filePath) {
     std::fstream file(filePath);
     if (!file.is_open())
@@ -24,6 +57,8 @@ ConfigFile *ConfigurationParser::_loadConfigFile(const std::string &filePath) {
         configFile->fileContent.push_back('\n');
     }
 
+    if (!configFile->fileContent.empty())
+        configFile->fileContent.pop_back();
     configFile->fileContent.push_back('\0');
     file.close();
 
@@ -50,7 +85,7 @@ bool ConfigurationParser::parseFile(const std::string &filePath) {
 
 std::vector<ServerConfig> ConfigurationParser::getResult(const std::string &filePath) {
     auto it = _objects.find(filePath);
-    if (it == _objects.end())
+    if (it == _objects.end() || !it->second)
         return {};
 
     Object *result = it->second;
@@ -60,6 +95,7 @@ std::vector<ServerConfig> ConfigurationParser::getResult(const std::string &file
 
     try {
         objectParser.local().required().parseRange(servers);
+        checkUnusedRules(result);
     } catch (const ParserException &e) {
         std::cerr << e.getMessage();
         return {};

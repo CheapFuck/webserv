@@ -36,7 +36,7 @@ Token *ConfigurationParser::getNextToken(ConfigFile *configFile, size_t &pos) {
 
     pos++;
     return (_arena.alloc<Token>(
-        configFile->fileContent[pos] ? TokenType::WEAK_STR : TokenType::END,
+        configFile->fileContent[pos - 1] ? TokenType::WEAK_STR : TokenType::END,
         std::string(1, configFile->fileContent[pos - 1]),
         configFile,
         pos - 1
@@ -57,13 +57,13 @@ void ConfigurationParser::_tokenize(ConfigFile *configFile) {
     size_t pos = 0;
 
     Token *previousToken;
-    Token *currentToken = _arena.alloc<Token>(TokenType::OBJECT_OPEN, "<sys>", configFile, 0);
+    Token *currentToken = _arena.alloc<Token>(TokenType::OBJECT_OPEN, "", configFile, 0);
     do {
         previousToken = currentToken;
 
         switch (previousToken->type) {
             case TokenType::END:
-                configFile->tokens.push_back(_arena.alloc<Token>(TokenType::OBJECT_CLOSE, "<sys>", configFile, pos));
+                configFile->tokens.push_back(_arena.alloc<Token>(TokenType::OBJECT_CLOSE, "", configFile, pos));
                 break ;
 
             case TokenType::WEAK_STR:
