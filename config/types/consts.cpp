@@ -3,6 +3,7 @@
 #include "consts.hpp"
 
 #include <type_traits>
+#include <algorithm>
 #include <string>
 
 Method operator|(Method lhs, Method rhs) {

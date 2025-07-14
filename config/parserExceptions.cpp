@@ -13,12 +13,12 @@ ErrorContext ConfigFile::getErrorContext(size_t pos) const {
     size_t lineNumber = std::distance(lineStarts.begin(), lineEndIt);
     size_t columnNumber = pos - *lineStartIt;
 
-    return (ErrorContext{
-        .filename = fileName,
-        .line = fileContent.substr(*lineStartIt, (lineEndIt != lineStarts.end() ? *lineEndIt : fileContent.size()) - *lineStartIt),
-        .lineNumber = lineNumber,
-        .columnNumber = columnNumber
-    });
+    return (ErrorContext(
+        fileName,
+        fileContent.substr(*lineStartIt, (lineEndIt != lineStarts.end() ? *lineEndIt : fileContent.size()) - *lineStartIt),
+        lineNumber,
+        columnNumber
+    ));
 }
 
 static std::vector<ErrorContext> loadTraceback(const Rule *rule) {

@@ -7,6 +7,24 @@
 #include <fstream>
 #include <variant>
 
+ErrorContext::ErrorContext(const std::string &filename, const std::string &line, size_t lineNumber, size_t columnNumber)
+    : filename(filename), line(line), lineNumber(lineNumber), columnNumber(columnNumber) {}
+
+Token::Token(TokenType type, std::string value, ConfigFile *configFile, size_t filePos)
+    : type(type), value(std::move(value)), configFile(configFile), filePos(filePos) {}
+
+ConfigFile::ConfigFile(const std::string& fileName, std::string fileContent, std::vector<Token*> tokens, std::vector<size_t> lineStarts)
+    : fileName(fileName), fileContent(std::move(fileContent)), tokens(std::move(tokens)), lineStarts(std::move(lineStarts)) {}
+
+Object::Object(Rule *parentRule, Token *objectOpenToken, Token *objectCloseToken)
+    : rules({}), parentRule(parentRule), objectOpenToken(objectOpenToken), objectCloseToken(objectCloseToken) {}
+
+Rule::Rule(Key key, std::vector<Argument*> arguments, Object *parentObject, std::vector<Rule*> includeRuleRefs, Token *token, bool isUsed)
+    : key(key), arguments(std::move(arguments)), parentObject(parentObject), includeRuleRefs(includeRuleRefs), token(token), isUsed(isUsed) {}
+
+Argument::Argument(ArgumentType type, ArgumentValue value, Rule *parentRule, Token *token)
+    : type(type), value(std::move(value)), parentRule(parentRule), token(token) {}
+
 /// @brief Recursively checks for unused rules in the configuration object.
 /// @param object The configuration object to check for unused rules.
 /// @param unusedException The exception to which unused rules will be added.

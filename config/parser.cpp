@@ -53,7 +53,7 @@ static Keyword getKeyword(const std::string &str) {
 }
 
 Object *Object::deepCopy(Arena &arena, Rule *newParentRule) const {
-    Object *newObject = arena.alloc<Object>(std::map<Key, Rules>(), newParentRule, objectOpenToken, objectCloseToken);
+    Object *newObject = arena.alloc<Object>(newParentRule, objectOpenToken, objectCloseToken);
 
     for (const auto &[key, rulesVec] : rules) {
         Rules newRules;
@@ -170,7 +170,7 @@ Rule *ConfigurationParser::_parseRule(ConfigFile *file, size_t &pos, Object *par
 }
 
 Object *ConfigurationParser::_parseObject(ConfigFile *file, size_t &pos, Rule *parentRule) {
-    Object *object = _arena.alloc<Object>(std::map<Key, Rules>(), parentRule, file->tokens[pos++], nullptr);
+    Object *object = _arena.alloc<Object>(parentRule, file->tokens[pos++], nullptr);
 
     while (file->tokens[pos]->type != TokenType::OBJECT_CLOSE) {
         Rule *rule = _parseRule(file, pos, object);

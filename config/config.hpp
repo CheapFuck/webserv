@@ -105,6 +105,8 @@ struct ErrorContext {
     std::string line;
     size_t lineNumber;
     size_t columnNumber;
+
+    ErrorContext(const std::string &filename, const std::string &line, size_t lineNumber, size_t columnNumber);
 };
 
 struct Token {
@@ -112,6 +114,8 @@ struct Token {
     std::string value;
     ConfigFile *configFile;
     size_t filePos;
+
+    Token(TokenType type, std::string value, ConfigFile *configFile, size_t filePos);
 };
 
 struct ConfigFile {
@@ -120,6 +124,7 @@ struct ConfigFile {
     std::vector<Token*> tokens;
     std::vector<size_t> lineStarts;
 
+    ConfigFile(const std::string& fileName, std::string fileContent, std::vector<Token*> tokens, std::vector<size_t> lineStarts);
     ErrorContext getErrorContext(size_t pos) const;
 };
 
@@ -128,6 +133,8 @@ struct Object {
     Rule *parentRule;
     Token *objectOpenToken;
     Token *objectCloseToken;
+
+    Object(Rule *parentRule, Token *objectOpenToken, Token *objectCloseToken);
 
     void printObject(std::ostream &os, int indentLevel = 0) const;
     Object *deepCopy(Arena &arena, Rule *newParentRule) const;
@@ -141,6 +148,8 @@ struct Rule {
     Token *token;
     bool isUsed;
 
+    Rule(Key key, std::vector<Argument*> arguments, Object *parentObject, std::vector<Rule*> includeRuleRefs, Token *token, bool isUsed = false);
+
     void printRule(std::ostream &os, int indentLevel = 0) const;
     Rule *deepCopy(Arena &arena, Object *newParentObject) const;
 };
@@ -150,6 +159,8 @@ struct Argument {
     ArgumentValue value;
     Rule *parentRule;
     Token *token;
+
+    Argument(ArgumentType type, ArgumentValue value, Rule *parentRule, Token *token);
 
     Argument *deepCopy(Arena &arena, Rule *newParentRule) const;
 };
