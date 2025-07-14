@@ -8,20 +8,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     $filePath = __DIR__ . '/../uploads/' . basename($filename);
 
     if (!file_exists($filePath)) {
-        http_response_code(404);
+        header('Status: 404 Not Found');
         echo json_encode(["error" => "File not found.", "path" => $filePath]);
         exit;
     }
 
     if (unlink($filePath)) {
-        http_response_code(200);
+        header('Status: 200 OK');
         echo json_encode(["message" => "File deleted successfully."]);
     } else {
-        http_response_code(500);
+        header('Status: 500 Internal Server Error');
         echo json_encode(["error" => "Failed to delete file."]);
     }
 } else {
-    http_response_code(405);
+    header('Status: 405 Method Not Allowed');
     echo json_encode(["error" => "Method Not Allowed"]);
 }
 ?>
