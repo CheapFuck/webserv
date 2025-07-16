@@ -82,7 +82,7 @@ bool Request::parseRequestBody(std::string &buffer)
 		}
 		std::cout << "Chunkening : '''" << _body << "'''\n";
 	}
-	else if (encoding != "")
+	else
 	{
 		setBody(buffer);
 		if (_body.length() >= _contentLength)
@@ -94,9 +94,10 @@ bool Request::parseRequestBody(std::string &buffer)
 /// @brief Checks if the request is ready to be processed.
 /// @return Returns true if the request is ready, false otherwise.
 bool Request::isComplete(const std::string &buffer) const {
-	(void)buffer;
-    if (!_headersParsed)
-        return (false);
+    (void)buffer; // Unused parameter, but kept for compatibility with the original code.
+    return (_request_complete);
+    // if (!_headersParsed)
+        // return (false);
 
     switch (metadata.getMethod()) {
         case Method::POST:

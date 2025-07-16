@@ -43,6 +43,7 @@ Token *ConfigurationParser::getNextToken(ConfigFile *configFile, size_t &pos) {
     ));
 }
 
+__attribute__((no_sanitize("enum"))) // Using tokentype as mask; just shutting up the crying sanitizer
 Token *ConfigurationParser::parseContinuousToken(ConfigFile *configFile, size_t &pos, Token *currentToken, TokenType endOfStringTypeMask) {
     while (true) {
         Token *nextToken = getNextToken(configFile, pos);

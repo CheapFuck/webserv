@@ -36,7 +36,8 @@ static std::string urlDecode(const std::string& str) {
 
 RequestLine::RequestLine() : _method(UNKNOWN_METHOD), _url(), _version("HTTP/1.1"), _path(), _serverAbsolutePath(Path::createDummy()), _pathIsDirectory(false) {}
 
-RequestLine::RequestLine(std::istringstream &source) {
+RequestLine::RequestLine(std::istringstream &source) 
+    : _path(), _serverAbsolutePath(Path::createDummy()), _pathIsDirectory(false) {
     std::string method_str;
     source >> method_str >> _url >> _version;
 
@@ -46,7 +47,7 @@ RequestLine::RequestLine(std::istringstream &source) {
 }
 
 RequestLine::RequestLine(const RequestLine &other)
-    : _method(other._method), _url(other._url), _version(other._version), _path(other._path), _serverAbsolutePath(other._serverAbsolutePath), _pathIsDirectory(false) {}
+    : _method(other._method), _url(other._url), _version(other._version), _path(other._path), _serverAbsolutePath(other._serverAbsolutePath), _pathIsDirectory(other._pathIsDirectory) {}
 
 RequestLine &RequestLine::operator=(const RequestLine &other) {
     if (this != &other) {
