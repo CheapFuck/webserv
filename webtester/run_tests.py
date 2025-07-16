@@ -10,6 +10,7 @@ import tempfile
 from selenium.common.exceptions import NoSuchElementException
 import inspect
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
 
 REMOTE_SERVER = "http://localhost:8080"
 WEBTESTER_ROOT = pathlib.Path(__file__).resolve().parent
@@ -130,9 +131,14 @@ def spamalittle_twosessions(browser):
 		test_get_cgi(browser_two)
 		
 	time.sleep(2)
-	assert "{\"debugVisitCounter\": 50}," in browser.page_source
-	assert "{\"debugVisitCounter\": 50}," in browser_two.page_source
+	print(repr(browser.page_source))
+	data = json.loads(repr(browser.page_source))
+	data1 = json.loads(repr(browser_two.page_source))
+	assert (data['sessionData']['debugVisitCount'] == 50)
+	assert (data1['sessionData']['debugVisitCount'] == 50)
+	assert (data1['envVars']['SERVER_PORT'] == "8080" == data['envVars']['SERVER_PORT'])
 	printf(f"Both browsers/sessions hit {spamount} counts of visits to the debug page.")
+	# check sessoin files stored ../ are matching
 	browser_two.quit()
 
 def run_tests(browser):

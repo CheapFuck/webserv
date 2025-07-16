@@ -54,7 +54,6 @@ public:
     int writeToBuffer(const std::string& data);
     int writeToBuffer(const char* data, size_t size);
     int writeToBuffer(const char *data);
-
     int read();
     int write();
     int close();
