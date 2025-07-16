@@ -58,7 +58,7 @@ Headers &Headers::operator=(const Headers &other) {
 Headers::~Headers() {}
 
 /// @brief Checks if the headers map is empty.
-inline bool Headers::isValid() const {
+bool Headers::isValid() const {
     return !_headers.empty();
 }
 

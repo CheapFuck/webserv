@@ -63,10 +63,7 @@ Response &Client::_processRequest(const ServerConfig &config) {
     _server.fetchUserSession(request, response);
     response.setDefaultHeaders();
 
-    if (!request.isComplete(request.getBody())) {
-        response.setStatusCode(HttpStatusCode::BadRequest);
-        return (response);
-    }
+    
 
     const LocationRule &route = config.getLocation(request.metadata.getRawUrl());
 
@@ -94,6 +91,11 @@ Response &Client::_processRequest(const ServerConfig &config) {
         return response;
     }
 
+	if (!request.isComplete(request.getBody())) {
+        response.setStatusCode(HttpStatusCode::BadRequest);
+        return (response);
+    }
+
     request.metadata.translateUrl(_server.getServerExecutablePath(), route);
     DEBUG("Translated request path: " << request.metadata.getPath().str());
 
@@ -111,8 +113,8 @@ void Client::handleReadCallback(FD &fd, int funcReturnValue) {
     (void)funcReturnValue;
 
     request.parseRequestHeaders(fd.readBuffer);
-    if (request.isComplete(fd.readBuffer)) {
-        request.setBody(fd.readBuffer);
+    if (request.parseRequestBody(fd.readBuffer)) {
+		std::cout << "Body is: '''" << request.getBody() << "'''\n";
         _processRequest(_server.loadRequestConfig(request, _serverFd));
         DEBUG("Request is complete, processing request for fd: " << fd.get());
         if (fd.setEpollOut() == -1) {
@@ -144,6 +146,7 @@ void Client::handleWriteCallback(FD &fd) {
     //     response.headers.replace(HeaderKey::Connection, "close");
     // }
 
+	PRINT((response.getStatusCode()));
     fd.writeToBuffer(response.getAsString());
     
     if (fd.write() == -1) {

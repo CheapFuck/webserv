@@ -49,24 +49,64 @@ bool Request::parseRequestHeaders(std::string &buffer) {
 
     buffer.erase(0, header_data_end + 4);
     _fetch_config_from_headers();
-    _headersParsed = true;
-    return (true);
+	std::cout << "Headers are: '''" << headers << "'''\n";
+	if (headers.isValid())
+    	_headersParsed = true;
+    return (_headersParsed);
+}
+
+bool Request::parseRequestBody(std::string &buffer)
+{
+	int length_cur = 0;
+	if (!_headersParsed)
+		return (false);
+	if (_request_complete)
+	{
+		ERROR("Trying to parse an already complete body for a request, body was " << _body);
+		return (true);
+	}
+	const std::string encoding = headers.getHeader(HeaderKey::TransferEncoding, "");
+	if (encoding == "chunked")
+	{
+		if (buffer.find("\r\n") != std::string::npos)
+		{
+			std::cout << "Stoiing : " << buffer << "!!!\n";
+			length_cur = std::stoi(buffer);
+			if (buffer.length() < buffer.find("\r\n") + 4 + length_cur) return (false);
+			if (!length_cur)
+				_request_complete = true;
+			else {
+				_body.append(buffer.substr(buffer.find("\r\n") + 2, length_cur));
+				buffer.erase(0, buffer.find("\r\n") + 4 + length_cur);
+			}
+		}
+		std::cout << "Chunkening : '''" << _body << "'''\n";
+	}
+	else if (encoding != "")
+	{
+		setBody(buffer);
+		if (_body.length() >= _contentLength)
+			_request_complete = true;
+	}
+	return (_request_complete);
 }
 
 /// @brief Checks if the request is ready to be processed.
 /// @return Returns true if the request is ready, false otherwise.
 bool Request::isComplete(const std::string &buffer) const {
+	(void)buffer;
     if (!_headersParsed)
         return (false);
 
     switch (metadata.getMethod()) {
+        case Method::POST:
         case Method::GET:
         case Method::HEAD:
         case Method::DELETE:
-            // return (buffer.empty());
-        case Method::POST:
+		// return (buffer.empty());
         case Method::PUT:
-            return (buffer.length() >= _contentLength);
+		//return (buffer.length() >= _contentLength);
+		return (_request_complete);
         default:
             ERROR("Unknown method: " << metadata.getMethod());
             return (false);
