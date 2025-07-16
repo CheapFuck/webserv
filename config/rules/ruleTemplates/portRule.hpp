@@ -16,7 +16,7 @@ private:
 public:
     constexpr static Key getKey() { return Key::LISTEN; }
     constexpr static const std::string getRuleName() { return "listen"; }
-    constexpr static const std::string getRuleFormat() { return PortRule::getRuleName() + " <port>"; }
+    constexpr static const std::string getRuleFormat() { return PortRule::getRuleName() + " <port> [default]"; }
 
     PortRule(const PortRule &other) = default;
     PortRule& operator=(const PortRule &other) = default;
