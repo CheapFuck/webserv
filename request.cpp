@@ -75,7 +75,7 @@ bool Request::parseRequestBody(std::string &buffer)
             }
             catch(const std::exception& e)
             {
-                buffer.erase(0, buffer.length());
+                _body.append("\r\n\r\n");
                 _request_complete = true;
                 return (true);
             }
