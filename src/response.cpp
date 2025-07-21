@@ -130,7 +130,7 @@ bool StaticResponse::isFullRequestBodyRecieved() const {
 }
 
 bool StaticResponse::isFullResponseSent() const {
-    return (!headersBeenSent());
+    return (headersBeenSent());
 }
 
 void StaticResponse::handleRequestBody(SocketFD &fd) {
@@ -139,7 +139,7 @@ void StaticResponse::handleRequestBody(SocketFD &fd) {
 
 void StaticResponse::handleSocketWriteTick(SocketFD &fd) {
     DEBUG("Handling socket write tick for StaticResponse, fd: " << fd.get());
-    if (headersBeenSent()) {
+    if (!headersBeenSent()) {
         sendHeaders(fd);
         if (!_content.empty())
             fd.writeAsString(_content);
