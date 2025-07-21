@@ -15,10 +15,10 @@ struct ParsedUrl {
 
 class CGIClient : public BaseHandlerObject, public std::enable_shared_from_this<CGIClient> {
 private:
-    Client &_client;
-    int _processTimerId;
+    Client &client;
+    int _processId;
     bool _isRunning;
-    int _pid;
+    int _processId;
 
     int _toCGIProcessFd;
     int _fromCGIProcessFd;
