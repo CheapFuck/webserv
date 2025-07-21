@@ -7,23 +7,23 @@
 #include <fstream>
 #include <variant>
 
-ErrorContext::ErrorContext(const std::string &filename, const std::string &line, size_t lineNumber, size_t columnNumber)
-    : filename(filename), line(line), lineNumber(lineNumber), columnNumber(columnNumber) {}
+ErrorContext::ErrorContext(const std::string &efilename, const std::string &eline, size_t elineNumber, size_t ecolumnNumber)
+    : filename(efilename), line(eline), lineNumber(elineNumber), columnNumber(ecolumnNumber) {}
 
-Token::Token(TokenType type, std::string value, ConfigFile *configFile, size_t filePos)
-    : type(type), value(std::move(value)), configFile(configFile), filePos(filePos) {}
+Token::Token(TokenType ctype, std::string cvalue, ConfigFile *cconfigFile, size_t cfilePos)
+    : type(ctype), value(std::move(cvalue)), configFile(cconfigFile), filePos(cfilePos) {}
 
-ConfigFile::ConfigFile(const std::string& fileName, std::string fileContent, std::vector<Token*> tokens, std::vector<size_t> lineStarts)
-    : fileName(fileName), fileContent(std::move(fileContent)), tokens(std::move(tokens)), lineStarts(std::move(lineStarts)) {}
+ConfigFile::ConfigFile(const std::string& cfileName, std::string cfileContent, std::vector<Token*> ctokens, std::vector<size_t> clineStarts)
+    : fileName(cfileName), fileContent(std::move(cfileContent)), tokens(std::move(ctokens)), lineStarts(std::move(clineStarts)) {}
 
-Object::Object(Rule *parentRule, Token *objectOpenToken, Token *objectCloseToken)
-    : rules({}), parentRule(parentRule), objectOpenToken(objectOpenToken), objectCloseToken(objectCloseToken) {}
+Object::Object(Rule *oparentRule, Token *oobjectOpenToken, Token *oobjectCloseToken)
+    : rules({}), parentRule(oparentRule), objectOpenToken(oobjectOpenToken), objectCloseToken(oobjectCloseToken) {}
 
-Rule::Rule(Key key, std::vector<Argument*> arguments, Object *parentObject, std::vector<Rule*> includeRuleRefs, Token *token, bool isUsed)
-    : key(key), arguments(std::move(arguments)), parentObject(parentObject), includeRuleRefs(includeRuleRefs), token(token), isUsed(isUsed) {}
+Rule::Rule(Key rkey, std::vector<Argument*> rarguments, Object *rparentObject, std::vector<Rule*> rincludeRuleRefs, Token *rtoken, bool risUsed)
+    : key(rkey), arguments(std::move(rarguments)), parentObject(rparentObject), includeRuleRefs(rincludeRuleRefs), token(rtoken), isUsed(risUsed) {}
 
-Argument::Argument(ArgumentType type, ArgumentValue value, Rule *parentRule, Token *token)
-    : type(type), value(std::move(value)), parentRule(parentRule), token(token) {}
+Argument::Argument(ArgumentType atype, ArgumentValue avalue, Rule *aparentRule, Token *atoken)
+    : type(atype), value(std::move(avalue)), parentRule(aparentRule), token(atoken) {}
 
 /// @brief Recursively checks for unused rules in the configuration object.
 /// @param object The configuration object to check for unused rules.
