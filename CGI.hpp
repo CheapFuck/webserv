@@ -18,7 +18,7 @@ private:
     Client &_client;
     int _processTimerId;
     bool _isRunning;
-    int _pid;
+    int _processTimerId;
 
     int _toCGIProcessFd;
     int _fromCGIProcessFd;

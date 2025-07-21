@@ -6,7 +6,6 @@
 #include "print.hpp"
 #include "timer.hpp"
 #include "Utils.hpp"
-#include "CGI.hpp"
 #include "fd.hpp"
 
 #include <sys/socket.h>
@@ -58,7 +57,7 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _server_fd(-1),
     _epoll_fd(-1),
     _timer(),
-    _descriptors(),
+    _clientDescriptors(),
     _serverAddress(),
     _serverExecutablePath(std::filesystem::current_path().string())
 {
@@ -84,7 +83,7 @@ Server::Server(const Server &other) :
     _server_fd(other._server_fd),
     _epoll_fd(other._epoll_fd),
     _timer(other._timer),
-    _descriptors(other._descriptors),
+    _clientDescriptors(other._clientDescriptors),
     _serverAddress(other._serverAddress),
     _serverExecutablePath(other._serverExecutablePath) {}
 
@@ -95,7 +94,7 @@ Server &Server::operator=(const Server &other) {
         _server_fd = other._server_fd;
         _epoll_fd = other._epoll_fd;
         _timer = other._timer;
-        _descriptors = other._descriptors;
+        _clientDescriptors = other._clientDescriptors;
         _serverAddress = other._serverAddress;
         _serverExecutablePath = other._serverExecutablePath;
     }
@@ -109,6 +108,10 @@ Server::~Server() {
 
 /// @brief Clean up the server resources, closing sockets and cleaning up sessions.
 void Server::cleanUp() {
+    _clientDescriptors.clear();
+    _readableDescriptors.clear();
+    _writableDescriptors.clear();
+
     for (const auto &[serverFd, configs] : _portToConfigs) {
         if (serverFd == -1) continue;
         close(serverFd);
@@ -175,51 +178,30 @@ void Server::_handleNewConnection(int sourceFd) {
 
     while (true) {
         int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
-        FD clientFD(fd, FDType::SOCKET, std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port)));
+        SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
         if (!clientFD)
-            return ;
-
+        return ;
+        
         if (clientFD.setNonBlocking() == -1) {
             clientFD.close();
             return ;
         }
-
-        if (clientFD.connectToEpoll(_epoll_fd) == -1) {
+        
+        if (clientFD.connectToEpoll(_epoll_fd, DEFAULT_EPOLLIN_EVENTS) == -1) {
             clientFD.close();
             return ;
         }
 
-        auto it = _descriptors.emplace(clientFD.get(), std::move(clientFD));
+        std::shared_ptr<Client> client = std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
+        auto it = _clientDescriptors.emplace(clientFD, ServerClientInfo(std::move(clientFD), client));
         if (it.second == false) {
             clientFD.close();
             return ;
         }
 
         DEBUG("New client connected: " << inet_ntoa(client_address.sin_addr) << ":" << ntohs(client_address.sin_port));
-        DEBUG("Client FD: " << it.first->second.get() << ", Server FD: " << sourceFd);
+        DEBUG("Client FD: " << it.first->second.fd.get() << ", Server FD: " << sourceFd);
     }
-}
-
-/// @brief Modify the epoll events for a given file descriptor.
-/// @param fd The file descriptor to modify
-/// @param operation The operation to perform (EPOLL_CTL_ADD, EPOLL_CTL_MOD, or EPOLL_CTL_DEL)
-/// @param events The events to set for the file descriptor (EPOLLIN, EPOLLOUT, etc.)
-/// @return True if the operation was successful, false otherwise
-bool Server::_epollExecute(int fd, uint32_t operation, uint32_t events) {
-	epoll_event event{};
-	event.events = events;
-	event.data.fd = fd;
-	int result = epoll_ctl(_epoll_fd, operation, fd, &event);
-	if (result == -1) {
-        if (errno == EBADF) {
-            DEBUG("epoll_ctl: fd " << fd << " is already closed (EBADF) during operation " << operation << ", events: " << events);
-        } else {
-            ERROR("Failed to modify epoll events for fd: " << fd << ", operation: " << operation << ", events: " << events << ", errno: " << errno << " (" << strerror(errno) << ")");
-        }
-		return false;
-	}
-	DEBUG("epoll_ctl success for fd: " << fd << ", operation: " << operation << ", events: " << events);
-	return true;
 }
 
 /// @brief Fetch the server configuration for a request based on the Host header
@@ -269,52 +251,76 @@ std::shared_ptr<SessionMetaData> Server::fetchUserSession(Request &request, Resp
     }
 }
 
-/// @brief Remove a file descriptor from the server's descriptor map.
-/// @param fd The file descriptor to remove
-void Server::_removeDescriptor(int fd) {
-    _descriptors.erase(fd);
+void Server::trackCallbackFD(ReadableFD &fd, std::function<void(ReadableFD&, short)> callback) {
+    _readableDescriptors[fd.get()] = FDEvent<ReadableFD>{fd, callback};
+    DEBUG("Tracking ReadableFD: " << fd.get());
 }
 
-/// @brief Handle I/O events for a client socket.
-/// @details This function processes the events for a client socket based on the revents flags.
-/// @param fd The file descriptor of the client socket.
-/// @param revents The epoll events for the client socket.
-void Server::_handleFDIO(FD &fd, short revents) {
-    DEBUG_IF(revents & EPOLLIN, "EPOLLIN event detected for fd: " << fd.get());
-    DEBUG_IF(revents & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd.get());
-    DEBUG_IF(revents & EPOLLERR, "EPOLLERR event detected for fd: " << fd.get());
-    DEBUG_IF(revents & EPOLLHUP, "EPOLLHUP event detected for fd: " << fd.get());
-    DEBUG_IF_NOT(revents & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd.get());
-    ERROR_IF(!fd.isValidFd(), "Invalid file descriptor: " << fd.get() << ", revents: " << revents);
-    DEBUG("-----------");
+void Server::trackCallbackFD(WritableFD &fd, std::function<void(WritableFD&, short)> callback) {
+    _writableDescriptors[fd.get()] = FDEvent<WritableFD>{fd, callback};
+    DEBUG("Tracking WritableFD: " << fd.get());
+}
 
-    int fdNum = fd.get();
-
-    if (revents & EPOLLIN) {
-        if (fd.read() == 0) {
-            fd.close();
-            _removeDescriptor(fdNum);
-        }
-    } else if (revents & EPOLLOUT) {
-        fd.triggerWriteCallback();
-    } else {
-        fd.close();
-        _removeDescriptor(fdNum);
+void Server::untrackCallbackFD(int fd) {
+    auto readableIt = _readableDescriptors.find(fd);
+    if (readableIt != _readableDescriptors.end()) {
+        _readableDescriptors.erase(readableIt);
+        DEBUG("Untracked ReadableFD: " << fd);
+        return ;
     }
+
+    auto writableIt = _writableDescriptors.find(fd);
+    if (writableIt != _writableDescriptors.end()) {
+        _writableDescriptors.erase(writableIt);
+        DEBUG("Untracked WritableFD: " << fd);
+        return ;
+    }
+
+    ERROR("Failed to untrack FD: " << fd << ", not found in tracked descriptors");
 }
 
 /// @brief Untrack and close a file descriptor.
 /// @details This function removes the file descriptor from the server's descriptor map and closes it.
 /// @param fd The file descriptor to untrack and close.
-void Server::untrackDescriptor(int fd) {
-    auto it = _descriptors.find(fd);
-    if (it != _descriptors.end()) {
-        it->second.close();
-        _descriptors.erase(it);
+void Server::untrackClient(int fd) {
+    auto it = _clientDescriptors.find(fd);
+    if (it != _clientDescriptors.end()) {
+        it->second.fd.close();
+        _clientDescriptors.erase(it);
         DEBUG("Untracked and closed descriptor for fd: " << fd);
     }
     else
         DEBUG("No descriptor found for fd: " << fd << ", nothing to untrack");
+}
+
+void Server::_handleClientFD(ServerClientInfo &clientInfo, short revents) {
+    DEBUG("Handling client FD: " << clientInfo.fd.get());
+
+    if (revents & (EPOLLERR | EPOLLHUP)) {
+        DEBUG("Client disconnected or error occurred, closing FD: " << clientInfo.fd.get());
+        clientInfo.fd.disconnectFromEpoll();
+        _clientDescriptors.erase(clientInfo.fd.get());
+        return ;
+    }
+
+    if (revents & EPOLLIN) {
+        clientInfo.fd.setWriterFDState(FDState::OtherFunctionality);
+        ssize_t readerRet = clientInfo.fd.read();
+
+        if (clientInfo.fd.getReaderFDState() == FDState::Closed) {
+            DEBUG("Client disconnected: " << clientInfo.fd.get());
+            clientInfo.fd.disconnectFromEpoll();
+            _clientDescriptors.erase(clientInfo.fd);
+            return ;
+        }
+
+        clientInfo.client.get()->handleRead(clientInfo.fd, readerRet);
+        return ;
+    }
+
+    if (revents & EPOLLOUT) {
+        clientInfo.client.get()->handleWrite(clientInfo.fd);
+    }
 }
 
 /// @brief Entry point for the server, running it's event loop once.
@@ -329,7 +335,11 @@ void Server::runOnce() {
 
     for (int i = 0; i < event_count; ++i) {
         int fd = events[i].data.fd;
-        DEBUG("Processing event for fd: " << fd);
+        DEBUG_IF(events[i].events & EPOLLIN, "EPOLLIN event detected for fd: " << fd);
+        DEBUG_IF(events[i].events & EPOLLOUT, "EPOLLOUT event detected for fd: " << fd);
+        DEBUG_IF(events[i].events & EPOLLERR, "EPOLLERR event detected for fd: " << fd);
+        DEBUG_IF(events[i].events & EPOLLHUP, "EPOLLHUP event detected for fd: " << fd);
+        DEBUG_IF_NOT(events[i].events & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP), "Unexpected event for fd: " << fd);
 
         auto it = _portToConfigs.find(fd);
         if (it != _portToConfigs.end()) {
@@ -338,12 +348,27 @@ void Server::runOnce() {
             continue ;
         }
 
-        auto descIt = _descriptors.find(fd);
-        if (descIt == _descriptors.end()) {
-            ERROR("No descriptor found for fd: " << fd);
+        auto clientIt = _clientDescriptors.find(fd);
+        if (clientIt != _clientDescriptors.end()) {
+            _handleClientFD(clientIt->second, events[i].events);
             continue ;
         }
-        _handleFDIO(descIt->second, events[i].events);
+
+        auto readableIt = _readableDescriptors.find(fd);
+        if (readableIt != _readableDescriptors.end()) {
+            DEBUG("Handling ReadableFD: " << fd);
+            readableIt->second.callback(readableIt->second.fd, events[i].events);
+            continue ;
+        }
+
+        auto writableIt = _writableDescriptors.find(fd);
+        if (writableIt != _writableDescriptors.end()) {
+            DEBUG("Handling WritableFD: " << fd);
+            writableIt->second.callback(writableIt->second.fd, events[i].events);
+            continue ;
+        }
+
+        ERROR("No handler found for fd: " << fd << ", ignoring event (should never happen though :eyes:)");
     }
 
     _timer.processEvents();

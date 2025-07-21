@@ -1,7 +1,8 @@
+#include "config/types/customTypes.hpp"
 #include "config/rules/rules.hpp"
+#include "response.hpp"
 #include "timer.hpp"
 #include "print.hpp"
-#include "CGI.hpp"
 
 #include <sys/wait.h>
 #include <filesystem>
@@ -60,27 +61,36 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
     });
 }
 
-CGIClient::CGIClient(Client &client) : _client(client), _processTimerId(-1), _isRunning(true), _pid(-1), _toCGIProcessFd(-1), _fromCGIProcessFd(-1), _environmentVariables() {
-    DEBUG("CGIClient created for client: " << &_client);
+CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, std::shared_ptr<Client> client) : _server(server), _client(client), _socketFD(socketFD),
+    _cgiOutputFD(), _cgiInputFD(),
+    _timerId(-1), _processTimerId(-1) {
+    DEBUG("CGIResponse created for client: " << _client.get());
 }
 
-CGIClient::CGIClient(const CGIClient &other)
-    : std::enable_shared_from_this<CGIClient>(other),
+CGIResponse::CGIResponse(const CGIResponse &other) :
+      _server(other._server),
       _client(other._client),
-      _processTimerId(other._processTimerId),
-      _isRunning(other._isRunning),
-      _pid(other._pid),
-      _toCGIProcessFd(other._toCGIProcessFd),
-      _fromCGIProcessFd(other._fromCGIProcessFd),
-      _environmentVariables(other._environmentVariables) {
-    DEBUG("CGIClient copied for client: " << &_client);
+      _socketFD(other._socketFD),
+      _cgiOutputFD(other._cgiOutputFD),
+      _cgiInputFD(other._cgiInputFD),
+      _timerId(other._timerId),
+      _processTimerId(other._processTimerId) {
+    DEBUG("CGIResponse copied for client: " << _client.get());
+}
+
+bool CGIResponse::didResponseCreationFail() const {
+    return (_innerStatusCode != HttpStatusCode::OK);
+}
+
+HttpStatusCode CGIResponse::getFailedResponseStatusCode() const {
+    return (_innerStatusCode);
 }
 
 /// @brief Sets up the environment variables for the CGI process.
 /// @details https://www6.uniovi.es/~antonio/ncsa_httpd/cgi/env.html
 /// @param config The server configuration
 /// @param route The location rule
-void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl) {
+void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl) {
     (void)route;
     _environmentVariables.clear();
     _environmentVariables["SERVER_SOFTWARE"] = "webserv/1.0";
@@ -89,30 +99,30 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
 
     _environmentVariables["SERVER_PROTOCOL"] = Response::protocol + std::string("/") + Response::tlsVersion;
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
-    _environmentVariables["REQUEST_METHOD"] = methodToStr(_client.request.metadata.getMethod());
+    _environmentVariables["REQUEST_METHOD"] = methodToStr(_client.get()->request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
     _environmentVariables["SCRIPT_FILENAME"] = parsedUrl.scriptPath;
     _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
-    _environmentVariables["REMOTE_ADDR"] = _client.getClientIP();
-    _environmentVariables["REMOTE_PORT"] = _client.getClientPort();
-    _environmentVariables["SERVER_ADDR"] = _client.getServer().getServerAddress();
+    _environmentVariables["REMOTE_ADDR"] = _client.get()->getClientIP();
+    _environmentVariables["REMOTE_PORT"] = _client.get()->getClientPort();
+    _environmentVariables["SERVER_ADDR"] = _client.get()->getServer().getServerAddress();
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";
 
-    if (_client.request.session && !_client.request.session->sessionId.empty())
-        _environmentVariables["HTTP_SESSION_FILE"] = _client.request.session->absoluteFilePath;
+    if (_client.get()->request.session && !_client.get()->request.session->sessionId.empty())
+        _environmentVariables["HTTP_SESSION_FILE"] = _client.get()->request.session->absoluteFilePath;
 
-    const std::string contentHeader = _client.request.headers.getHeader(HeaderKey::ContentType, "");
+    const std::string contentHeader = _client.get()->request.headers.getHeader(HeaderKey::ContentType, "");
     if (!contentHeader.empty())
         _environmentVariables["CONTENT_TYPE"] = contentHeader;
 
-    const std::string contentLength = _client.request.headers.getHeader(HeaderKey::ContentLength, "");
+    const std::string contentLength = _client.get()->request.headers.getHeader(HeaderKey::ContentLength, "");
     if (!contentLength.empty())
         _environmentVariables["CONTENT_LENGTH"] = contentLength;
 
-    for (const auto &[headerKey, headerValue] : _client.request.headers.getHeaders()) {
+    for (const auto &[headerKey, headerValue] : _client.get()->request.headers.getHeaders()) {
         std::string envVarKey = "HTTP_" + headerKey;
         std::replace(envVarKey.begin(), envVarKey.end(), '-', '_');
         std::transform(envVarKey.begin(), envVarKey.end(), envVarKey.begin(), ::toupper);
@@ -120,7 +130,7 @@ void CGIClient::_setupEnvironmentVariables(const ServerConfig &config, const Loc
     }
 }
 
-char * const *CGIClient::_createEnvironmentArray() const {
+char * const *CGIResponse::_createEnvironmentArray() const {
     static std::vector<std::string> envStrings(_environmentVariables.size());
     static std::vector<char*> envPtrs;
     envPtrs.clear();
@@ -128,13 +138,13 @@ char * const *CGIClient::_createEnvironmentArray() const {
         envStrings.push_back(env.first + "=" + env.second);
         envPtrs.push_back(const_cast<char*>(envStrings.back().c_str()));
     }
-    envPtrs.push_back(nullptr); // Null-terminate the array
+    envPtrs.push_back(nullptr);
     return envPtrs.data();
 }
 
-void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
-    DEBUG("Starting CGIClient for client: " << &_client);
-    const ParsedUrl parsedUrl = parseUrl(route, _client.request.metadata);
+void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
+    DEBUG("Starting CGIResponse for client: " << _client.get());
+    const ParsedUrl parsedUrl = parseUrl(route, _client.get()->request.metadata);
 
     DEBUG("Parsed URL: scriptPath=" << parsedUrl.scriptPath
           << ", pathInfo=" << parsedUrl.pathInfo
@@ -143,41 +153,45 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
 
     if (!parsedUrl.isValid) {
         DEBUG("Unknown URL for CGI processing: " << _client.request.metadata.getRawUrl());
-        _client.response.setStatusCode(HttpStatusCode::NotFound);
-        _isRunning = false;
+        _innerStatusCode = HttpStatusCode::NotFound;
         return;
     }
 
     if (!(route.cgiExtension.isCGI(Path(parsedUrl.scriptPath)) || route.cgi.isSet())) {
         ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
-        _client.response.setStatusCode(HttpStatusCode::Forbidden);
-        _isRunning = false;
+        _innerStatusCode = HttpStatusCode::Forbidden;
         return;
     }
 
     _setupEnvironmentVariables(config, route, parsedUrl);
 
     int cin[2], cout[2];
-    if (pipe(cin) == -1 || pipe(cout) == -1) {
+    if (pipe(cin) == -1) {
         ERROR("Failed to create pipes for CGI process: " << strerror(errno));
-        _client.response.setStatusCode(HttpStatusCode::InternalServerError);
-        _isRunning = false;
+        _innerStatusCode = HttpStatusCode::InternalServerError;
         return;
     }
 
-    _pid = fork();
-    if (_pid < 0) {
+    if (pipe(cout) == -1) {
+        ERROR("Failed to create pipes for CGI process: " << strerror(errno));
+        close(cin[0]);
+        close(cin[1]);
+        _innerStatusCode = HttpStatusCode::InternalServerError;
+        return;
+    }
+
+    _processTimerId = fork();
+    if (_processTimerId < 0) {
         ERROR("Failed to fork CGI process for client: " << &_client);
         close(cin[0]);
         close(cin[1]);
         close(cout[0]);
         close(cout[1]);
-        _client.response.setStatusCode(HttpStatusCode::InternalServerError);
-        _isRunning = false;
+        _innerStatusCode = HttpStatusCode::InternalServerError;
         return;
     }
 
-    if (_pid == 0) {
+    if (_processTimerId == 0) {
         // Child process
 
         Path scriptDir = Path(parsedUrl.scriptPath).pop();
@@ -191,8 +205,8 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
             exit(EXIT_FAILURE);
         }
 
-        FD childStdin = FD::fromPipeReadEnd(cin);
-        FD childStdout = FD::fromPipeWriteEnd(cout);
+        FD childStdin = ReadableFD::pipe(cin);
+        FD childStdout = WritableFD::pipe(cout);
         if (dup2(childStdin.get(), STDIN_FILENO) == -1 || dup2(childStdout.get(), STDOUT_FILENO) == -1) {
             childStdin.close();
             childStdout.close();
@@ -213,69 +227,134 @@ void CGIClient::start(const ServerConfig &config, const LocationRule &route) {
         exit(EXIT_SUCCESS);
     } else {
         // Parent process
-        std::shared_ptr<BaseHandlerObject> cgiClient = shared_from_this();
-        FD toCGIProccess = FD::fromPipeWriteEnd(cin, cgiClient);
-        FD fromCGIProccess = FD::fromPipeReadEnd(cout, cgiClient);
+        _cgiOutputFD = ReadableFD::pipe(cout);
+        _cgiInputFD = WritableFD::pipe(cin);
 
-        if (toCGIProccess.setNonBlocking() == -1 || fromCGIProccess.setNonBlocking() == -1) {
+        if (_cgiInputFD.setNonBlocking() == -1 || _cgiOutputFD  .setNonBlocking() == -1) {
             ERROR("Failed to set non-blocking mode for CGI pipes: " << strerror(errno));
-            toCGIProccess.close();
-            fromCGIProccess.close();
-            _client.response.setStatusCode(HttpStatusCode::InternalServerError);
-            _isRunning = false;
+            _cgiInputFD.close();
+            _cgiOutputFD.close();
+            _innerStatusCode = HttpStatusCode::InternalServerError;
             return;
         }
 
-        if (toCGIProccess.connectToEpoll(_client.getServer().getEpollFd(), DEFAULT_EPOLLOUT_EVENTS) == -1 ||
-            fromCGIProccess.connectToEpoll(_client.getServer().getEpollFd(), DEFAULT_EPOLLIN_EVENTS) == -1) {
+        if (_cgiInputFD.connectToEpoll(_server.getEpollFd(), DEFAULT_EPOLLOUT_EVENTS) == -1 ||
+            _cgiOutputFD.connectToEpoll(_server.getEpollFd(), DEFAULT_EPOLLIN_EVENTS) == -1) {
             ERROR("Failed to connect CGI pipes to epoll: " << strerror(errno));
-            toCGIProccess.close();
-            fromCGIProccess.close();
-            _client.response.setStatusCode(HttpStatusCode::InternalServerError);
-            _isRunning = false;
+            _cgiInputFD.close();
+            _cgiOutputFD.close();
+            _innerStatusCode = HttpStatusCode::InternalServerError;
             return;
         }
 
-        this->_toCGIProcessFd = toCGIProccess.get();
-        this->_fromCGIProcessFd = fromCGIProccess.get();
-
-        _processTimerId = _client.getServer().getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.timeout.getSeconds() * 1000.0)), [this]() {
+        _processTimerId = _server.getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.timeout.getSeconds() * 1000.0)), [this]() {
             _handleTimeout();
         });
 
-        _client.getServer().trackDescriptor(toCGIProccess);
-        _client.getServer().trackDescriptor(fromCGIProccess);
-        DEBUG("CGI process started with PID: " << _pid << ", toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd);
+        _server.trackCallbackFD(_cgiInputFD, [this](WritableFD &fd, short revents) {
+            DEBUG("CGIResponse read callback, fd: " << fd.get() << ", revents: " << revents);
+            _handleCGIInputCallback(fd, revents);
+
+        });
+        _server.trackCallbackFD(_cgiOutputFD, [this](ReadableFD &fd, short revents) {
+            DEBUG("CGIResponse write callback, fd: " << fd.get() << ", revents: " << revents);
+            _handleCGIOutputCallback(fd, revents);
+        });
+
+        DEBUG("CGI process started with PID: " << _processTimerId << ", toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd);
     }
 }
 
-void CGIClient::_handleTimeout() {
-    DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _pid);
+void CGIResponse::_handleCGIInputCallback(WritableFD &fd, short revents) {
+    DEBUG("CGIResponse handleCGIInputCallback called, fd: " << fd.get() << ", revents: " << revents);
+    
+    if (revents & EPOLLOUT) {
+        if (_socketFD.getReadBufferSize() == 0) return ;
 
-    DEBUG("CGIClient timeout handler called for client: " << &_client);
-    if (_isRunning) {
+        if (_client.get()->request.receivingBodyMode == ReceivingBodyMode::Chunked) {
+            while (true) {
+                ReadableFD::HTTPChunk chunk = _socketFD.extractHTTPChunkFromReadBuffer();
+                if (chunk.size == ReadableFD::HTTPChunk::noChunk) return ;
+                if (chunk.size == 0) {
+                    _chunkedResponseDone = true;
+                    _server.untrackCallbackFD(fd);
+                    _cgiInputFD.close();
+                    return ;
+                }
+
+                if (fd.writeAsString(chunk.data) < 0) {
+                    ERROR("Failed to write chunk to CGI process");
+                    _innerStatusCode = HttpStatusCode::InternalServerError;
+                    _server.untrackCallbackFD(fd);
+                    _cgiInputFD.close();
+                    return ;
+                }
+            }
+        } else {
+            if (fd.writeAsString(_socketFD.extractFullBuffer()) < 0) {
+                ERROR("Failed to write request body to CGI process");
+                _innerStatusCode = HttpStatusCode::InternalServerError;
+                _server.untrackCallbackFD(fd);
+                _cgiInputFD.close();
+                return ;
+            }
+        }
+    }
+}
+
+void CGIResponse::_handleCGIOutputCallback(ReadableFD &fd, short revents) {
+    DEBUG("CGIResponse handleCGIOutputCallback called, fd: " << fd.get() << ", revents: " << revents);
+
+    if (fd.wouldReadExceedMaxBufferSize() && _socketFD.getWriterFDState() == FDState::Ready) {
+        DEBUG("CGI output buffer would exceed max size, sending and praying");
+    }
+    
+    if (revents & EPOLLIN) {
+        std::string cgiOutput = fd.extractFullBuffer();
+        if (cgiOutput.empty()) {
+            DEBUG("No output from CGI process, closing output FD");
+            _server.untrackCallbackFD(fd);
+            _cgiOutputFD.close();
+            return ;
+        }
+
+        _client.get()->response.updateFromCGIOutput(cgiOutput);
+        if (_client.get()->response.didResponseCreationFail()) {
+            _innerStatusCode = _client.get()->response.getFailedResponseStatusCode();
+            _server.untrackCallbackFD(fd);
+            _cgiOutputFD.close();
+            return ;
+        }
+    }
+}
+
+void CGIResponse::_handleTimeout() {
+    DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _processTimerId);
+
+    DEBUG("CGIResponse timeout handler called for client: " << &_client);
+    if (didResponseCreationFail()) {
         exitProcess();
         _client.response.setStatusCode(HttpStatusCode::GatewayTimeout);
         _client.handleCGIResponse();
     }
 }
 
-void CGIClient::exitProcess() {
+void CGIResponse::exitProcess() {
     if (_isRunning) {
         _isRunning = false;
 
-        if (_toCGIProcessFd != -1) _client.getServer().untrackDescriptor(_toCGIProcessFd);
-        if (_fromCGIProcessFd != -1) _client.getServer().untrackDescriptor(_fromCGIProcessFd);
+        if (_toCGIProcessFd != -1) __server.untrackClient(_toCGIProcessFd);
+        if (_fromCGIProcessFd != -1) __server.untrackClient(_fromCGIProcessFd);
 
         _toCGIProcessFd = -1;
         _fromCGIProcessFd = -1;
 
-        kill(_pid, SIGKILL);
+        kill(_processTimerId, SIGKILL);
     }
 }
 
-void CGIClient::handleDisconnectCallback(FD &fd) {
-    DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _pid);
+void CGIResponse::handleDisconnectCallback(FD &fd) {
+    DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _processTimerId);
     if (fd.get() == _toCGIProcessFd) {
         DEBUG("Set _toCGIProcessFd to -1, fd: " << fd.get());
         _toCGIProcessFd = -1;
@@ -288,30 +367,30 @@ void CGIClient::handleDisconnectCallback(FD &fd) {
 
     if (_isRunning) {
         int exitStatus = 0;
-        waitpid(_pid, &exitStatus, 0);
-        DEBUG("CGIClient exited normally, PID: " << _pid << ", exit status: " << WEXITSTATUS(exitStatus));
+        waitpid(_processTimerId, &exitStatus, 0);
+        DEBUG("CGIResponse exited normally, PID: " << _processTimerId << ", exit status: " << WEXITSTATUS(exitStatus));
         _isRunning = false;
-        _client.getServer().getTimer().deleteEvent(_processTimerId);
+        __server.getTimer().deleteEvent(_processTimerId);
         if (exitStatus == 0) _client.response.updateFromCGIOutput(fd.readBuffer);
         else _client.response.setStatusCode(HttpStatusCode::InternalServerError);
         DEBUG(fd.readBuffer);
         _client.handleCGIResponse();
     }
-    DEBUG("CGIClient disconnect callback, fd: " << fd.get());
+    DEBUG("CGIResponse disconnect callback, fd: " << fd.get());
 }
 
-void CGIClient::handleReadCallback(FD &fd, int funcReturnValue) {
-    DEBUG("CGIClient read callback, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
+void CGIResponse::handleReadCallback(FD &fd, int funcReturnValue) {
+    DEBUG("CGIResponse read callback, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
     (void)funcReturnValue;
     (void)fd;
 }
 
-void CGIClient::handleWriteCallback(FD &fd) {
+void CGIResponse::handleWriteCallback(FD &fd) {
     if (fd.get() == _toCGIProcessFd) {
         DEBUG("Writing request body to CGI process, fd: " << fd.get());
         fd.writeToBuffer(_client.request.getBody());
         fd.write();
-        _client.getServer().untrackDescriptor(fd.get());
+        __server.untrackClient(fd.get());
         DEBUG("Set _toCGIProcessFd to -1");
         _toCGIProcessFd = -1;
     }

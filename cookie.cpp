@@ -77,5 +77,5 @@ const Cookie *Cookie::getCookie(const std::vector<Cookie> &cookies, const std::s
 /// @param request The Request object containing cookies.
 /// @param name The name of the cookie to find.
 const Cookie *Cookie::getCookie(const Request &request, const std::string &name) {
-	return getCookie(request.getCookies(), name);
+	return getCookie(request.cookies, name);
 }

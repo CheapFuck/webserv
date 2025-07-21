@@ -70,20 +70,20 @@ std::string getMimeType(const std::string& path) {
 /// @param filepath The path to the file from which to create the response.
 /// @param response The Response object to populate with the file's content.
 /// @return True if the response was successfully created from the file, false otherwise.
-bool tryCreateResponseFromFile(const Path &filepath, Response &response) {
-    DEBUG("Trying to create response from file: " << filepath.str());
-    std::ifstream file(filepath.str(), std::ios::binary);
+// bool tryCreateResponseFromFile(const Path &filepath, Response &response) {
+//     DEBUG("Trying to create response from file: " << filepath.str());
+//     std::ifstream file(filepath.str(), std::ios::binary);
 
-    if (!file) {
-        DEBUG("File not here22 found: " << filepath.str());
-        return (false);
-    }
+//     if (!file) {
+//         DEBUG("File not here22 found: " << filepath.str());
+//         return (false);
+//     }
 
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    file.close();
+//     std::ostringstream ss;
+//     ss << file.rdbuf();
+//     file.close();
 
-    response.headers.replace(HeaderKey::ContentType, getMimeType(filepath.str()));
-    response.setBody(ss.str());
-    return (true);
-}
+//     response.headers.replace(HeaderKey::ContentType, getMimeType(filepath.str()));
+//     response.setBody(ss.str());
+//     return (true);
+// }

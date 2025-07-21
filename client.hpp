@@ -1,23 +1,30 @@
 #pragma once
 
-#include "baseHandlerObject.hpp"
 #include "response.hpp"
 #include "request.hpp"
 #include "server.hpp"
 #include "print.hpp"
-#include "CGI.hpp"
 #include "fd.hpp"
 
-class CGIClient;
+// class CGIClient;
 class Server;
+class Response;
 
-class Client : public BaseHandlerObject {
+enum class ClientHTTPState {
+    WaitingForHeaders,
+    ReadingBody,
+    CopyingBody,
+    TrashingBody,
+    SwitchingToOutput,
+    SendingResponse,
+};
+
+class Client {
 private:
-    std::shared_ptr<CGIClient> _cgiClient;
-    FD *_CGIWriteFd;
     Server &_server;
     int _serverFd;
-    
+    ClientHTTPState _state;
+
     std::string _clientIP;
     std::string _clientPort;
 
@@ -26,20 +33,23 @@ private:
     Response &_createCGIClient(const ServerConfig &config, const LocationRule &route);
     Response &_processRequestByMethod(const ServerConfig &config, const LocationRule &route);
 
+    Response *_configureResponse(Response *response, HttpStatusCode statusCode = HttpStatusCode::OK);
+    Response *_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route);
+    Response *_createDirectoryListingResponse(const LocationRule &route);
+    Response *_createReturnRuleResponse(const ReturnRule &returnRule);
+    Response *_createResponseFromRequest(SocketFD &fd, Request &request);
+
 public:
-    Response response;
+    Response *response;
     Request request;
 
     Client(Server &server, int serverFd, const char *clientIP, int clientPort);
+    ~Client();
     // Client(const Client &other) = default;
     // Client &operator=(const Client &other) = default;
-    ~Client() override = default;
 
-    void handleReadCallback(FD &fd, int funcReturnValue) override;
-    void handleWriteCallback(FD &fd) override;
-    void handleDisconnectCallback(FD &fd) override;
-
-    void handleCGIResponse();
+    void handleRead(SocketFD &fd, ssize_t funcReturnValue);
+    void handleWrite(SocketFD &fd);
 
     inline std::string &getClientIP() { return _clientIP; }
     inline std::string &getClientPort() { return _clientPort; }

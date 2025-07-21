@@ -5,7 +5,7 @@ DBNAME := $(NAME)_db
 CXX := c++# or g++-12
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -Wshadow -std=c++20 -MMD
+CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -std=c++20 -MMD
 CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS -DFD_TRACKING
 MAKEFLAGS += -j $(shell nproc)
 
@@ -17,12 +17,9 @@ SRCS := main.cpp \
 	response.cpp \
 	methods.cpp \
 	requestline.cpp \
-	get.cpp \
 	timer.cpp \
-	post.cpp \
-	delete.cpp \
 	fd.cpp \
-	CGI.cpp \
+	fdReader.cpp \
 	sessionManager.cpp \
 	cookie.cpp \
 	Utils.cpp \
