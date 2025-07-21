@@ -80,11 +80,11 @@ footer {
 
 .cgi-list li a {
   text-decoration: none;
-  color: #0066cc;
+  color: #666; /* Dark grey color */
 }
 
 .cgi-list li a:hover {
-  text-decoration: underline;
+  color: #333; /* Darker grey on hover */
 }
 
 /* Updated styling for unified underlines */
