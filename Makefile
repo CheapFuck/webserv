@@ -19,6 +19,7 @@ SRCS := main.cpp \
 	requestline.cpp \
 	timer.cpp \
 	fd.cpp \
+	CGI.cpp \
 	fdReader.cpp \
 	sessionManager.cpp \
 	cookie.cpp \

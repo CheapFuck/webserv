@@ -19,7 +19,7 @@ enum class ClientHTTPState {
     SendingResponse,
 };
 
-class Client {
+class Client : public std::enable_shared_from_this<Client> {
 private:
     Server &_server;
     int _serverFd;
@@ -37,6 +37,7 @@ private:
     Response *_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route);
     Response *_createDirectoryListingResponse(const LocationRule &route);
     Response *_createReturnRuleResponse(const ReturnRule &returnRule);
+    Response *_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route);
     Response *_createResponseFromRequest(SocketFD &fd, Request &request);
 
 public:
@@ -50,6 +51,7 @@ public:
 
     void handleRead(SocketFD &fd, ssize_t funcReturnValue);
     void handleWrite(SocketFD &fd);
+    void switchResponseToErrorResponse(HttpStatusCode statusCode);
 
     inline std::string &getClientIP() { return _clientIP; }
     inline std::string &getClientPort() { return _clientPort; }

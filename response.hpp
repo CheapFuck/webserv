@@ -4,6 +4,7 @@
 #include "config/types/consts.hpp"
 #include "headers.hpp"
 #include "server.hpp"
+#include "client.hpp"
 #include "fd.hpp"
 
 #include <string>
@@ -37,12 +38,12 @@ public:
     void setStatusCode(StatusCode code);
     void setDefaultHeaders();
 
-    bool shouldSendHeaders() const;
-    bool didResponseCreationFail() const;
-
+    bool headersBeenSent() const;
     void sendHeaders(SocketFD &fd);
     HttpStatusCode getStatusCode() const;
-    HttpStatusCode getFailedResponseStatusCode() const;
+
+    virtual bool didResponseCreationFail() const;
+    virtual HttpStatusCode getFailedResponseStatusCode() const;
 
     virtual bool isFullRequestBodyRecieved() const = 0;
     virtual bool isFullResponseSent() const = 0;
@@ -70,47 +71,62 @@ public:
     void terminateResponse() override;
 };
 
-// class CGIResponse : public Response {
-// private:
-//     Server &_server;
-//     std::shared_ptr<Client> _client;
-//     SocketFD &_socketFD;
-//     ReadableFD _cgiOutputFD;
-//     WritableFD _cgiInputFD;
+class CGIResponse : public Response {
+private:
+    enum class CGIResponseTransferMode {
+        FullBuffer,
+        Chunked,
+    };
 
-//     std::unordered_map<std::string, std::string> _environmentVariables;
+    Server &_server;
+    ReadableFD _cgiOutputFD;
+    WritableFD _cgiInputFD;
+    
+    std::unordered_map<std::string, std::string> _environmentVariables;
 
-//     int _timerId;
-//     int _processTimerId;
+    int _timerId;
+    int _processId;
+    
+    bool _chunkedRequestBodyRead;
+    CGIResponseTransferMode _transferMode;
+    
+    HttpStatusCode _innerStatusCode;
+    
+    void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl);
 
-//     bool _chunkedResponseDone = false;
+    void _createEnvironmentArray(std::vector<char*> &envPtrs, std::vector<std::string> &strBuff) const;
 
-//     HttpStatusCode _innerStatusCode;
+    void _handleTimeout();
+    ssize_t _sendRequestBodyToCGIProcess();
+    bool _fetchCGIHeadersFromProcess();
+    void _sendCGIResponse();
 
-//     void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl);
+    void _closeToCGIProcessFd();
+    void _closeFromCGIProcessFd();
+    
+public:
+    SocketFD &socketFD;
+    std::shared_ptr<Client> client;
+    
+    CGIResponse(Server &server, SocketFD &socketFD, std::shared_ptr<Client> client);
+    CGIResponse(const CGIResponse &other) = delete;
+    CGIResponse &operator=(const CGIResponse &other) = delete;
+    ~CGIResponse() override;
 
-//     char * const *_createEnvironmentArray() const;
+    bool didResponseCreationFail() const override;
+    HttpStatusCode getFailedResponseStatusCode() const override;
+    
+    void tick();
 
-//     void _handleTimeout();
-//     void _handleCGIInputCallback(WritableFD &fd, short revents);
-//     void _handleCGIOutputCallback(ReadableFD &fd, short revents);
+    void start(const ServerConfig &config, const LocationRule &route);
+    
+    void handleRequestBody(SocketFD &fd) override;
+    void handleSocketWriteTick(SocketFD &fd) override;
+    void terminateResponse() override;
 
-// public:
-//     CGIResponse(Server &server, SocketFD &socketFD, std::shared_ptr<Client> client);
-//     CGIResponse(const CGIResponse &other) = default;
-//     CGIResponse &operator=(const CGIResponse &other) = default;
-//     ~CGIResponse() override;
-
-//     bool didResponseCreationFail() const override;
-//     HttpStatusCode getFailedResponseStatusCode() const override;
-
-//     void start(const ServerConfig &config, const LocationRule &route);
-
-//     void handleRequestBody(SocketFD &fd) override;
-//     void handleSocketWriteTick(SocketFD &fd) override;
-
-//     void updateFromCGIOutput(const std::string &cgiOutput);
-// };
+    bool isFullRequestBodyRecieved() const override;
+    bool isFullResponseSent() const override;
+};
 
 class StaticResponse : public Response {
 private:

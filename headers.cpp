@@ -115,6 +115,19 @@ void Headers::merge(const Headers &other) {
     }
 }
 
+const std::string Headers::getAndRemoveHeader(HeaderKey key, const std::string &default_value) {
+    std::string result;
+
+    auto it = _headers.find(headerKeyToString(key));
+    if (it != _headers.end()) {
+        result = it->second;
+        _headers.erase(it);
+        return (result);
+    }
+
+    return (default_value);
+}
+
 /// @brief Returns a constant reference to the internal headers map.
 const std::multimap<std::string, std::string> &Headers::getHeaders() const {
     return (_headers);

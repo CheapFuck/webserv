@@ -28,6 +28,7 @@ public:
 
     const std::string &getHeader(HeaderKey key) const;
     const std::string &getHeader(HeaderKey key, const std::string &default_value) const;
+    const std::string getAndRemoveHeader(HeaderKey key, const std::string &default_value);
 
     const std::multimap<std::string, std::string>& getHeaders() const;
 };

@@ -53,6 +53,7 @@ public:
 
 Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _portToConfigs(),
+    _cgiResponses(),
     _sessionManager("sessions"),
     _server_fd(-1),
     _epoll_fd(-1),
@@ -79,6 +80,7 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
 
 Server::Server(const Server &other) :
     _portToConfigs(other._portToConfigs),
+    _cgiResponses(other._cgiResponses),
     _sessionManager(other._sessionManager),
     _server_fd(other._server_fd),
     _epoll_fd(other._epoll_fd),
@@ -90,6 +92,7 @@ Server::Server(const Server &other) :
 Server &Server::operator=(const Server &other) {
     if (this != &other) {
         _portToConfigs = other._portToConfigs;
+        _cgiResponses = other._cgiResponses;
         _sessionManager = other._sessionManager;
         _server_fd = other._server_fd;
         _epoll_fd = other._epoll_fd;
@@ -121,6 +124,18 @@ void Server::cleanUp() {
         close(_epoll_fd);
 
     _sessionManager.shutdown();
+}
+
+void Server::trackCGIResponse(CGIResponse *cgiResponse) {
+    ERROR_RET_IF(!cgiResponse, "Cannot track null CGIResponse");
+    _cgiResponses.push_back(cgiResponse);
+}
+
+void Server::untrackCGIResponse(CGIResponse *cgiResponse) {
+    ERROR_RET_IF(!cgiResponse, "Cannot untrack null CGIResponse");
+    auto it = std::find(_cgiResponses.begin(), _cgiResponses.end(), cgiResponse);
+    ERROR_RET_IF(it == _cgiResponses.end(), "CGIResponse not found in tracked responses");
+    _cgiResponses.erase(it);
 }
 
 /// @brief Set up the server socket
@@ -252,12 +267,12 @@ std::shared_ptr<SessionMetaData> Server::fetchUserSession(Request &request, Resp
 }
 
 void Server::trackCallbackFD(ReadableFD &fd, std::function<void(ReadableFD&, short)> callback) {
-    _readableDescriptors[fd.get()] = FDEvent<ReadableFD>{fd, callback};
+    _readableDescriptors.insert({fd.get(), FDEvent<ReadableFD&>{fd, callback}});
     DEBUG("Tracking ReadableFD: " << fd.get());
 }
 
 void Server::trackCallbackFD(WritableFD &fd, std::function<void(WritableFD&, short)> callback) {
-    _writableDescriptors[fd.get()] = FDEvent<WritableFD>{fd, callback};
+    _writableDescriptors.insert({fd.get(), FDEvent<WritableFD&>{fd, callback}});
     DEBUG("Tracking WritableFD: " << fd.get());
 }
 
@@ -357,6 +372,8 @@ void Server::runOnce() {
         auto readableIt = _readableDescriptors.find(fd);
         if (readableIt != _readableDescriptors.end()) {
             DEBUG("Handling ReadableFD: " << fd);
+            if (events[i].events & EPOLLIN) readableIt->second.fd.setReaderFDState(FDState::Ready);
+            else readableIt->second.fd.setReaderFDState(FDState::Awaiting);
             readableIt->second.callback(readableIt->second.fd, events[i].events);
             continue ;
         }
@@ -364,6 +381,8 @@ void Server::runOnce() {
         auto writableIt = _writableDescriptors.find(fd);
         if (writableIt != _writableDescriptors.end()) {
             DEBUG("Handling WritableFD: " << fd);
+            if (events[i].events & EPOLLOUT) writableIt->second.fd.setWriterFDState(FDState::Ready);
+            else writableIt->second.fd.setWriterFDState(FDState::Awaiting);
             writableIt->second.callback(writableIt->second.fd, events[i].events);
             continue ;
         }
@@ -372,6 +391,18 @@ void Server::runOnce() {
     }
 
     _timer.processEvents();
+
+    for (CGIResponse *CGIResponse : _cgiResponses) {
+        CGIResponse->tick();
+        if (CGIResponse->didResponseCreationFail()) {
+            CGIResponse->client.get()->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode());
+            break ;
+        }
+        if (CGIResponse->isFullResponseSent()) {
+            CGIResponse->client.get()->handleWrite(CGIResponse->socketFD);
+            break ;
+        }
+    }
 }
 
 // Helper to check if a file descriptor is valid (open)

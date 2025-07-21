@@ -48,6 +48,17 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
     return (response);
 }
 
+Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
+    CGIResponse *response = new CGIResponse(_server, fd, shared_from_this());
+    _configureResponse(response, HttpStatusCode::OK);
+    response->start(config, route);
+    if (response->didResponseCreationFail()) {
+        delete response;
+        return _createErrorResponse(response->getFailedResponseStatusCode(), route);
+    }
+    return (response);
+}
+
 Client::Client(Server &server, int serverFd, const char *clientIP, int clientPort) :
     _server(server),
     _serverFd(serverFd),
@@ -82,8 +93,8 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     if (!request.metadata.getPath().isValid())
         return _createErrorResponse(HttpStatusCode::BadRequest, route);
         
-    // if (route.cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route.cgiExtension.isCGI(request.metadata.getPath())))
-    //     return _createCGIResponse(fd, config, route);
+    if (route.cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route.cgiExtension.isCGI(request.metadata.getPath())))
+        return _createCGIResponse(fd, config, route);
     
     if (request.metadata.pathIsDirectory())
         return _createDirectoryListingResponse(route);
@@ -162,18 +173,33 @@ void Client::handleWrite(SocketFD &fd) {
         DEBUG("Full response sent for Client, fd: " << fd.get());
         delete response;
         response = nullptr;
-        _state = ClientHTTPState::WaitingForHeaders;
 
         if (fd.setEpollEvents(EPOLLIN) == -1) {
             ERROR("Failed to set EPOLLIN for client: " << fd.get());
             _server.untrackClient(fd);
             return;
         }
+
+        _state = ClientHTTPState::WaitingForHeaders;
+        request = Request();
     }
 }
 
+void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
+    DEBUG("SWITCHING response to error response for Client: " << _clientIP << ":" << _clientPort);
+    DEBUG("Current response: " << (response ? "exists" : "does not exist"));
+    DEBUG("Response address: " << response);
+    if (response) {
+        PRINT("Deleting existing response for Client: " << _clientIP << ":" << _clientPort);
+        delete response;
+    }
+
+    ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
+    response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()));
+}
+
 Client::~Client() {
-    DEBUG("Destroying client for IP: " << _clientIP << ", Port: " << _clientPort);
+    DEBUG("Destroying client for IP: " << _clientIP << ", Port: " << _clientPort << " (" << this << ")");
     if (response) {
         if (!response->isFullResponseSent())
             response->terminateResponse();

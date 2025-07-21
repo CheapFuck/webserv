@@ -35,8 +35,8 @@ void Response::setDefaultHeaders() {
     headers.replace(HeaderKey::Date, get_time_as_readable_string());
 }
 
-bool Response::shouldSendHeaders() const {
-    return (!_sentHeaders);
+bool Response::headersBeenSent() const {
+    return (_sentHeaders);
 }
 
 bool Response::didResponseCreationFail() const {
@@ -44,7 +44,7 @@ bool Response::didResponseCreationFail() const {
 }
 
 void Response::sendHeaders(SocketFD &fd) {
-    if (!shouldSendHeaders())
+    if (headersBeenSent())
         return ;
 
     _sentHeaders = true;
@@ -78,7 +78,7 @@ bool FileResponse::isFullRequestBodyRecieved() const {
 }
 
 bool FileResponse::isFullResponseSent() const {
-    return (_fileFD.getReaderFDState() == FDState::Closed && !shouldSendHeaders());
+    return (_fileFD.getReaderFDState() == FDState::Closed && headersBeenSent());
 }
 
 void FileResponse::handleRequestBody(SocketFD &fd) {
@@ -87,7 +87,7 @@ void FileResponse::handleRequestBody(SocketFD &fd) {
 
 void FileResponse::handleSocketWriteTick(SocketFD &fd) {
     DEBUG("Handling socket write tick for FileResponse, fd: " << fd.get());
-    if (shouldSendHeaders()) {
+    if (!headersBeenSent()) {
         sendHeaders(fd);
         return ;
     }
@@ -130,7 +130,7 @@ bool StaticResponse::isFullRequestBodyRecieved() const {
 }
 
 bool StaticResponse::isFullResponseSent() const {
-    return (!shouldSendHeaders());
+    return (!headersBeenSent());
 }
 
 void StaticResponse::handleRequestBody(SocketFD &fd) {
@@ -139,7 +139,7 @@ void StaticResponse::handleRequestBody(SocketFD &fd) {
 
 void StaticResponse::handleSocketWriteTick(SocketFD &fd) {
     DEBUG("Handling socket write tick for StaticResponse, fd: " << fd.get());
-    if (shouldSendHeaders()) {
+    if (headersBeenSent()) {
         sendHeaders(fd);
         if (!_content.empty())
             fd.writeAsString(_content);

@@ -130,6 +130,7 @@ ReadableFD ReadableFD::file(int fd, int maxBufferSize) {
 }
 
 ReadableFD ReadableFD::pipe(int *fd, int maxBufferSize) {
+    ::close(fd[1]);
     return (ReadableFD(fd[0], maxBufferSize, FDState::Awaiting));
 }
 
@@ -184,5 +185,6 @@ FDState FDWriter::getWriterFDState() const {
 }
 
 WritableFD WritableFD::pipe(int *fd) {
+    ::close(fd[0]);
     return WritableFD(fd[1], FDState::Awaiting);
 }

@@ -3,6 +3,7 @@
 
 #include "config/rules/rules.hpp"
 #include "sessionManager.hpp"
+#include "response.hpp"
 #include "client.hpp"
 #include "timer.hpp"
 #include "fd.hpp"
@@ -17,6 +18,7 @@
 class Client;
 class Response;
 class Request;
+class CGIResponse;
 
 // Free function to check if a file descriptor is valid (open)
 bool is_fd_valid(int fd);
@@ -26,25 +28,26 @@ struct ServerClientInfo {
     std::shared_ptr<Client> client;
 
     ServerClientInfo(SocketFD fd, std::shared_ptr<Client> client)
-        : fd(std::move(fd)), client(std::move(client)) {}
+        : fd(std::move(fd)), client(std::shared_ptr(client)) {}
 };
 
 template <typename T>
 struct FDEvent {
-    T fd;
+    T &fd;
     std::function<void(T&, short)> callback;
 };
 
 class Server {
 private:
     std::map<int, std::vector<ServerConfig>> _portToConfigs;
+    std::vector<CGIResponse *> _cgiResponses;
     UserSessionManager _sessionManager;
     int _server_fd;
     int _epoll_fd;
     Timer _timer;
     std::map<int, ServerClientInfo> _clientDescriptors;
-    std::map<int, FDEvent<ReadableFD>> _readableDescriptors;
-    std::map<int, FDEvent<WritableFD>> _writableDescriptors;
+    std::map<int, FDEvent<ReadableFD&>> _readableDescriptors;
+    std::map<int, FDEvent<WritableFD&>> _writableDescriptors;
 
     std::string _serverAddress;
     std::string _serverExecutablePath;
@@ -80,6 +83,9 @@ public:
     void trackCallbackFD(WritableFD &fd, std::function<void(WritableFD&, short)> callback);
 
     void untrackCallbackFD(int fd);
+
+    void trackCGIResponse(CGIResponse *cgiResponse);
+    void untrackCGIResponse(CGIResponse *cgiResponse);
 
     inline Timer &getTimer() { return _timer; }
     inline int getEpollFd() const { return _epoll_fd; }

@@ -60,6 +60,20 @@ inline std::ostream& print_time(std::ostream& os) {
         std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
+#define ERROR_RET_IF(cond, x) do { \
+    if (cond) { \
+        print_time(std::cerr); \
+        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        return; \
+    } \
+} while (0)
+#define ERROR_RET_IF_NOT(cond, x) do { \
+    if (!(cond)) { \
+        print_time(std::cerr); \
+        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        return; \
+    } \
+} while (0)
 
 #ifdef DEBUG_MODE
 # define DEBUG(x) do { \
