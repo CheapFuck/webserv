@@ -1,33 +1,44 @@
-#!/bin/bash
-
-# Define the ASCII cat
-read -r -d '' CAT <<'EOF'
- /\_/\  
-( o.o ) 
- > ^ <
- /\_/\  
-( o.o ) 
- > ^ <
- /\_/\  
-( o.o ) 
- > ^ <
- /\_/\  
-( o.o ) 
- > ^ <
-EOF
-
-send_chunked_request() {
-  {
-    while IFS= read -r line; do
-      len=$(printf "%x" ${#line})
-      printf "%s\r\n%s\r\n" "$len" "$line"
-      sleep 1
-    done <<< "$CAT"
-    printf "0\r\n\r\n"
-  } | curl -v -X POST http://localhost:8080/upload \
-       -H "Transfer-Encoding: chunked" \
-       -H "Content-Type: text/plain" \
-       --data-binary @-
-}
-
-send_chunked_request
+SRCS := src/main.cpp \
+	src/request.cpp \
+	src/client.cpp \
+	src/server.cpp \
+	src/headers.cpp \
+	src/response.cpp \
+	src/methods.cpp \
+	src/requestline.cpp \
+	src/timer.cpp \
+	src/fd.cpp \
+	src/CGI.cpp \
+	src/fdReader.cpp \
+	src/sessionManager.cpp \
+	src/cookie.cpp \
+	src/Utils.cpp \
+	src/config/arena.cpp \
+	src/config/config.cpp \
+	src/config/lexer.cpp \
+	src/config/parser.cpp \
+	src/config/parserExceptions.cpp \
+	src/config/types/consts.cpp \
+	src/config/types/path.cpp \
+	src/config/types/size.cpp \
+	src/config/types/timespan.cpp \
+	src/config/rules/objectParser.cpp \
+	src/config/rules/ruleParser.cpp \
+	src/config/rules/ruleTemplates/aliasRule.cpp \
+	src/config/rules/ruleTemplates/autoindexRule.cpp \
+	src/config/rules/ruleTemplates/cgiExtensionRule.cpp \
+	src/config/rules/ruleTemplates/cgiRule.cpp \
+	src/config/rules/ruleTemplates/cgiTimeoutRule.cpp \
+	src/config/rules/ruleTemplates/defineRule.cpp \
+	src/config/rules/ruleTemplates/errorpageRule.cpp \
+	src/config/rules/ruleTemplates/includeRule.cpp \
+	src/config/rules/ruleTemplates/indexRule.cpp \
+	src/config/rules/ruleTemplates/locationRule.cpp \
+	src/config/rules/ruleTemplates/maxBodySizeRule.cpp \
+	src/config/rules/ruleTemplates/methodsRule.cpp \
+	src/config/rules/ruleTemplates/portRule.cpp \
+	src/config/rules/ruleTemplates/returnRule.cpp \
+	src/config/rules/ruleTemplates/rootRule.cpp \
+	src/config/rules/ruleTemplates/serverconfigRule.cpp \
+	src/config/rules/ruleTemplates/servernameRule.cpp \
+	src/config/rules/ruleTemplates/uploadstoreRule.cpp

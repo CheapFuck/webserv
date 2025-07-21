@@ -5,54 +5,54 @@ DBNAME := $(NAME)_db
 CXX := c++# or g++-12
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -std=c++20 -MMD
+CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -std=c++20 -MMD -I includes/
 CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS -DFD_TRACKING
 MAKEFLAGS += -j $(shell nproc)
 
-SRCS := main.cpp \
-	request.cpp \
-	client.cpp \
-	server.cpp \
-	headers.cpp \
-	response.cpp \
-	methods.cpp \
-	requestline.cpp \
-	timer.cpp \
-	fd.cpp \
-	CGI.cpp \
-	fdReader.cpp \
-	sessionManager.cpp \
-	cookie.cpp \
-	Utils.cpp \
-	config/arena.cpp \
-	config/config.cpp \
-	config/lexer.cpp \
-	config/parser.cpp \
-	config/parserExceptions.cpp \
-	config/types/consts.cpp \
-	config/types/path.cpp \
-	config/types/size.cpp \
-	config/types/timespan.cpp \
-	config/rules/objectParser.cpp \
-	config/rules/ruleParser.cpp \
-	config/rules/ruleTemplates/aliasRule.cpp \
-	config/rules/ruleTemplates/autoindexRule.cpp \
-	config/rules/ruleTemplates/cgiExtensionRule.cpp \
-	config/rules/ruleTemplates/cgiRule.cpp \
-	config/rules/ruleTemplates/cgiTimeoutRule.cpp \
-	config/rules/ruleTemplates/defineRule.cpp \
-	config/rules/ruleTemplates/errorpageRule.cpp \
-	config/rules/ruleTemplates/includeRule.cpp \
-	config/rules/ruleTemplates/indexRule.cpp \
-	config/rules/ruleTemplates/locationRule.cpp \
-	config/rules/ruleTemplates/maxBodySizeRule.cpp \
-	config/rules/ruleTemplates/methodsRule.cpp \
-	config/rules/ruleTemplates/portRule.cpp \
-	config/rules/ruleTemplates/returnRule.cpp \
-	config/rules/ruleTemplates/rootRule.cpp \
-	config/rules/ruleTemplates/serverconfigRule.cpp \
-	config/rules/ruleTemplates/servernameRule.cpp \
-	config/rules/ruleTemplates/uploadstoreRule.cpp
+SRCS := src/main.cpp \
+	src/request.cpp \
+	src/client.cpp \
+	src/server.cpp \
+	src/headers.cpp \
+	src/response.cpp \
+	src/methods.cpp \
+	src/requestline.cpp \
+	src/timer.cpp \
+	src/fd.cpp \
+	src/CGI.cpp \
+	src/fdReader.cpp \
+	src/sessionManager.cpp \
+	src/cookie.cpp \
+	src/Utils.cpp \
+	src/config/arena.cpp \
+	src/config/config.cpp \
+	src/config/lexer.cpp \
+	src/config/parser.cpp \
+	src/config/parserExceptions.cpp \
+	src/config/types/consts.cpp \
+	src/config/types/path.cpp \
+	src/config/types/size.cpp \
+	src/config/types/timespan.cpp \
+	src/config/rules/objectParser.cpp \
+	src/config/rules/ruleParser.cpp \
+	src/config/rules/ruleTemplates/aliasRule.cpp \
+	src/config/rules/ruleTemplates/autoindexRule.cpp \
+	src/config/rules/ruleTemplates/cgiExtensionRule.cpp \
+	src/config/rules/ruleTemplates/cgiRule.cpp \
+	src/config/rules/ruleTemplates/cgiTimeoutRule.cpp \
+	src/config/rules/ruleTemplates/defineRule.cpp \
+	src/config/rules/ruleTemplates/errorpageRule.cpp \
+	src/config/rules/ruleTemplates/includeRule.cpp \
+	src/config/rules/ruleTemplates/indexRule.cpp \
+	src/config/rules/ruleTemplates/locationRule.cpp \
+	src/config/rules/ruleTemplates/maxBodySizeRule.cpp \
+	src/config/rules/ruleTemplates/methodsRule.cpp \
+	src/config/rules/ruleTemplates/portRule.cpp \
+	src/config/rules/ruleTemplates/returnRule.cpp \
+	src/config/rules/ruleTemplates/rootRule.cpp \
+	src/config/rules/ruleTemplates/serverconfigRule.cpp \
+	src/config/rules/ruleTemplates/servernameRule.cpp \
+	src/config/rules/ruleTemplates/uploadstoreRule.cpp
 
 OBJS := $(addprefix $(DIR), $(SRCS:.cpp=.o))
 DEPS := $(OBJS:%.o=%.d)
@@ -60,6 +60,8 @@ DBOBJS := $(addprefix $(DBDIR), $(SRCS:.cpp=.o))
 DBDEPS := $(DBOBJS:%.o=%.d)
 
 all: $(NAME)
+	echo $(SRCS)
+
 	@$(CXX) --version
 
 $(NAME): $(OBJS)
