@@ -15,8 +15,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::RETURN; }
-    constexpr static const std::string getRuleName() { return "return"; }
-    constexpr static const std::string getRuleFormat() { return ReturnRule::getRuleName() + " <status_code> [<parameter>]"; }
+    constexpr static const char* getRuleName() { return "return"; }
+    constexpr static const char* getRuleFormat() { return "return <status_code> [<parameter>]"; }
 
     ReturnRule(const ReturnRule &other) = default;
     ReturnRule& operator=(const ReturnRule &other) = default;

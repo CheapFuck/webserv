@@ -12,8 +12,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::INCLUDE; }
-    constexpr static const std::string getRuleName() { return "include"; }
-    constexpr static const std::string getRuleFormat() { return IncludeRule::getRuleName() + " <path | name>"; }
+    constexpr static const char* getRuleName() { return "include"; }
+    constexpr static const char* getRuleFormat() { return "include <path | name>"; }
 
     IncludeRule(const IncludeRule &other) = default;
     IncludeRule& operator=(const IncludeRule &other) = default;

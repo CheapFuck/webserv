@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::UPLOAD_DIR; }
-    constexpr static const std::string getRuleName() { return "upload_store"; }
-    constexpr static const std::string getRuleFormat() { return UploadStoreRule::getRuleName() + " <path>"; }
+    constexpr static const char* getRuleName() { return "upload_store"; }
+    constexpr static const char* getRuleFormat() { return "<path>"; }
 
     UploadStoreRule(const UploadStoreRule &other) = default;
     UploadStoreRule& operator=(const UploadStoreRule &other) = default;

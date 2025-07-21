@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::CGI_EXTENSION; }
-    constexpr static const std::string getRuleName() { return "cgi_extension"; }
-    constexpr static const std::string getRuleFormat() { return CgiExtensionRule::getRuleName() + " <ext1> [<ext2> ...]"; }
+    constexpr static const char* getRuleName() { return "cgi_extension"; }
+    constexpr static const char* getRuleFormat() { return "cgi_extension <ext1> [<ext2> ...]"; }
 
     CgiExtensionRule(const CgiExtensionRule &other) = default;
     CgiExtensionRule& operator=(const CgiExtensionRule &other) = default;

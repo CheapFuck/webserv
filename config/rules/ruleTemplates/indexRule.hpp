@@ -14,8 +14,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::INDEX; }
-    constexpr static const std::string getRuleName() { return "index"; }
-    constexpr static const std::string getRuleFormat() { return IndexRule::getRuleName() + " <file1> [<file2> ...]"; }
+    constexpr static const char* getRuleName() { return "index"; }
+    constexpr static const char* getRuleFormat() { return "index <file1> [<file2> ...]"; }
 
     IndexRule(const IndexRule &other) = default;
     IndexRule& operator=(const IndexRule &other) = default;

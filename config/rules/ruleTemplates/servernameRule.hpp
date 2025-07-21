@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::SERVER_NAME; }
-    constexpr static const std::string getRuleName() { return "server_name"; }
-    constexpr static const std::string getRuleFormat() { return ServerNameRule::getRuleName() + " <name> [default]"; }
+    constexpr static const char* getRuleName() { return "server_name"; }
+    constexpr static const char* getRuleFormat() { return "server_name <name> [default]"; }
 
     ServerNameRule(const ServerNameRule &other) = default;
     ServerNameRule& operator=(const ServerNameRule &other) = default;

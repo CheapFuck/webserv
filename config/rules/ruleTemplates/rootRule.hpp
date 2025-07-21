@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::ROOT; }
-    constexpr static const std::string getRuleName() { return "root"; }
-    constexpr static const std::string getRuleFormat() { return RootRule::getRuleName() + " <path>"; }
+    constexpr static const char* getRuleName() { return "root"; }
+    constexpr static const char* getRuleFormat() { return "root <path>"; }
 
     RootRule() = default;
     RootRule(const RootRule &other) = default;

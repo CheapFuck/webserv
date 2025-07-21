@@ -16,8 +16,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::CGI_PASS; }
-    constexpr static const std::string getRuleName() { return "cgi"; }
-    constexpr static const std::string getRuleFormat() { return CgiRule::getRuleName() + " <path> [<timeout>]"; }
+    constexpr static const char* getRuleName() { return "cgi"; }
+    constexpr static const char* getRuleFormat() { return "cgi <path> [<timeout>]"; }
 
     CgiRule(const CgiRule &other) = default;
     CgiRule& operator=(const CgiRule &other) = default;

@@ -15,8 +15,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::AUTOINDEX; }
-    constexpr static const std::string getRuleName() { return "autoindex"; }
-    constexpr static const std::string getRuleFormat() { return AutoIndexRule::getRuleName() + " <on|off>"; }
+    constexpr static const char* getRuleName() { return "autoindex"; }
+    constexpr static const char* getRuleFormat() { return "autoindex <on|off>"; }
 
     AutoIndexRule(const AutoIndexRule &other) = default;
     AutoIndexRule& operator=(const AutoIndexRule &other) = default;

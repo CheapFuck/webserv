@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::ALIAS; }
-    constexpr static const std::string getRuleName() { return "alias"; }
-    constexpr static const std::string getRuleFormat() { return AliasRule::getRuleName() + " <path>"; }
+    constexpr static const char* getRuleName() { return "alias"; }
+    constexpr static const char* getRuleFormat() { return "alias <path>"; }
 
     AliasRule(const AliasRule &other) = default;
     AliasRule& operator=(const AliasRule &other) = default;

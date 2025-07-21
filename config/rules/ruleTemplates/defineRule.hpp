@@ -15,8 +15,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::DEFINE; }
-    constexpr static const std::string getRuleName() { return "define"; }
-    constexpr static const std::string getRuleFormat() { return DefineRule::getRuleName() + " <name> <object>"; }
+    constexpr static const char* getRuleName() { return "define"; }
+    constexpr static const char* getRuleFormat() { return "define <name> <object>"; }
 
     DefineRule(const DefineRule &other) = default;
     DefineRule& operator=(const DefineRule &other) = default;

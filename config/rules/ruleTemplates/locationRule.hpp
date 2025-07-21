@@ -42,8 +42,8 @@ public:
     CgiExtensionRule cgiExtension;
 
     constexpr static Key getKey() { return Key::LOCATION; }
-    constexpr static const std::string getRuleName() { return "location"; }
-    constexpr static const std::string getRuleFormat() { return LocationRule::getRuleName() + " <path> { ... }"; }
+    constexpr static const char* getRuleName() { return "location"; }
+    constexpr static const char* getRuleFormat() { return "location <path> { ... }"; }
 
     LocationRule(const LocationRule &other) = default;
     LocationRule& operator=(const LocationRule &other) = default;

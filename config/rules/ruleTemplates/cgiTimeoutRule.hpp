@@ -17,8 +17,8 @@ public:
     Timespan timeout;
 
     constexpr static Key getKey() { return Key::CGI_TIMEOUT; }
-    constexpr static const std::string getRuleName() { return "cgi_timeout"; }
-    constexpr static const std::string getRuleFormat() { return CgiTimeoutRule::getRuleName() + " <timeout>"; }
+    constexpr static const char* getRuleName() { return "cgi_timeout"; }
+    constexpr static const char* getRuleFormat() { return "cgi_timeout <timeout>"; }
 
     CgiTimeoutRule(const CgiTimeoutRule &other) = default;
     CgiTimeoutRule& operator=(const CgiTimeoutRule &other) = default;

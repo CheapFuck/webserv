@@ -16,8 +16,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::ERROR_PAGE; }
-    constexpr static const std::string getRuleName() { return "error_page"; }
-    constexpr static const std::string getRuleFormat() { return ErrorPageRule::getRuleName() + " <status_code> <path>"; }
+    constexpr static const char* getRuleName() { return "error_page"; }
+    constexpr static const char* getRuleFormat() { return "error_page <status_code> <path>"; }
 
     ErrorPageRule(const ErrorPageRule &other) = default;
     ErrorPageRule& operator=(const ErrorPageRule &other) = default;

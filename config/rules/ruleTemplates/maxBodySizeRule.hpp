@@ -13,8 +13,8 @@ private:
 
 public:
     constexpr static Key getKey() { return Key::MAX_BODY_SIZE; }
-    constexpr static const std::string getRuleName() { return "client_max_body_size"; }
-    constexpr static const std::string getRuleFormat() { return MaxBodySizeRule::getRuleName() + " <size>"; }
+    constexpr static const char* getRuleName() { return "client_max_body_size"; }
+    constexpr static const char* getRuleFormat() { return "client_max_body_size <size>"; }
 
     MaxBodySizeRule(const MaxBodySizeRule &other) = default;
     MaxBodySizeRule& operator=(const MaxBodySizeRule &other) = default;
