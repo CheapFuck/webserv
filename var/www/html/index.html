@@ -8,64 +8,70 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+
+  <!-- Firework Layer (fixed overlay) -->
+  <div id="firework-layer">
+    <div class="firework-cursor"></div>
+  </div>
+
   <header>
     <h1>Welcome to Webserv</h1>
-   
   </header>
 
-    <main>
+  <main>
     <section id="about">
-  <h2>About the Team</h2>
-  <p>Hello! We're a team of developers showcasing our work here. This site is static, simple, and fast.</p>
-  
-  <ul class="team-list">
-    <li>Jan Bakker</li>
-    <li>Jose Leonardo Lopez Antequera</li>
-    <li>Thijs van den Berg</li>
-  </ul>
-</section>
+      <h2>About the Team</h2>
+      <p>Hello! We're a team of developers showcasing our work here. This site is static, simple, and fast.</p>
+      <ul class="team-list">
+        <li>Jan Bakker</li>
+        <li>Jose Leonardo Lopez Antequera</li>
+        <li>Thijs van den Berg</li>
+      </ul>
+    </section>
 
-<section id="projects">
-  <h1>Projects</h1>
-  <div class="project">
-    <div>
-      <h2>Webserv</h2>
-      <p>This project is about writing your own HTTP server.
-         You will be able to test it with an actual browser.
-         HTTP is one of the most widely used protocols on the internet.
-         Understanding its intricacies will be useful, even if you won’t be working on a website.</p>
-    </div>
-  </div>
-<div class="project">
-  <div>
-    <h4>CGI Examples</h4>
-    <p>Interactive CGI endpoints to demonstrate server-side scripting:</p>
-    <ul class="cgi-list">
-      <li><a href="/cgi/another.php">Another</a></li>
-      <li><a href="/cgi/simple.php">Simple PHP</a></li>
-      <li><a href="/cgi/debug">Debug Script</a></li>
-      <li><a href="/cgi/debug/zen">The zen of Python</a></li>
-      <li><a href="/cgi/error/error">Error Test</a></li>
-      <li><a href="/cgi/timeout/timeout">Timeout Simulation</a></li>
-      <li><a href="/cgi/user/fetchUser">Fetch User Info</a></li>
-    </ul>
-  </div>
-    <div>
-    <h4>Files</h4>
-    <p>upload/delete</p>
-    <ul class="cgi-list">
-      <li><a href="/upload_form.html">Upload</a></li>
-      <li><a href="/delete_form.html">Delete</a></li>
-    </ul>
-  </div>
-</div>
+    <section id="projects">
+      <h1>Projects</h1>
+      <div class="project">
+        <div>
+          <h2>Webserv</h2>
+          <p>This project is about writing your own HTTP server.
+            You will be able to test it with an actual browser.
+            HTTP is one of the most widely used protocols on the internet.
+            Understanding its intricacies will be useful, even if you won’t be working on a website.</p>
+        </div>
+      </div>
 
-</section>
-
-     </main>
+      <div class="project">
+        <div>
+          <h4>CGI Examples</h4>
+          <p>Interactive CGI endpoints to demonstrate server-side scripting:</p>
+          <ul class="cgi-list">
+            <li><a href="/cgi/another.php">Another</a></li>
+            <li><a href="/cgi/simple.php">Simple PHP</a></li>
+            <li><a href="/cgi/debug">Debug Script</a></li>
+            <li><a href="/cgi/debug/zen">The zen of Python</a></li>
+            <li><a href="/cgi/error/error">Error Test</a></li>
+            <li><a href="/cgi/timeout/timeout">Timeout Simulation</a></li>
+            <li><a href="/cgi/user/fetchUser">Fetch User Info</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Files</h4>
+          <p>upload/delete</p>
+          <ul class="cgi-list">
+            <li><a href="/upload_form.html">Upload</a></li>
+            <li><a href="/delete_form.html">Delete</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <footer>
     <p>&copy; 2025 Webserv Unlimited. All rights reserved.</p>
   </footer>
+
+  <!-- Fireworks script goes here -->
+  <script src="/script.js"></script>
 </body>
 </html>

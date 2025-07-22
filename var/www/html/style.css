@@ -1,10 +1,11 @@
 body {
-    font-family: 'Comic Neue', cursive, sans-serif;
+  font-family: 'Comic Neue', cursive, sans-serif;
   margin: 0;
   padding: 0;
   line-height: 1.6;
   background-color: #f9f9f9;
   color: #333;
+  /* cursor: none; Optional */
 }
 
 header {
@@ -32,7 +33,7 @@ nav a {
 main {
   padding: 2rem;
   max-width: 1200px;
-  margin: 0 auto; /* Center the main content */
+  margin: 0 auto;
 }
 
 section {
@@ -45,7 +46,7 @@ section {
   background: #fff;
   padding: 1rem;
   border: 1px solid #ddd;
-  justify-content: center; /* Center the project content */
+  justify-content: center;
   align-items: flex-start;
 }
 
@@ -80,37 +81,73 @@ footer {
 
 .cgi-list li a {
   text-decoration: none;
-  color: #666; /* Dark grey color */
+  color: #666;
 }
 
 .cgi-list li a:hover {
-  color: #333; /* Darker grey on hover */
+  color: #333;
 }
 
-/* Updated styling for unified underlines */
 .project h4,
 .project h2 {
   margin-top: 1.2rem;
   color: #333;
-  border-bottom: 2px solid #ccc; /* Made thicker and more consistent */
-  padding-bottom: 0.5rem; /* Increased padding for better visual balance */
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 0.5rem;
   margin-bottom: 1rem;
-  width: 100%; /* Make underline span full width */
+  width: 100%;
 }
 
 .project h2 {
-  font-size: 1.3rem; /* Slightly larger for h2 */
+  font-size: 1.3rem;
 }
 
 .project h4 {
-  font-size: 1rem; /* Smaller font size for h4 */
-  font-weight: bold; /* Ensure it stays bold */
+  font-size: 1rem;
+  font-weight: bold;
 }
 
-/* Ensure section headings also have consistent styling */
 #about h2,
 #projects h1 {
   border-bottom: 2px solid #333;
   padding-bottom: 0.5rem;
   margin-bottom: 1rem;
+}
+
+/* Firework Overlay */
+#firework-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+  overflow: visible;
+}
+
+.firework-cursor {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: hsl(var(--hue), 100%, 60%);
+  pointer-events: none;
+  animation: explode 0.6s ease-out forwards;
+}
+
+@keyframes explode {
+  100% {
+    transform: translate(var(--x), var(--y)) scale(0.3);
+    opacity: 0;
+  }
 }
