@@ -418,17 +418,6 @@ void CGIResponse::tick() {
     }
 }
 
-// void CGIResponse::_handleTimeout() {
-//     DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _processId);
-
-//     DEBUG("CGIResponse timeout handler called for client: " << &client);
-//     if (didResponseCreationFail()) {
-//         exitProcess();
-//         client.response.setStatusCode(HttpStatusCode::GatewayTimeout);
-//         client.handleCGIResponse();
-//     }
-// }
-
 void CGIResponse::handleRequestBody(SocketFD &fd) {
     (void) fd;
 }
@@ -492,60 +481,3 @@ void CGIResponse::_closeFromCGIProcessFd() {
         _cgiOutputFD.close();
     }
 }
-
-// void CGIResponse::exitProcess() {
-//     if (_isRunning) {
-//         _isRunning = false;
-
-//         if (_toCGIProcessFd != -1) __server.untrackClient(_toCGIProcessFd);
-//         if (_fromCGIProcessFd != -1) __server.untrackClient(_fromCGIProcessFd);
-
-//         _toCGIProcessFd = -1;
-//         _fromCGIProcessFd = -1;
-
-//         kill(_processId, SIGKILL);
-//     }
-// }
-
-// void CGIResponse::handleDisconnectCallback(FD &fd) {
-//     DEBUG("toCGIProcessFd: " << _toCGIProcessFd << ", fromCGIProcessFd: " << _fromCGIProcessFd << ", pid shit: " << _processId);
-//     if (fd.get() == _toCGIProcessFd) {
-//         DEBUG("Set _toCGIProcessFd to -1, fd: " << fd.get());
-//         _toCGIProcessFd = -1;
-//         return ;
-//     }
-
-//     if (fd.get() != _fromCGIProcessFd) return ;
-//     DEBUG("Set _fromCGIProcessFd to -1, fd: " << fd.get());
-//     _fromCGIProcessFd = -1;
-
-//     if (_isRunning) {
-//         int exitStatus = 0;
-//         waitpid(_processId, &exitStatus, 0);
-//         DEBUG("CGIResponse exited normally, PID: " << _processId << ", exit status: " << WEXITSTATUS(exitStatus));
-//         _isRunning = false;
-//         __server.getTimer().deleteEvent(_processId);
-//         if (exitStatus == 0) client.response.updateFromCGIOutput(fd.readBuffer);
-//         else client.response.setStatusCode(HttpStatusCode::InternalServerError);
-//         DEBUG(fd.readBuffer);
-//         client.handleCGIResponse();
-//     }
-//     DEBUG("CGIResponse disconnect callback, fd: " << fd.get());
-// }
-
-// void CGIResponse::handleReadCallback(FD &fd, int funcReturnValue) {
-//     DEBUG("CGIResponse read callback, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
-//     (void)funcReturnValue;
-//     (void)fd;
-// }
-
-// void CGIResponse::handleWriteCallback(FD &fd) {
-//     if (fd.get() == _toCGIProcessFd) {
-//         DEBUG("Writing request body to CGI process, fd: " << fd.get());
-//         fd.writeToBuffer(client.request.getBody());
-//         fd.write();
-//         __server.untrackClient(fd.get());
-//         DEBUG("Set _toCGIProcessFd to -1");
-//         _toCGIProcessFd = -1;
-//     }
-// }

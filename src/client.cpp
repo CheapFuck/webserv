@@ -163,26 +163,31 @@ void Client::handleWrite(SocketFD &fd) {
 
     response->handleSocketWriteTick(fd);
 
-    if (response->isFullResponseSent()) {
-        if (request.headers.getHeader(HeaderKey::Connection, "keep-alive") == "close") {
-            DEBUG("Connection header indicates 'close', disconnecting Client: " << fd.get());
-            _server.untrackClient(fd);
-            return;
-        }
+    if (response->isFullResponseSent())
+        handleClientReset(fd);
+}
 
-        DEBUG("Full response sent for Client, fd: " << fd.get());
+void Client::handleClientReset(SocketFD &fd) {
+    DEBUG("Full response sent for Client, fd: " << fd.get());
+    if (response) {
         delete response;
         response = nullptr;
-
-        if (fd.setEpollEvents(EPOLLIN) == -1) {
-            ERROR("Failed to set EPOLLIN for client: " << fd.get());
-            _server.untrackClient(fd);
-            return;
-        }
-
-        _state = ClientHTTPState::WaitingForHeaders;
-        request = Request();
     }
+
+    if (request.headers.getHeader(HeaderKey::Connection, "keep-alive") == "close") {
+        DEBUG("Connection header indicates 'close', disconnecting Client: " << fd.get());
+        _server.untrackClient(fd);
+        return;
+    }
+
+    if (fd.setEpollEvents(EPOLLIN) == -1) {
+        ERROR("Failed to set EPOLLIN for client: " << fd.get());
+        _server.untrackClient(fd);
+        return;
+    }
+
+    _state = ClientHTTPState::WaitingForHeaders;
+    request = Request();
 }
 
 void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {

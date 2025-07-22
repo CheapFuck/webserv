@@ -399,7 +399,7 @@ void Server::runOnce() {
             break ;
         }
         if (CGIResponse->isFullResponseSent()) {
-            CGIResponse->client.get()->handleWrite(CGIResponse->socketFD);
+            CGIResponse->client.get()->handleClientReset(CGIResponse->socketFD);
             break ;
         }
     }

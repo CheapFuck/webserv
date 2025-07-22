@@ -51,6 +51,7 @@ public:
 
     void handleRead(SocketFD &fd, ssize_t funcReturnValue);
     void handleWrite(SocketFD &fd);
+    void handleClientReset(SocketFD &fd);
     void switchResponseToErrorResponse(HttpStatusCode statusCode);
 
     inline std::string &getClientIP() { return _clientIP; }
