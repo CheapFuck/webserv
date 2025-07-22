@@ -267,7 +267,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
             DEBUG("CGIResponse write callback, fd: " << fd.get() << ", revents: " << revents);
             if (revents & EPOLLIN) _cgiOutputFD.setReaderFDState(FDState::Ready);
             else _cgiOutputFD.setReaderFDState(FDState::Awaiting);
-            DEBUG(fd.read());
+            fd.read();
         });
 
         _server.trackCGIResponse(this);
@@ -399,14 +399,14 @@ void CGIResponse::tick() {
 
     else if (!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) {
         int exitStatus = 0;
-        if (waitpid(_processId, &exitStatus, WNOHANG) > 0) {
-            exitStatus = WEXITSTATUS(exitStatus);
-            DEBUG("CGI process exited with status: " << exitStatus);
-        } else {
-            ERROR("Failed to wait for CGI process exit: " << strerror(errno));
-            CGI_ERROR(HttpStatusCode::InternalServerError);
+        if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
+            ERROR("CGI process is still running, waiting for it to finish");
             return;
         }
+
+        _processId = -1;
+        exitStatus = WEXITSTATUS(exitStatus);
+        ERROR("CGI process exited with status: " << exitStatus);
 
         if (exitStatus != 0) {
             ERROR("CGI process exited with non-zero status: " << exitStatus);
@@ -447,7 +447,6 @@ void CGIResponse::terminateResponse() {
     }
     if (_processId != -1) {
         kill(_processId, SIGKILL);
-        waitpid(_processId, nullptr, 0);
         _processId = -1;
     }
     _server.untrackCGIResponse(this);
