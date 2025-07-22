@@ -89,7 +89,7 @@ inline std::ostream& print_time(std::ostream& os) {
 # define DEBUG_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cout); \
-        std::cout << TERM_COLOR_GREEN << "[DEBUG] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cout << TERM_COLOR_GREEN << "[DEBUG] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 #else

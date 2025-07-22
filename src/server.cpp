@@ -395,10 +395,12 @@ void Server::runOnce() {
     for (CGIResponse *CGIResponse : _cgiResponses) {
         CGIResponse->tick();
         if (CGIResponse->didResponseCreationFail()) {
+            DEBUG("CGIResponse creation failed, switching to error response");
             CGIResponse->client.get()->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode());
             break ;
         }
         if (CGIResponse->isFullResponseSent()) {
+            DEBUG("CGIResponse is fully sent, cleaning up");
             CGIResponse->client.get()->handleClientReset(CGIResponse->socketFD);
             break ;
         }

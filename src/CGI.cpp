@@ -400,16 +400,16 @@ void CGIResponse::tick() {
     else if (!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) {
         int exitStatus = 0;
         if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
-            ERROR("CGI process is still running, waiting for it to finish");
+            DEBUG("CGI process is still running, waiting for it to finish");
             return;
         }
 
         _processId = -1;
         exitStatus = WEXITSTATUS(exitStatus);
-        ERROR("CGI process exited with status: " << exitStatus);
+        DEBUG("CGI process exited with status: " << exitStatus);
 
         if (exitStatus != 0) {
-            ERROR("CGI process exited with non-zero status: " << exitStatus);
+            DEBUG("CGI process exited with non-zero status: " << exitStatus);
             CGI_ERROR(HttpStatusCode::InternalServerError);
             return;
         }
@@ -464,7 +464,7 @@ CGIResponse::~CGIResponse() {
 
 bool CGIResponse::isFullResponseSent() const {
     return (_cgiOutputFD.getReaderFDState() == FDState::Closed && _cgiOutputFD.getReadBufferSize() == 0 &&
-        !didResponseCreationFail());
+        !didResponseCreationFail() && _processId == -1);
 }
 
 void CGIResponse::_closeToCGIProcessFd() {

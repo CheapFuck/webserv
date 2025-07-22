@@ -195,7 +195,7 @@ void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
     DEBUG("Current response: " << (response ? "exists" : "does not exist"));
     DEBUG("Response address: " << response);
     if (response) {
-        PRINT("Deleting existing response for Client: " << _clientIP << ":" << _clientPort);
+        DEBUG("Deleting existing response for Client: " << _clientIP << ":" << _clientPort);
         delete response;
     }
 
