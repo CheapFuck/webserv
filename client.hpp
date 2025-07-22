@@ -28,20 +28,21 @@ private:
     std::string _clientIP;
     std::string _clientPort;
 
-    Response &_processRequest(const ServerConfig &config);
-    Response &_handleReturnRuleResponse(const ReturnRule &returnRule);
-    Response &_createCGIClient(const ServerConfig &config, const LocationRule &route);
-    Response &_processRequestByMethod(const ServerConfig &config, const LocationRule &route);
+    std::unique_ptr<Response> _processRequest(const ServerConfig &config);
+    std::unique_ptr<Response> _handleReturnRuleResponse(const ReturnRule &returnRule);
+    std::unique_ptr<Response> _createCGIClient(const ServerConfig &config, const LocationRule &route);
+    std::unique_ptr<Response> _processRequestByMethod(const ServerConfig &config, const LocationRule &route);
 
-    Response *_configureResponse(Response *response, HttpStatusCode statusCode = HttpStatusCode::OK);
-    Response *_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route);
-    Response *_createDirectoryListingResponse(const LocationRule &route);
-    Response *_createReturnRuleResponse(const ReturnRule &returnRule);
-    Response *_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route);
-    Response *_createResponseFromRequest(SocketFD &fd, Request &request);
+    // std::unique_ptr<Response> _configureResponse(Response *response, HttpStatusCode statusCode = HttpStatusCode::OK);
+    std::unique_ptr<Response> _configureResponse(std::unique_ptr<Response> response, HttpStatusCode statusCode = HttpStatusCode::OK);
+    std::unique_ptr<Response> _createErrorResponse(HttpStatusCode statusCode, const LocationRule &route);
+    std::unique_ptr<Response> _createDirectoryListingResponse(const LocationRule &route);
+    std::unique_ptr<Response> _createReturnRuleResponse(const ReturnRule &returnRule);
+    std::unique_ptr<Response> _createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route);
+    std::unique_ptr<Response> _createResponseFromRequest(SocketFD &fd, Request &request);    
 
 public:
-    Response *response;
+    std::unique_ptr<Response> response;
     Request request;
 
     Client(Server &server, int serverFd, const char *clientIP, int clientPort);

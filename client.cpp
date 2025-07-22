@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-Response *Client::_configureResponse(Response *response, HttpStatusCode statusCode) {
+std::unique_ptr<Response> Client::_configureResponse(std::unique_ptr<Response> response, HttpStatusCode statusCode) {
     response->setStatusCode(statusCode);
     response->setDefaultHeaders();
 
@@ -18,46 +18,47 @@ Response *Client::_configureResponse(Response *response, HttpStatusCode statusCo
 
     _server.fetchUserSession(request, *response);
 
-    return (response);
+    return response;
 }
 
-Response *Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route) {
+std::unique_ptr<Response> Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route) {
     std::string errorPage = route.errorPages.getErrorPage(StatusCode(static_cast<int>(statusCode)));
     if (!errorPage.empty()) {
         int fd = open(errorPage.c_str(), O_RDONLY);
-        if (fd != -1)
-            return (_configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode));
+        if (fd != -1) {
+            return _configureResponse(std::make_unique<FileResponse>(ReadableFD::file(fd)), statusCode);
+        }
     }
 
-    return (_configureResponse(new StaticResponse(getStatusCodeAsStr(statusCode)), statusCode));
+    return _configureResponse(std::make_unique<StaticResponse>(getStatusCodeAsStr(statusCode)), statusCode);
 }
 
-Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
-    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter()), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
-    if (returnRule.isRedirect()) 
+
+std::unique_ptr<Response> Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
+    auto response = _configureResponse(
+        std::make_unique<StaticResponse>(returnRule.getParameter()),
+        static_cast<HttpStatusCode>(int(returnRule.getStatusCode()))
+    );
+    if (returnRule.isRedirect())
         response->headers.replace(HeaderKey::Location, returnRule.getParameter());
-    return (response);
+    return response;
 }
 
-Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
+std::unique_ptr<Response> Client::_createDirectoryListingResponse(const LocationRule &route) {
     if (!route.autoIndex.get())
-        return (_createErrorResponse(HttpStatusCode::Forbidden, route));
+        return _createErrorResponse(HttpStatusCode::Forbidden, route);
 
-    Response *response = _configureResponse(new StaticResponse(redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl())), HttpStatusCode::OK);
+    auto response = _configureResponse(
+        std::make_unique<StaticResponse>(redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl())),
+        HttpStatusCode::OK
+    );
     response->headers.replace(HeaderKey::ContentType, "text/html");
-    return (response);
+    return response;
 }
 
-Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
-    CGIResponse *response = new CGIResponse(_server, fd, shared_from_this());
-    _configureResponse(response, HttpStatusCode::OK);
-    response->start(config, route);
-    if (response->didResponseCreationFail()) {
-        delete response;
-        return _createErrorResponse(response->getFailedResponseStatusCode(), route);
-    }
-    return (response);
-}
+
+
+
 
 Client::Client(Server &server, int serverFd, const char *clientIP, int clientPort) :
     _server(server),
@@ -68,7 +69,18 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
     response(nullptr),
     request() {}
 
-Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
+
+std::unique_ptr<Response> Client::_createCGIResponse([[maybe_unused]] SocketFD &fd,
+                                                    [[maybe_unused]] const ServerConfig &config,
+                                                    [[maybe_unused]] const LocationRule &route) {
+    // TODO: Implement CGI response creation here
+
+    // For now, return nullptr or a default response to satisfy return type
+    return nullptr;
+}
+
+
+std::unique_ptr<Response> Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     DEBUG("Creating response from request for Client, fd: " << fd.get());
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
@@ -106,40 +118,57 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     if (fileFd == -1)
         return _createErrorResponse(HttpStatusCode::NotFound, route);
 
-    return (_configureResponse(new FileResponse(ReadableFD::file(fileFd)), HttpStatusCode::OK));
+    return _configureResponse(std::unique_ptr<Response>(new FileResponse(ReadableFD::file(fileFd))), HttpStatusCode::OK);
 }
+
 
 void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
     switch (_state) {
         case ClientHTTPState::WaitingForHeaders: {
             std::string headerString = fd.extractHeadersFromReadBuffer();
-            if (headerString.empty()) return ;
+            if (headerString.empty()) return;
 
             request = Request(headerString);
             response = _createResponseFromRequest(fd, request);
+
+            if (!response) {
+                DEBUG("Failed to create response, terminating client.");
+                _server.untrackClient(fd);
+                return;
+            }
 
             _state = ClientHTTPState::ReadingBody;
             return handleRead(fd, funcReturnValue);
         }
 
         case ClientHTTPState::ReadingBody: {
+            if (!response) {
+                ERROR("No response available in ReadingBody state.");
+                _server.untrackClient(fd);
+                return;
+            }
             response->handleRequestBody(fd);
             if (response->isFullRequestBodyRecieved()) {
                 _state = ClientHTTPState::SwitchingToOutput;
                 return handleRead(fd, funcReturnValue);
             }
-            return ;
+            return;
         }
 
         case ClientHTTPState::SwitchingToOutput: {
+            if (!response) {
+                ERROR("No response available in SwitchingToOutput state.");
+                _server.untrackClient(fd);
+                return;
+            }
             if (fd.setEpollEvents(EPOLLOUT) == -1) {
                 ERROR("Failed to set EPOLLOUT for client: " << fd.get());
                 response->terminateResponse();
                 _server.untrackClient(fd);
-                return ;
+                return;
             }
 
-            return ;
+            return;
         }
 
         default: {
@@ -148,6 +177,7 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
         }
     }
 }
+
 
 void Client::handleWrite(SocketFD &fd) {
     DEBUG("Handling write for Client, fd: " << fd.get());
@@ -171,8 +201,9 @@ void Client::handleWrite(SocketFD &fd) {
         }
 
         DEBUG("Full response sent for Client, fd: " << fd.get());
-        delete response;
-        response = nullptr;
+        // delete response;
+        // response = nullptr;
+        response.reset();  // deletes the managed Response object and sets the unique_ptr to nullptr
 
         if (fd.setEpollEvents(EPOLLIN) == -1) {
             ERROR("Failed to set EPOLLIN for client: " << fd.get());
@@ -185,24 +216,33 @@ void Client::handleWrite(SocketFD &fd) {
     }
 }
 
+
 void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
     DEBUG("SWITCHING response to error response for Client: " << _clientIP << ":" << _clientPort);
     DEBUG("Current response: " << (response ? "exists" : "does not exist"));
-    DEBUG("Response address: " << response);
-    if (response) {
-        PRINT("Deleting existing response for Client: " << _clientIP << ":" << _clientPort);
-        delete response;
-    }
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
     response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()));
 }
 
+
+// void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
+//     DEBUG("SWITCHING response to error response for Client: " << _clientIP << ":" << _clientPort);
+//     DEBUG("Current response: " << (response ? "exists" : "does not exist"));
+//     DEBUG("Response address: " << response);
+//     if (response) {
+//         PRINT("Deleting existing response for Client: " << _clientIP << ":" << _clientPort);
+//         delete response;
+//     }
+
+//     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
+//     response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()));
+// }
+
 Client::~Client() {
     DEBUG("Destroying client for IP: " << _clientIP << ", Port: " << _clientPort << " (" << this << ")");
-    if (response) {
-        if (!response->isFullResponseSent())
-            response->terminateResponse();
-        delete response;
+    if (response && !response->isFullResponseSent()) {
+        response->terminateResponse();
     }
+    // unique_ptr 'response' will be destroyed automatically here
 }
