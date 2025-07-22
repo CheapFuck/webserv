@@ -30,7 +30,7 @@ inline std::ostream& print_time(std::ostream& os) {
 
 #define PRINT(x) do { \
     print_time(std::cout); \
-    std::cout << TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
+    std::cout << __FILE__ << ":" << __LINE__ << " " TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
 } while (0)
 #define PRINT_IF(cond, x) do { \
     if (cond) { \
@@ -41,36 +41,36 @@ inline std::ostream& print_time(std::ostream& os) {
 #define PRINT_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cout); \
-        std::cout << TERM_COLOR_YELLOW << "[COND: !" #cond "] " TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
+        std::cout << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
     } \
 } while (0)
 #define ERROR(x) do { \
     print_time(std::cerr); \
-    std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_RESET << x << std::endl; \
+    std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_RESET << x << std::endl; \
 } while (0)
 #define ERROR_IF(cond, x) do { \
     if (cond) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 #define ERROR_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 #define ERROR_RET_IF(cond, x) do { \
     if (cond) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
         return; \
     } \
 } while (0)
 #define ERROR_RET_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
         return; \
     } \
 } while (0)
@@ -78,18 +78,18 @@ inline std::ostream& print_time(std::ostream& os) {
 #ifdef DEBUG_MODE
 # define DEBUG(x) do { \
     print_time(std::cout); \
-    std::cout << TERM_COLOR_GREEN << "[DEBUG] " << TERM_COLOR_RESET << x << std::endl; \
+    std::cout << TERM_COLOR_GREEN << "[DEBUG " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_RESET << x << std::endl; \
 } while (0)
 # define DEBUG_IF(cond, x) do { \
     if (cond) { \
         print_time(std::cout); \
-        std::cout << TERM_COLOR_GREEN << "[DEBUG] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cout << TERM_COLOR_GREEN << "[DEBUG " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: " #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 # define DEBUG_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cout); \
-        std::cout << TERM_COLOR_GREEN << "[DEBUG] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cout << TERM_COLOR_GREEN << "[DEBUG " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 #else
