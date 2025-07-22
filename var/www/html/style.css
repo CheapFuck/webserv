@@ -5,7 +5,7 @@ body {
   line-height: 1.6;
   background-color: #f9f9f9;
   color: #333;
-  /* cursor: none; Optional */
+  cursor: none; Optional
 }
 
 header {
@@ -127,12 +127,7 @@ footer {
 }
 
 .firework-cursor {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background-color: white;
-  border-radius: 50%;
-  pointer-events: none;
+  display: none;
 }
 
 .particle {
@@ -149,5 +144,59 @@ footer {
   100% {
     transform: translate(var(--x), var(--y)) scale(0.3);
     opacity: 0;
+  }
+}
+
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #121212;
+    color: #f0f0f0;
+  }
+
+  header {
+    background: #1e1e1e;
+    color: #fff;
+  }
+
+  nav a {
+    color: #ccc;
+  }
+
+  main {
+    background-color: transparent; /* keep the contrast */
+  }
+
+  .project {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+
+  .project h2,
+  .project h4 {
+    color: #f0f0f0;
+    border-bottom-color: #555;
+  }
+
+  .cgi-list li a {
+    color: #aaa;
+  }
+
+  .cgi-list li a:hover {
+    color: #fff;
+  }
+
+  footer {
+    background: #1a1a1a;
+    color: #ccc;
+  }
+
+  /* Firework particles can be more vibrant on dark background */
+  .firework-cursor {
+    background-color: #fff;
+  }
+
+  .particle {
+    background-color: hsl(var(--hue), 100%, 70%);
   }
 }
