@@ -12,11 +12,20 @@ cgi: cgilib.CGIClient = cgilib.CGIClient()
 @cgi.route('/zen')
 def createZenResponse():
     with open('zenOfPython', 'r') as f:
-        zen = f.read()
+        lines = f.read().splitlines()
+    
+    try: amount_of_lines = cgi.session.get('zenAmountOfLines', 1)
+    except ValueError: amount_of_lines = 1
 
     cgi.setHeader("Content-Type", "text/plain; charset=utf-8")
     cgi.setStatus(cgilib.HttpStatusCode.OK)
-    cgi.sendBody(zen)
+
+    if amount_of_lines <= len(lines):
+        cgi.sendBody("\n".join(lines[:amount_of_lines]))
+        cgi.session['zenAmountOfLines'] = amount_of_lines + 1
+    else:
+        cgi.sendBody("You have reached the end of the Zen of Python.\nReload to start over.\n")
+        cgi.session['zenAmountOfLines'] = 1
 
 @cgi.route('/tea')
 def createTeapotResponse():

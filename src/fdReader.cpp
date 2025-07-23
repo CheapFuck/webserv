@@ -187,7 +187,6 @@ ssize_t FDWriter::writeAsChunk(const std::string &data) {
 
     std::stringstream ss;
     ss << std::hex << data.size();
-    ERROR("As hex: " << ss.str());
     ss << "\r\n";
     ss << data;
     ss << "\r\n";

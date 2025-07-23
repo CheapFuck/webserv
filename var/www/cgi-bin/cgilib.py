@@ -201,7 +201,6 @@ class SessionHandler:
         if not self._is_loaded and filename:
             self._is_loaded = True
 
-            # Create the file if it does not exist
             if not os.path.exists(filename):
                 self._data = {}
                 return True
@@ -261,7 +260,14 @@ class CGIClient:
         self.queryParameters: dict[str, str] = {k: v for k, v in (param.split('=') for param in os.environ.get('QUERY_STRING', '').split('&') if '=' in param)}
 
         self.routes: dict[str, typing.Callable[[], None]] = {}
-    
+
+    def safe_print(self, *args, **kwargs) -> None:
+        """Prints to stdout, ensuring that the output is flushed immediately."""
+        if sys.stdout and not sys.stdout.closed:
+            print(*args, **kwargs, flush=True)
+        else:
+            raise RuntimeError("stdout is not ready to write.")
+
     def route(self, path: str) -> typing.Callable[[typing.Callable[[], None]], typing.Callable[[], None]]:
         """Decorator to register a route with a specific path."""
         def decorator(func: typing.Callable[[], None]) -> typing.Callable[[], None]:
@@ -324,7 +330,7 @@ class CGIClient:
             raise RuntimeError('Cannot set headers after sending body.')
         self._cgiStatus = CGIStatus.SEND_HEADERS
 
-        print(f"{name}: {value}", flush=True, end='\r\n')
+        self.safe_print(f"{name}: {value}", end='\r\n')
     
     def setStatus(self, status: HttpStatusCode) -> None:
         """Sets the HTTP status code for the response."""
@@ -336,24 +342,24 @@ class CGIClient:
             raise RuntimeError('Cannot set cookies after sending body.')
         self._cgiStatus = CGIStatus.SEND_HEADERS
 
-        print(cookie.output(header='', sep=''), flush=True, end='\r\n')
+        self.safe_print(cookie.output(header='', sep=''), end='\r\n')
 
     def sendBody(self, body: str) -> None:
         """Sends the body of the response."""
         if self._cgiStatus < CGIStatus.SEND_BODY:
-            print('', end='\r\n', flush=True)
+            self.safe_print('', end='\r\n')
         elif self._cgiStatus > CGIStatus.SEND_BODY:
             raise RuntimeError('Cannot send body after ending the response.')
         self._cgiStatus = CGIStatus.SEND_BODY
 
         if body:
-            print(body, flush=True, end='')
+            self.safe_print(body, end='')
 
     def wrapUpResponse(self) -> None:
         if self._cgiStatus < CGIStatus.SEND_BODY:
             self.sendBody('')
         if self._cgiStatus < CGIStatus.END:
-            print('', flush=True, end='\r\n')
+            self.safe_print('', end='\r\n')
         self._cgiStatus = CGIStatus.END
 
     def onDelete(self, callback: typing.Callable[[], None]) -> None:

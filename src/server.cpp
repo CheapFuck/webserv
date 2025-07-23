@@ -114,6 +114,10 @@ Server::~Server() {
 
 /// @brief Clean up the server resources, closing sockets and cleaning up sessions.
 void Server::cleanUp() {
+    for (auto &clientPair : _clientDescriptors) {
+        clientPair.second.fd.close();
+        delete clientPair.second.client;
+    }
     _clientDescriptors.clear();
     _readableDescriptors.clear();
     _writableDescriptors.clear();
