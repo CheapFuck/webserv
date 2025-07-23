@@ -6,6 +6,7 @@
 
 #include "aliasRule.hpp"
 #include "methodsRule.hpp"
+#include "bodyReadTimeoutRule.hpp"
 #include "rootRule.hpp"
 #include "uploadstoreRule.hpp"
 #include "autoindexRule.hpp"
@@ -40,6 +41,7 @@ public:
     CgiRule cgi;
     CgiTimeoutRule cgiTimeout;
     CgiExtensionRule cgiExtension;
+    ClientBodyReadTimeoutRule clientBodyReadTimeout;
 
     constexpr static Key getKey() { return Key::LOCATION; }
     constexpr static const char* getRuleName() { return "location"; }

@@ -205,8 +205,11 @@ class SessionHandler:
                 self._data = {}
                 return True
             
-            with open(filename, 'r') as file:
-                self._data = json.load(file)
+            try: 
+                with open(filename, 'r') as file:
+                    self._data = json.load(file)
+            except (IOError, json.JSONDecodeError) as e:
+                self._data = {}
 
         return self._is_loaded and bool(self._filename)
 

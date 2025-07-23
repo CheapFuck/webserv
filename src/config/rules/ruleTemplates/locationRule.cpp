@@ -30,7 +30,9 @@ LocationRule::LocationRule(Rule *rule) {
 void LocationRule::_parseFromObject(Object *object) {
     ObjectParser objectParser(object);
 
-    objectParser.bound(Key::SERVER).optional()
+    objectParser.bound(Key::HTTP).optional()
+        .parseFromOne(clientBodyReadTimeout)
+        .bound(Key::SERVER).optional()
         .parseFromOne(root, path.str(), object)
         .parseFromRange(methods)
         .parseFromOne(uploadStore)
@@ -65,6 +67,7 @@ std::ostream& operator<<(std::ostream &os, const LocationRule &rule) {
     os << rule.maxBodySize << "\n";
     os << rule.cgi << "\n";
     os << rule.cgiTimeout << "\n";
-    os << rule.cgiExtension;
+    os << rule.cgiExtension << "\n";
+    os << rule.clientBodyReadTimeout << "\n";
     return os;
 }

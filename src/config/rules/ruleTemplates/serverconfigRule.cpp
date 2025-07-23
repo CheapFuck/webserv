@@ -11,7 +11,9 @@ ServerConfig::ServerConfig(Rule *rule) {
         .parseArgument(object);
 
     ObjectParser objectParser(object);
-    objectParser.local().required()
+    objectParser.bound(Key::HTTP).optional()
+        .parseFromOne(clientHeaderTimeout)
+        .local().required()
         .parseFromOne(port)
         .parseFromOne(serverName)
         .optional() // The routes are optional -> if none can be found the default location will be used.
@@ -60,6 +62,7 @@ const LocationRule& ServerConfig::getLocation(const std::string &url) const {
 
 std::ostream& operator<<(std::ostream &os, const ServerConfig &rule) {
     os << "ServerConfig\n";
+    os << "ClientHeaderTimeout: " << rule.clientHeaderTimeout << "\n";
     os << rule.port << "\n";
     os << rule.serverName << "\n";
     os << "Locations:\n";

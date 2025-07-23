@@ -8,6 +8,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <chrono>
 
 Response *Client::_configureResponse(Response *response, HttpStatusCode statusCode) {
     response->setStatusCode(statusCode);
@@ -102,7 +103,8 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     
     if (!(route.root.isSet() || route.alias.isSet()))
         return _createErrorResponse(HttpStatusCode::NotFound, route);
-    
+ 
+
     request.metadata.translateUrl(_server.getServerExecutablePath(), route);
     if (!request.metadata.getPath().isValid())
         return _createErrorResponse(HttpStatusCode::BadRequest, route);
@@ -120,14 +122,29 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     if (fileFd == -1)
         return _createErrorResponse(HttpStatusCode::NotFound, route);
 
+    if (request.metadata.getRawUrl() == "/directory") {
+        return _configureResponse(new StaticResponse(""), HttpStatusCode::OK);
+    }
+
     return (_configureResponse(new FileResponse(ReadableFD::file(fileFd)), HttpStatusCode::OK));
 }
 
 void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
+    DEBUG("Handling read for Client, fd: " << fd.get() << ", state: " << static_cast<int>(_state));
+    DEBUG_ESC(fd.peekReadBuffer());
     switch (_state) {
+        case ClientHTTPState::Idle: {
+            if (fd.getReadBufferSize() > 0) {
+                _state = ClientHTTPState::WaitingForHeaders;
+                return handleRead(fd, funcReturnValue);
+            }
+            return ;
+        }
+
         case ClientHTTPState::WaitingForHeaders: {
             std::string headerString = fd.extractHeadersFromReadBuffer();
             if (headerString.empty()) {
+                DEBUG("No valid headers received, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
                 if (fd.wouldReadExceedMaxBufferSize()) {
                     DEBUG("No valid headers received; closing the connection.");
                     _server.untrackClient(fd);
@@ -144,7 +161,9 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
 
         case ClientHTTPState::ReadingBody: {
             if (request.receivingBodyMode == ReceivingBodyMode::Chunked) {
+                DEBUG(fd.peekReadBuffer());
                 FDReader::HTTPChunkStatus chunkStatus = fd.returnHTTPChunkStatus();
+                DEBUG("Chunk status: " << static_cast<int>(chunkStatus));
                 if (chunkStatus == FDReader::HTTPChunkStatus::Error) {
                     DEBUG("Error reading chunked body, bad input or incomplete chunk");
                     response->terminateResponse();
@@ -156,7 +175,7 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
                 }
             }
 
-            response->handleRequestBody(fd);
+            response->handleRequestBody(fd, request);
             if (isFullRequestBodyReceived(fd)) {
                 _state = ClientHTTPState::SwitchingToOutput;
                 return handleRead(fd, funcReturnValue);
@@ -217,13 +236,13 @@ void Client::handleClientReset(SocketFD &fd) {
         return;
     }
 
-    _state = ClientHTTPState::WaitingForHeaders;
+    _state = ClientHTTPState::Idle;
     request = Request();
 
     _chunkedRequestBodyRead = false;
 }
 
-void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
+void Client::switchResponseToErrorResponse(HttpStatusCode statusCode, SocketFD &fd) {
     DEBUG("SWITCHING response to error response for Client: " << _clientIP << ":" << _clientPort);
     DEBUG("Current response: " << (response ? "exists" : "does not exist"));
     DEBUG("Response address: " << response);
@@ -234,10 +253,52 @@ void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
     response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()));
+
+    if (_state == ClientHTTPState::WaitingForHeaders || _state == ClientHTTPState::ReadingBody) {
+        _state = ClientHTTPState::SwitchingToOutput;
+        handleRead(fd, 0);
+    }
+}
+
+bool Client::isTimedOut(const HTTPRule &httpRule, const SocketFD &fd) const {
+    switch (getState()) {
+        case ClientHTTPState::WaitingForHeaders: {
+            auto bound = fd.getLastReadTime() + std::chrono::duration<double>(httpRule.clientHeaderTimeout.timeout.getSeconds());
+            DEBUG_IF(bound < std::chrono::steady_clock::now(), "Client timed out while waiting for headers, fd: " << fd.get() << ", bound: " << bound.time_since_epoch().count());
+            return (bound < std::chrono::steady_clock::now());
+        }
+
+        case ClientHTTPState::ReadingBody: {
+            ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
+            const LocationRule &route = config.getLocation(request.metadata.getRawUrl());
+
+            auto bound = fd.getLastReadTime() + std::chrono::duration<double>(route.clientBodyReadTimeout.timeout.getSeconds());
+            DEBUG_IF(bound < std::chrono::steady_clock::now(), "Client timed out while reading body, fd: " << fd.get() << ", bound: " << bound.time_since_epoch().count());
+            return (bound < std::chrono::steady_clock::now());
+        }
+
+        default: {
+            return (false);
+        }
+    }
+}
+
+bool Client::shouldBeClosed(const HTTPRule &httpRule, const SocketFD &fd) const {
+    if (getState() == ClientHTTPState::Idle) {
+        auto bound = fd.getLastReadTime() + std::chrono::duration<double>(httpRule.clientKeepAliveReadTimeout.timeout.getSeconds());
+        DEBUG_IF(bound < std::chrono::steady_clock::now(), "Client timed out while waiting for next request, fd: " << fd.get() << ", bound: " << bound.time_since_epoch().count());
+        return (bound < std::chrono::steady_clock::now());
+    }
+
+    return (false);
 }
 
 Client::~Client() {
     DEBUG("Destroying client for IP: " << _clientIP << ", Port: " << _clientPort << " (" << this << ")");
     if (response)
         delete response;
+}
+
+ClientHTTPState Client::getState() const {
+    return (_state);
 }

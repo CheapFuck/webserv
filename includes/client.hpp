@@ -17,6 +17,7 @@ enum class ClientHTTPState {
     TrashingBody,
     SwitchingToOutput,
     SendingResponse,
+    Idle,
 };
 
 class Client {
@@ -26,6 +27,7 @@ private:
     ClientHTTPState _state;
 
     bool _chunkedRequestBodyRead;
+    bool _isFirstRequest;
 
     std::string _clientIP;
     std::string _clientPort;
@@ -54,9 +56,12 @@ public:
     void handleRead(SocketFD &fd, ssize_t funcReturnValue);
     void handleWrite(SocketFD &fd);
     void handleClientReset(SocketFD &fd);
-    void switchResponseToErrorResponse(HttpStatusCode statusCode);
+    void switchResponseToErrorResponse(HttpStatusCode statusCode, SocketFD &fd);
 
     bool isFullRequestBodyReceived(SocketFD &fd) const;
+    bool isTimedOut(const HTTPRule &httpRule, const SocketFD &fd) const;
+    bool shouldBeClosed(const HTTPRule &httpRule, const SocketFD &fd) const;
+    ClientHTTPState getState() const;
 
     inline std::string &getClientIP() { return _clientIP; }
     inline std::string &getClientPort() { return _clientPort; }

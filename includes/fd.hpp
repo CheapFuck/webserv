@@ -3,6 +3,7 @@
 #include <sys/epoll.h>
 #include <functional>
 #include <unistd.h>
+#include <chrono>
 #include <fcntl.h>
 #include <string>
 #include <memory>
@@ -91,6 +92,7 @@ private:
     ssize_t _totalReadBytes;
     std::string _readBuffer;
     FDState _state;
+    std::chrono::steady_clock::time_point _lastReadTime;
 
 public:
     struct HTTPChunk {
@@ -131,6 +133,7 @@ public:
     std::string extractFullBuffer();
 
     const std::string &peekReadBuffer() const;
+    std::chrono::steady_clock::time_point getLastReadTime() const;
 };
 
 class FDWriter {

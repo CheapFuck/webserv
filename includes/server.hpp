@@ -44,6 +44,7 @@ private:
     int _server_fd;
     int _epoll_fd;
     Timer _timer;
+    HTTPRule &_httpRule;
     std::map<int, ServerClientInfo> _clientDescriptors;
     std::map<int, FDEvent<ReadableFD&>> _readableDescriptors;
     std::map<int, FDEvent<WritableFD&>> _writableDescriptors;
@@ -62,9 +63,10 @@ private:
 
     // I/O handling
     void _handleClientFD(ServerClientInfo &clientInfo, short revents);
+    void _checkHangingConnections();
 
 public:
-    Server(const std::map<int, std::vector<ServerConfig>> &configs);
+    Server(HTTPRule &http);
     Server(const Server &other);
     Server &operator=(const Server &other);
     ~Server();
@@ -73,7 +75,7 @@ public:
     void runOnce();
 
     // Request processing
-    ServerConfig &loadRequestConfig(Request &request, int serverFd);
+    ServerConfig &loadRequestConfig(const Request &request, int serverFd);
     std::shared_ptr<SessionMetaData> fetchUserSession(Request &request, Response &response);
 
     void untrackClient(int fd);

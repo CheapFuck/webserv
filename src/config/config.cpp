@@ -1,4 +1,4 @@
-#include "config/rules/ruleTemplates/serverconfigRule.hpp"
+#include "config/rules/ruleTemplates/httpRule.hpp"
 #include "config/rules/objectParser.hpp"
 #include "config/parserExceptions.hpp"
 #include "print.hpp"
@@ -101,18 +101,18 @@ bool ConfigurationParser::parseFile(const std::string &filePath) {
     return (true);
 }
 
-std::vector<ServerConfig> ConfigurationParser::getResult(const std::string &filePath) {
+HTTPRule ConfigurationParser::getResult(const std::string &filePath) {
     auto it = _objects.find(filePath);
     if (it == _objects.end() || !it->second)
         return {};
 
     Object *result = it->second;
     DEBUG("Configuration object in " << filePath << ":\n" << *result);
-    std::vector<ServerConfig> servers;
     ObjectParser objectParser(result);
+    HTTPRule http;
 
     try {
-        objectParser.local().required().parseRange(servers);
+        objectParser.local().required().parseFromOne(http);
         checkUnusedRules(result);
     } catch (const ParserException &e) {
         std::cerr << e.getMessage();
@@ -122,7 +122,7 @@ std::vector<ServerConfig> ConfigurationParser::getResult(const std::string &file
         return {};
     }
 
-    return servers;
+    return (http);
 }
 
 void Object::printObject(std::ostream &os, int indentLevel) const {

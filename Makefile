@@ -37,8 +37,12 @@ SRCS := src/main.cpp \
 	src/config/rules/ruleParser.cpp \
 	src/config/rules/ruleTemplates/aliasRule.cpp \
 	src/config/rules/ruleTemplates/autoindexRule.cpp \
+	src/config/rules/ruleTemplates/bodyReadTimeoutRule.cpp \
+	src/config/rules/ruleTemplates/headerReadTimeoutRule.cpp \
 	src/config/rules/ruleTemplates/cgiExtensionRule.cpp \
 	src/config/rules/ruleTemplates/cgiRule.cpp \
+	src/config/rules/ruleTemplates/httpRule.cpp \
+	src/config/rules/ruleTemplates/keepaliveReadTimeoutRule.cpp \
 	src/config/rules/ruleTemplates/cgiTimeoutRule.cpp \
 	src/config/rules/ruleTemplates/defineRule.cpp \
 	src/config/rules/ruleTemplates/errorpageRule.cpp \

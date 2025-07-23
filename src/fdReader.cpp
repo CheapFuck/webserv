@@ -30,10 +30,12 @@ ssize_t FDReader::read() {
 
     char buffer[READ_BUFFER_SIZE];
     ssize_t bytesRead = ::read(_fd, buffer, sizeof(buffer));
+    DEBUG("Bytes read: " << bytesRead << " from fd: " << _fd);
 
     if (bytesRead > 0) {
         _readBuffer.append(buffer, bytesRead);
         _totalReadBytes += bytesRead;
+        _lastReadTime = std::chrono::steady_clock::now();
         DEBUG("Read " << bytesRead << " bytes from fd: " << _fd);
     }
     else if (bytesRead == 0)
@@ -105,6 +107,7 @@ FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
 }
 
 FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
+    DEBUG("Call the chunk checker; len remaining buff: " << _readBuffer.size());
     size_t sizePos = _readBuffer.find("\r\n");
     size_t chunkStartPos = 0;
     ssize_t chunkSize = 0;
@@ -114,6 +117,7 @@ FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
     while (sizePos != std::string::npos) {
         try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
         catch (...) { return HTTPChunkStatus::Error; }
+        DEBUG("Chunk size: " << chunkSize);
 
         size_t minBuffLen = sizePos + 4 + chunkSize;
         if (_readBuffer.size() < minBuffLen) return (HTTPChunkStatus::Ongoing);
@@ -157,6 +161,10 @@ ReadableFD ReadableFD::pipe(int *fd, int maxBufferSize) {
     return (ReadableFD(fd[0], maxBufferSize, FDState::Awaiting));
 }
 
+std::chrono::steady_clock::time_point FDReader::getLastReadTime() const {
+    return (_lastReadTime);
+}
+
 
 
 
@@ -169,6 +177,8 @@ ssize_t FDWriter::writeAsString(const std::string &data) {
         ERROR("Trying to write to an invalid file descriptor");
         return -1;
     }
+    DEBUG_ESC("Sending: '" << data << "'");
+    // if (data.length() < 20 && data.find("Method Not Allowed") != std::string::npos) throw std::runtime_error("Method Not Allowed");
     ssize_t bytesWritten = ::write(_fd, data.c_str(), data.size());
     if (bytesWritten < 0)
         FDWriter::_state = FDState::Awaiting;

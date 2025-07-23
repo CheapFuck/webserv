@@ -449,8 +449,9 @@ void CGIResponse::tick() {
     }
 }
 
-void CGIResponse::handleRequestBody(SocketFD &fd) {
+void CGIResponse::handleRequestBody(SocketFD &fd, const Request &request) {
     (void) fd;
+    (void) request;
 }
 
 void CGIResponse::handleSocketWriteTick(SocketFD &fd) {

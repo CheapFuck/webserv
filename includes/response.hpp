@@ -47,7 +47,7 @@ public:
 
     virtual bool isFullResponseSent() const = 0;
 
-    virtual void handleRequestBody(SocketFD &fd) = 0;
+    virtual void handleRequestBody(SocketFD &fd, const Request &request) = 0;
     virtual void handleSocketWriteTick(SocketFD &fd) = 0;
     virtual void terminateResponse() = 0;
 };
@@ -64,7 +64,7 @@ public:
 
     bool isFullResponseSent() const override;
 
-    void handleRequestBody(SocketFD &fd) override;
+    void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
     void terminateResponse() override;
 };
@@ -120,7 +120,7 @@ public:
 
     void start(const ServerConfig &config, const LocationRule &route);
     
-    void handleRequestBody(SocketFD &fd) override;
+    void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
     void terminateResponse() override;
 
@@ -139,7 +139,7 @@ public:
     ~StaticResponse() override;
 
     bool isFullResponseSent() const override;
-    void handleRequestBody(SocketFD &fd) override;
+    void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
     void terminateResponse() override;
 };

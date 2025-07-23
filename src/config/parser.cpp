@@ -26,6 +26,10 @@ static Key getRuleKeyFromToken(Token *token) {
         {DefineRule::getRuleName(), DefineRule::getKey()},
         {IncludeRule::getRuleName(), IncludeRule::getKey()},
         {AliasRule::getRuleName(), AliasRule::getKey()},
+        {ClientHeaderTimeoutRule::getRuleName(), ClientHeaderTimeoutRule::getKey()},
+        {ClientBodyReadTimeoutRule::getRuleName(), ClientBodyReadTimeoutRule::getKey()},
+        {HTTPRule::getRuleName(), HTTPRule::getKey()},
+        {ClientKeepAliveReadTimeoutRule::getRuleName(), ClientKeepAliveReadTimeoutRule::getKey()},
     };
 
     auto it = keyMap.find(token->value);

@@ -29,6 +29,20 @@
 typedef struct sockaddr_in sockaddr_in;
 typedef struct epoll_event epoll_event;
 
+std::map<int, std::vector<ServerConfig>> translate_config_vec_to_map(const std::vector<ServerConfig> &configs) {
+    std::map<int, std::vector<ServerConfig>> portToConfigs;
+
+    for (const auto &config : configs) {
+        if (config.port.isSet()) {
+            portToConfigs[config.port.getPort()].push_back(config);
+        } else {
+            ERROR("Server configuration missing port: " << config.serverName.getServerName());
+        }
+    }
+
+    return portToConfigs;
+}
+
 class ServerCreationException : public std::exception {
 private:
     std::string _message;
@@ -54,19 +68,21 @@ public:
 ServerClientInfo::ServerClientInfo(SocketFD fd, Client *client)
     : fd(std::move(fd)), client(client) {}
 
-Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
+Server::Server(HTTPRule &http) :
     _portToConfigs(),
     _cgiResponses(),
     _sessionManager("sessions"),
     _server_fd(-1),
     _epoll_fd(-1),
     _timer(),
+    _httpRule(http),
     _clientDescriptors(),
     _serverAddress(),
     _serverExecutablePath(std::filesystem::current_path().string())
 {
+    std::map<int, std::vector<ServerConfig>> listeningPortsToConfigs = translate_config_vec_to_map(http.servers);
     try {
-        for (const auto &pair : configs)
+        for (const auto &pair : listeningPortsToConfigs)
             this->_setupSocket(pair.first, pair.second);
         this->_setupEpoll();
     } catch (const ServerCreationException &e) {
@@ -79,6 +95,9 @@ Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _timer.addEvent(std::chrono::seconds(SESSION_CLEANUP_INTERVAL), [this]() {
         _sessionManager.cleanUpExpiredSessions();
     }, true);
+    _timer.addEvent(std::chrono::seconds(1), [this]() {
+        _checkHangingConnections();
+    }, true);
 }
 
 Server::Server(const Server &other) :
@@ -88,6 +107,7 @@ Server::Server(const Server &other) :
     _server_fd(other._server_fd),
     _epoll_fd(other._epoll_fd),
     _timer(other._timer),
+    _httpRule(other._httpRule),
     _clientDescriptors(other._clientDescriptors),
     _serverAddress(other._serverAddress),
     _serverExecutablePath(other._serverExecutablePath) {}
@@ -100,6 +120,7 @@ Server &Server::operator=(const Server &other) {
         _server_fd = other._server_fd;
         _epoll_fd = other._epoll_fd;
         _timer = other._timer;
+        _httpRule = other._httpRule;
         _clientDescriptors = other._clientDescriptors;
         _serverAddress = other._serverAddress;
         _serverExecutablePath = other._serverExecutablePath;
@@ -131,6 +152,25 @@ void Server::cleanUp() {
         close(_epoll_fd);
 
     _sessionManager.shutdown();
+}
+
+void Server::_checkHangingConnections() {
+    DEBUG("Checking for hanging connections");
+    for (auto &[fd, clientInfo] : _clientDescriptors) {
+        if (clientInfo.client->isTimedOut(_httpRule, clientInfo.fd)) {
+            DEBUG("Client " << clientInfo.client->getClientIP() << ":" << clientInfo.client->getClientPort()
+                  << " has timed out, returning RequestTimeout response");
+            clientInfo.client->switchResponseToErrorResponse(HttpStatusCode::RequestTimeout, clientInfo.fd);
+        }
+
+        if (clientInfo.client->shouldBeClosed(_httpRule, clientInfo.fd)) {
+            DEBUG("Client " << clientInfo.client->getClientIP() << ":" << clientInfo.client->getClientPort()
+                  << " should be closed, closing connection");
+            clientInfo.fd.close();
+            delete clientInfo.client;
+            _clientDescriptors.erase(fd);
+        }
+    }
 }
 
 void Server::trackCGIResponse(CGIResponse *cgiResponse) {
@@ -231,7 +271,7 @@ void Server::_handleNewConnection(int sourceFd) {
 /// @param request The Request object containing the headers
 /// @return A reference to the ServerConfig object that matches the Host header | 
 /// or the first config if no direct match was found
-ServerConfig &Server::loadRequestConfig(Request &request, int serverFd) {
+ServerConfig &Server::loadRequestConfig(const Request &request, int serverFd) {
     ServerConfig *defaultConfig = nullptr;
 
 	for (ServerConfig &config : _portToConfigs[serverFd]) {
@@ -403,7 +443,7 @@ void Server::runOnce() {
             continue ;
         }
 
-        ERROR("No handler found for fd: " << fd << ", ignoring event (should never happen though :eyes:)");
+        ERROR("No handler found for fd: " << fd << ", ignoring event (probably because of it being closed previously)");
     }
 
     _timer.processEvents();
@@ -420,7 +460,7 @@ void Server::runOnce() {
         }
         else if (CGIResponse->didResponseCreationFail()) {
             DEBUG("CGIResponse creation failed, switching to error response");
-            CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode());
+            CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode(), CGIResponse->socketFD);
             break ;
         }
         else if (CGIResponse->isFullResponseSent()) {

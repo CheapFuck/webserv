@@ -77,8 +77,22 @@ bool FileResponse::isFullResponseSent() const {
     return (_fileFD.getReaderFDState() == FDState::Closed && headersBeenSent());
 }
 
-void FileResponse::handleRequestBody(SocketFD &fd) {
-    fd.clearReadBuffer();
+void FileResponse::handleRequestBody(SocketFD &fd, const Request &request) {
+    switch (request.receivingBodyMode) {
+        case ReceivingBodyMode::Chunked: {
+            while (true) {
+                FDReader::HTTPChunk chunk = fd.extractHTTPChunkFromReadBuffer();
+                if (chunk.size == FDReader::HTTPChunk::noChunk) break ;
+            }
+            return ;
+        }
+
+        case ReceivingBodyMode::NotSet:
+        case ReceivingBodyMode::ContentLength: {
+            fd.clearReadBuffer();
+            return ;
+        }
+    }
 }
 
 void FileResponse::handleSocketWriteTick(SocketFD &fd) {
@@ -125,17 +139,30 @@ bool StaticResponse::isFullResponseSent() const {
     return (headersBeenSent());
 }
 
-void StaticResponse::handleRequestBody(SocketFD &fd) {
-    fd.clearReadBuffer();
+void StaticResponse::handleRequestBody(SocketFD &fd, const Request &request) {
+    switch (request.receivingBodyMode) {
+        case ReceivingBodyMode::Chunked: {
+            while (true) {
+                FDReader::HTTPChunk chunk = fd.extractHTTPChunkFromReadBuffer();
+                if (chunk.size == FDReader::HTTPChunk::noChunk) break ;
+            }
+            return ;
+        }
+
+        case ReceivingBodyMode::NotSet:
+        case ReceivingBodyMode::ContentLength: {
+            fd.clearReadBuffer();
+            return ;
+        }
+    }
 }
 
 void StaticResponse::handleSocketWriteTick(SocketFD &fd) {
     DEBUG("Handling socket write tick for StaticResponse, fd: " << fd.get());
-    if (!headersBeenSent()) {
+    if (!headersBeenSent())
         sendHeaders(fd);
-        if (!_content.empty())
-            fd.writeAsString(_content);
-    }
+    if (!_content.empty())
+        fd.writeAsString(_content);
 }
 
 void StaticResponse::terminateResponse() {

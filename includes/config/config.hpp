@@ -10,7 +10,7 @@
 #include <memory>
 #include <map>
 
-class ServerConfig;
+class HTTPRule;
 
 struct ConfigFile;
 struct Argument;
@@ -78,6 +78,10 @@ enum Key {
 	INCLUDE = 1 << 15,
     CGI_EXTENSION = 1 << 16,
     ALIAS = 1 << 17,
+    CLIENT_HEADER_TIMEOUT = 1 << 18,
+    CLIENT_BODY_TIMEOUT = 1 << 19,
+    CLIENT_KEEPALIVE_READ_TIMEOUT = 1 << 20,
+    HTTP = 1 << 21,
 };
 
 enum ArgumentType {
@@ -193,7 +197,7 @@ public:
     ~ConfigurationParser() = default;
 
     bool parseFile(const std::string &filePath);
-    std::vector<ServerConfig> getResult(const std::string &filePath);
+    HTTPRule getResult(const std::string &filePath);
 
     /// @brief Check if a file is already loaded in the lexer - even if the file is not parsed yet.
     /// @param filePath The path of the file to check.

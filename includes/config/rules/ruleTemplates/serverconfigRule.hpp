@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../types/customTypes.hpp"
+#include "headerReadTimeoutRule.hpp"
 #include "servernameRule.hpp"
 #include "locationRule.hpp"
 #include "../../config.hpp"
@@ -14,10 +15,10 @@ private:
     std::vector<LocationRule> _locations;
     LocationRule _defaultLocation;
 
-
 public:
     PortRule port;
     ServerNameRule serverName;
+    ClientHeaderTimeoutRule clientHeaderTimeout;
 
     constexpr static Key getKey() { return Key::SERVER; }
     constexpr static const char* getRuleName() { return "server"; }

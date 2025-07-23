@@ -12,7 +12,7 @@
 #include "config/config.hpp"
 #include "config/rules/rules.hpp"
 
-#include "config/rules/ruleTemplates/serverconfigRule.hpp"
+#include "config/rules/ruleTemplates/httpRule.hpp"
 #include "config/config.hpp"
 
 bool g_quit = false;
@@ -23,18 +23,8 @@ void signalHandler(int signum) {
     }
 }
 
-std::map<int, std::vector<ServerConfig>> translate_config_vec_to_map(const std::vector<ServerConfig> &configs) {
-    std::map<int, std::vector<ServerConfig>> portToConfigs;
-
-    for (const auto &config : configs) {
-        if (config.port.isSet()) {
-            portToConfigs[config.port.getPort()].push_back(config);
-        } else {
-            ERROR("Server configuration missing port: " << config.serverName.getServerName());
-        }
-    }
-
-    return portToConfigs;
+void signalPipeShit(int signum) {
+    ERROR("Broken pipe shit " << signum);
 }
 
 int main(int argc, char* argv[]) {
@@ -48,19 +38,19 @@ int main(int argc, char* argv[]) {
 
     ConfigurationParser *parser = new ConfigurationParser();
     parser->parseFile(configPath);
-    std::vector<ServerConfig> configs = parser->getResult(configPath);
+    HTTPRule configs = parser->getResult(configPath);
     delete parser;
 
-    if (configs.empty())
-        return 1;
+    if (configs.servers.empty())
+        return (1);
 
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     signal(SIGQUIT, signalHandler);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, signalPipeShit);
 
     PRINT("Configuration loaded successfully from " << configPath);
-    Server server(translate_config_vec_to_map(configs));
+    Server server(configs);
     while (!g_quit)
         server.runOnce();
     server.cleanUp();

@@ -16,6 +16,27 @@
 #define TERM_BOLD "\033[1m"
 #define TERM_UNDERLINE "\033[4m"
 
+#include <iostream>
+#include <string>
+#include <iomanip>
+
+inline void print_escaped(std::ostream& os, const std::string& s) {
+    for (char c : s) {
+        switch (c) {
+            case '\r': os << "\\r"; break;
+            case '\n': os << "\\n"; break;
+            case '\t': os << "\\t"; break;
+            case '\\': os << "\\\\"; break;
+            default:
+                if (std::isprint(static_cast<unsigned char>(c)))
+                    os << c;
+                else
+                    os << "\\x" << std::hex << std::setw(2) << std::setfill('0')
+                       << (static_cast<int>(static_cast<unsigned char>(c))) << std::dec;
+        }
+    }
+}
+
 inline std::ostream& print_time(std::ostream& os) {
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
@@ -76,6 +97,16 @@ inline std::ostream& print_time(std::ostream& os) {
 } while (0)
 
 #ifdef DEBUG_MODE
+#define DEBUG_ESC(x) do { \
+    print_time(std::cout); \
+    std::cout << TERM_COLOR_GREEN << "[DEBUG " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_RESET; \
+    { \
+        std::stringstream ss; \
+        ss << x; \
+        print_escaped(std::cout, ss.str()); \
+    } \
+    std::cout << std::endl; \
+} while (0)
 # define DEBUG(x) do { \
     print_time(std::cout); \
     std::cout << TERM_COLOR_GREEN << "[DEBUG " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_RESET << x << std::endl; \
@@ -93,6 +124,7 @@ inline std::ostream& print_time(std::ostream& os) {
     } \
 } while (0)
 #else
+# define DEBUG_ESC(x) do {} while (0)
 # define DEBUG(x) do {} while (0)
 # define DEBUG_IF(cond, x) do {} while (0)
 # define DEBUG_IF_NOT(cond, x) do {} while (0)
