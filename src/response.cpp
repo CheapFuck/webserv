@@ -73,10 +73,6 @@ FileResponse::FileResponse(ReadableFD fileFD) :
     DEBUG("FileResponse created with file FD: " << _fileFD.get());
 }
 
-bool FileResponse::isFullRequestBodyRecieved() const {
-    return (true); // No body needed for FileResponse
-}
-
 bool FileResponse::isFullResponseSent() const {
     return (_fileFD.getReaderFDState() == FDState::Closed && headersBeenSent());
 }
@@ -123,10 +119,6 @@ StaticResponse::StaticResponse(const std::string &content) :
 
 StaticResponse::~StaticResponse() {
     DEBUG("StaticResponse destroyed");
-}
-
-bool StaticResponse::isFullRequestBodyRecieved() const {
-    return (true);
 }
 
 bool StaticResponse::isFullResponseSent() const {

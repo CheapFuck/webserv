@@ -7,19 +7,14 @@
 #include <string>
 
 FDReader::HTTPChunk::HTTPChunk(std::string data, size_t size)
-    : data(std::move(data)), size(size) {
-    DEBUG("HTTPChunk created with size: " << size);
-}
+    : data(std::move(data)), size(size) {}
 
 FDReader::FDReader() 
-    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _readBuffer(), _state(FDState::Invalid) {
-    DEBUG("FDReader created with default parameters");
-}
+    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _readBuffer(), _state(FDState::Invalid) {}
 
 FDReader::FDReader(int fd, int maxBufferSize, FDState state)
     : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _readBuffer(), _state(state) {
     _readBuffer.reserve(_maxBufferSize);
-    DEBUG("FDReader created with fd: " << _fd);
 }
 
 ssize_t FDReader::read() {
@@ -58,13 +53,11 @@ size_t FDReader::getReadBufferSize() const {
 }
 
 void FDReader::clearReadBuffer() {
-    DEBUG("Clearing read buffer, previous size: " << _readBuffer.size());
     _readBuffer.clear();
 }
 
 void FDReader::setReaderFDState(FDState state) {
     FDReader::_state = state;
-    DEBUG("Set FDReader state to: " << static_cast<int>(_state));
 }
 
 bool FDReader::wouldReadExceedMaxBufferSize() const {
@@ -73,6 +66,10 @@ bool FDReader::wouldReadExceedMaxBufferSize() const {
 
 FDState FDReader::getReaderFDState() const {
     return (FDReader::_state);
+}
+
+const std::string &FDReader::peekReadBuffer() const {
+    return (_readBuffer);
 }
 
 std::string FDReader::extractHeadersFromReadBuffer() {
@@ -107,6 +104,32 @@ FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
     return HTTPChunk("", HTTPChunk::noChunk);
 }
 
+FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
+    size_t sizePos = _readBuffer.find("\r\n");
+    size_t chunkStartPos = 0;
+    ssize_t chunkSize = 0;
+
+    if (_readBuffer.empty()) return (HTTPChunkStatus::Ongoing);
+
+    while (sizePos != std::string::npos) {
+        try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
+        catch (...) { return HTTPChunkStatus::Error; }
+
+        size_t minBuffLen = sizePos + 4 + chunkSize;
+        if (_readBuffer.size() < minBuffLen) return (HTTPChunkStatus::Ongoing);
+
+        if (_readBuffer.compare(sizePos + 2 + chunkSize, 2, "\r\n") != 0)
+            return (HTTPChunkStatus::Error);
+        if (chunkSize == 0)
+            return (HTTPChunkStatus::Complete);
+
+        chunkStartPos = sizePos + 4 + chunkSize;
+        sizePos = _readBuffer.find("\r\n", chunkStartPos);
+    }
+
+    return (HTTPChunkStatus::Ongoing);
+}
+
 std::string FDReader::extractChunkFromReadBuffer(size_t chunkSize) {
     if (chunkSize > _readBuffer.size()) {
         ERROR("Requested chunk size exceeds buffer size");
@@ -137,13 +160,9 @@ ReadableFD ReadableFD::pipe(int *fd, int maxBufferSize) {
 
 
 
-FDWriter::FDWriter() : _fd(-1), _state(FDState::Invalid) {
-    DEBUG("FDWriter created with default parameters");
-}
+FDWriter::FDWriter() : _fd(-1), _state(FDState::Invalid) {}
 
-FDWriter::FDWriter(int fd, FDState state) : _fd(fd), _state(state) {
-    DEBUG("FDWriter created with fd: " << _fd);
-}
+FDWriter::FDWriter(int fd, FDState state) : _fd(fd), _state(state) {}
 
 ssize_t FDWriter::writeAsString(const std::string &data) {
     if (_fd < 0) {
@@ -168,6 +187,7 @@ ssize_t FDWriter::writeAsChunk(const std::string &data) {
 
     std::stringstream ss;
     ss << std::hex << data.size();
+    ERROR("As hex: " << ss.str());
     ss << "\r\n";
     ss << data;
     ss << "\r\n";

@@ -19,11 +19,13 @@ enum class ClientHTTPState {
     SendingResponse,
 };
 
-class Client : public std::enable_shared_from_this<Client> {
+class Client {
 private:
     Server &_server;
     int _serverFd;
     ClientHTTPState _state;
+
+    bool _chunkedRequestBodyRead;
 
     std::string _clientIP;
     std::string _clientPort;
@@ -53,6 +55,8 @@ public:
     void handleWrite(SocketFD &fd);
     void handleClientReset(SocketFD &fd);
     void switchResponseToErrorResponse(HttpStatusCode statusCode);
+
+    bool isFullRequestBodyReceived(SocketFD &fd) const;
 
     inline std::string &getClientIP() { return _clientIP; }
     inline std::string &getClientPort() { return _clientPort; }

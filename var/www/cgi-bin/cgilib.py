@@ -314,12 +314,7 @@ class CGIClient:
     def getBody(self) -> str | None:
         """Returns the body of the request. If the body is not already set, it attempts to read from stdin."""
         if self._body is None:
-            try:
-                content_length = int(os.environ.get('CONTENT_LENGTH', 0))
-                if content_length > 0:
-                    self._body = sys.stdin.read(content_length)
-            except (ValueError, OSError):
-                self._body = ''
+            self._body = sys.stdin.read()
 
         return self._body
 

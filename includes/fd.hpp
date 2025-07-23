@@ -10,7 +10,7 @@
 #define DEFAULT_EPOLLIN_EVENTS (EPOLLIN)
 #define DEFAULT_EPOLLOUT_EVENTS (EPOLLOUT)
 
-#define DEFAULT_MAX_BUFFER_SIZE (1024 * 1024) // 1 MB
+#define DEFAULT_MAX_BUFFER_SIZE (1024 * 256) // 256 KB
 #define READ_BUFFER_SIZE (32 * 1024) // 32 KB
 // #define READ_BUFFER_SIZE (512) // 512 bytes
 
@@ -101,6 +101,12 @@ public:
         static constexpr size_t noChunk = static_cast<size_t>(-1);
     };
 
+    enum class HTTPChunkStatus {
+        Ongoing,
+        Complete,
+        Error,
+    };
+
     FDReader();
     FDReader(int fd, int maxBufferSize, FDState state);
     FDReader(const FDReader &other) = default;
@@ -120,8 +126,11 @@ public:
 
     std::string extractHeadersFromReadBuffer();
     HTTPChunk extractHTTPChunkFromReadBuffer();
+    HTTPChunkStatus returnHTTPChunkStatus() const;
     std::string extractChunkFromReadBuffer(size_t chunkSize);
     std::string extractFullBuffer();
+
+    const std::string &peekReadBuffer() const;
 };
 
 class FDWriter {

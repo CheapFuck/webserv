@@ -12,9 +12,7 @@
 FD::FD() : _fd(-1), _epollFd(-1) {}
 
 FD::FD(int fd)
-    : _fd(fd), _epollFd(-1) {
-        DEBUG("FD created with fd: " << _fd);
-    }
+    : _fd(fd), _epollFd(-1) {}
 
 bool FD::operator<(const FD& other) const {
     return _fd < other._fd;
@@ -32,7 +30,6 @@ int FD::p_cleanUp() {
 
     if (isValidFd()) {
         int result = ::close(_fd);
-        DEBUG("FD cleanUp called on fd: " << _fd << ", result: " << result << ", errno: " << errno << " (" << strerror(errno) << ")");
         _fd = -1;
         return (result);
     }
@@ -90,7 +87,6 @@ int FD::disconnectFromEpoll() {
         return -1;
     }
 
-    DEBUG("Disconnected fd: " << _fd << " from epoll");
     _epollFd = -1;
     return 0;
 }
@@ -113,7 +109,6 @@ int FD::p_setEpollEvents(uint32_t events) {
         return -1;
     }
 
-    DEBUG("Set epoll events for fd: " << _fd << ", events: " << events);
     return 0;
 }
 
@@ -139,25 +134,20 @@ int FD::close() {
 
 ReadableFD::ReadableFD() 
     : FD(), FDReader() {
-    DEBUG("ReadableFD created with default parameters");
 }
 
 ReadableFD::ReadableFD(int fd, int maxBufferSize, FDState state)
     : FD(fd), FDReader(fd, maxBufferSize, state) {
-    DEBUG("ReadableFD created with fd: " << fd);
 }
 
 WritableFD::WritableFD() 
     : FD(), FDWriter() {
-    DEBUG("WritableFD created with default parameters");
 }
 
 WritableFD::WritableFD(int fd, FDState state)
     : FD(fd), FDWriter(fd, state) {
-    DEBUG("WritableFD created with fd: " << fd);
 }
 
 SocketFD::SocketFD(int fd, int maxReadBufferSize) :
     FD(fd), FDReader(fd, maxReadBufferSize, FDState::OtherFunctionality), FDWriter(fd, FDState::OtherFunctionality) {
-    DEBUG("SocketFD created with fd: " << fd);
 }

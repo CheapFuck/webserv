@@ -67,13 +67,14 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
     });
 }
 
-CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, std::shared_ptr<Client> client) : _server(server),
+CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, Client *client) : _server(server),
     _cgiOutputFD(), _cgiInputFD(),
     _environmentVariables(),
     _timerId(-1), _processId(-1),
-    _chunkedRequestBodyRead(false), _transferMode(CGIResponseTransferMode::FullBuffer),
+    _chunkedRequestBodyRead(false), _hasSentFinalChunk(false), _isBrokenBeyondRepair(false),
+    _transferMode(CGIResponseTransferMode::FullBuffer),
     _innerStatusCode(HttpStatusCode::OK), socketFD(socketFD), client(client) {
-    DEBUG("CGIResponse created for client: " << client.get());
+    DEBUG("CGIResponse created for client: " << client);
 }
 
 bool CGIResponse::didResponseCreationFail() const {
@@ -97,30 +98,30 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
 
     _environmentVariables["SERVER_PROTOCOL"] = Response::protocol + std::string("/") + Response::tlsVersion;
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
-    _environmentVariables["REQUEST_METHOD"] = methodToStr(client.get()->request.metadata.getMethod());
+    _environmentVariables["REQUEST_METHOD"] = methodToStr(client->request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
     _environmentVariables["SCRIPT_FILENAME"] = parsedUrl.scriptPath;
     _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
-    _environmentVariables["REMOTE_ADDR"] = client.get()->getClientIP();
-    _environmentVariables["REMOTE_PORT"] = client.get()->getClientPort();
-    _environmentVariables["SERVER_ADDR"] = client.get()->getServer().getServerAddress();
+    _environmentVariables["REMOTE_ADDR"] = client->getClientIP();
+    _environmentVariables["REMOTE_PORT"] = client->getClientPort();
+    _environmentVariables["SERVER_ADDR"] = client->getServer().getServerAddress();
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";
 
-    if (client.get()->request.session && !client.get()->request.session->sessionId.empty())
-        _environmentVariables["HTTP_SESSION_FILE"] = client.get()->request.session->absoluteFilePath;
+    if (client->request.session && !client->request.session->sessionId.empty())
+        _environmentVariables["HTTP_SESSION_FILE"] = client->request.session->absoluteFilePath;
 
-    const std::string contentHeader = client.get()->request.headers.getHeader(HeaderKey::ContentType, "");
+    const std::string contentHeader = client->request.headers.getHeader(HeaderKey::ContentType, "");
     if (!contentHeader.empty())
         _environmentVariables["CONTENT_TYPE"] = contentHeader;
 
-    const std::string contentLength = client.get()->request.headers.getHeader(HeaderKey::ContentLength, "");
+    const std::string contentLength = client->request.headers.getHeader(HeaderKey::ContentLength, "");
     if (!contentLength.empty())
         _environmentVariables["CONTENT_LENGTH"] = contentLength;
 
-    for (const auto &[headerKey, headerValue] : client.get()->request.headers.getHeaders()) {
+    for (const auto &[headerKey, headerValue] : client->request.headers.getHeaders()) {
         std::string envVarKey = "HTTP_" + headerKey;
         std::replace(envVarKey.begin(), envVarKey.end(), '-', '_');
         std::transform(envVarKey.begin(), envVarKey.end(), envVarKey.begin(), ::toupper);
@@ -143,8 +144,8 @@ void CGIResponse::_createEnvironmentArray(std::vector<char*> &envPtrs, std::vect
 }
 
 void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
-    DEBUG("Starting CGIResponse for client: " << client.get());
-    const ParsedUrl parsedUrl = parseUrl(route, client.get()->request.metadata);
+    DEBUG("Starting CGIResponse for client: " << client);
+    const ParsedUrl parsedUrl = parseUrl(route, client->request.metadata);
 
     DEBUG("Parsed URL: scriptPath=" << parsedUrl.scriptPath
           << ", pathInfo=" << parsedUrl.pathInfo
@@ -152,7 +153,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
           << ", isValid=" << parsedUrl.isValid);
 
     if (!parsedUrl.isValid) {
-        DEBUG("Unknown URL for CGI processing: " << client.get()->request.metadata.getRawUrl());
+        DEBUG("Unknown URL for CGI processing: " << client->request.metadata.getRawUrl());
         CGI_ERROR(HttpStatusCode::NotFound);
         return;
     }
@@ -265,9 +266,11 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
         _server.trackCallbackFD(_cgiOutputFD, [this](ReadableFD &fd, short revents) {
             (void) fd;
             DEBUG("CGIResponse write callback, fd: " << fd.get() << ", revents: " << revents);
-            if (revents & EPOLLIN) _cgiOutputFD.setReaderFDState(FDState::Ready);
-            else _cgiOutputFD.setReaderFDState(FDState::Awaiting);
-            fd.read();
+            if (fd.getReaderFDState() == FDState::Ready) fd.read();
+            if (revents & EPOLLHUP) {
+                DEBUG("CGI process output pipe closed, setting state to Closed");
+                _closeFromCGIProcessFd();
+            }
         });
 
         _server.trackCGIResponse(this);
@@ -278,7 +281,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
 ssize_t CGIResponse::_sendRequestBodyToCGIProcess() {
     ssize_t bytesWritten = 0;
 
-    switch (client.get()->request.receivingBodyMode) {
+    switch (client->request.receivingBodyMode) {
         case ReceivingBodyMode::Chunked: {
             while (true) {
                 FDReader::HTTPChunk chunk = socketFD.extractHTTPChunkFromReadBuffer();
@@ -335,6 +338,8 @@ bool CGIResponse::_fetchCGIHeadersFromProcess() {
         headers.replace(HeaderKey::ContentLength, std::to_string(_cgiOutputFD.getReadBufferSize()));
         headers.remove(HeaderKey::TransferEncoding);
     } else {
+        headers.replace(HeaderKey::ContentDisposition, "attachment; filename=\"response\"");
+        headers.replace(HeaderKey::ContentType, "application/octet-stream");
         headers.replace(HeaderKey::TransferEncoding, "chunked");
         headers.remove(HeaderKey::ContentLength);
     }
@@ -343,6 +348,11 @@ bool CGIResponse::_fetchCGIHeadersFromProcess() {
 }
 
 void CGIResponse::_sendCGIResponse() {
+    if (socketFD.getWriterFDState() != FDState::Ready) {
+        DEBUG("Socket is not ready for writing, waiting for it to be ready");
+        return;
+    }
+
     if (!headersBeenSent() && !_fetchCGIHeadersFromProcess()) {
         ERROR("Failed to fetch CGI headers");
         CGI_ERROR(HttpStatusCode::InternalServerError);
@@ -363,10 +373,13 @@ void CGIResponse::_sendCGIResponse() {
         }
 
         case CGIResponseTransferMode::Chunked: {
-            ssize_t bytesWritten = socketFD.writeAsChunk(_cgiOutputFD.extractFullBuffer());
+            std::string fullBuffer = _cgiOutputFD.extractFullBuffer();
+            ERROR("Sending chunked CGI response to socket, size: " << fullBuffer.size());
+            ssize_t bytesWritten = socketFD.writeAsChunk(fullBuffer);
             if (bytesWritten < 0) {
                 ERROR("Failed to write chunked CGI response to socket");
-                CGI_ERROR(HttpStatusCode::InternalServerError);
+                ERROR(errno << ": " << strerror(errno));
+                // _isBrokenBeyondRepair = true;
             }
             return;
         }
@@ -374,13 +387,13 @@ void CGIResponse::_sendCGIResponse() {
 }
 
 void CGIResponse::tick() {
-    DEBUG("CGIResponse tick for client: " << client.get());
+    DEBUG("CGIResponse tick for client: " << client);
     if (_cgiInputFD.isValidFd() && _cgiInputFD.getWriterFDState() == FDState::Ready) {
         DEBUG("CGIResponse input pipe is ready for writing, fd: " << _cgiInputFD.get());
         DEBUG("read buffer size: " << socketFD.getReadBufferSize());
         if (socketFD.getReadBufferSize() > 0)
             _sendRequestBodyToCGIProcess();
-        else if (isFullRequestBodyRecieved())
+        else if (client->isFullRequestBodyReceived(socketFD))
             _closeToCGIProcessFd();
     }
 
@@ -398,6 +411,21 @@ void CGIResponse::tick() {
     }
 
     else if (!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) {
+        if (_transferMode == CGIResponseTransferMode::Chunked && !_hasSentFinalChunk) {
+            if (socketFD.getWriterFDState() != FDState::Ready) {
+                DEBUG("Waiting for socket to be ready for writing, fd: " << socketFD.get() << ", state: " << static_cast<int>(socketFD.getWriterFDState()));
+                return;
+            }
+            DEBUG("Sending final chunk to socket");
+            ssize_t bytesWritten = socketFD.writeAsChunk("");
+            if (bytesWritten < 0) {
+                ERROR("Failed to write final chunk to socket");
+                CGI_ERROR(HttpStatusCode::InternalServerError);
+                return;
+            }
+            _hasSentFinalChunk = true;
+        }
+
         int exitStatus = 0;
         if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
             DEBUG("CGI process is still running, waiting for it to finish");
@@ -410,7 +438,10 @@ void CGIResponse::tick() {
 
         if (exitStatus != 0) {
             DEBUG("CGI process exited with non-zero status: " << exitStatus);
-            CGI_ERROR(HttpStatusCode::InternalServerError);
+            if (_transferMode == CGIResponseTransferMode::Chunked)
+                _isBrokenBeyondRepair = true;
+            else
+                CGI_ERROR(HttpStatusCode::InternalServerError);
             return;
         }
 
@@ -424,18 +455,6 @@ void CGIResponse::handleRequestBody(SocketFD &fd) {
 
 void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
     (void) fd;
-}
-
-bool CGIResponse::isFullRequestBodyRecieved() const {
-    switch (client.get()->request.receivingBodyMode) {
-        case ReceivingBodyMode::Chunked: {
-            return (_chunkedRequestBodyRead);
-        }
-        case ReceivingBodyMode::ContentLength:
-        default: {
-            return (socketFD.getTotalReadBytes() - client.get()->request.headerPartLength >= client.get()->request.contentLength);
-        }
-    }
 }
 
 void CGIResponse::terminateResponse() {
@@ -453,12 +472,12 @@ void CGIResponse::terminateResponse() {
 }
 
 void CGIResponse::_handleTimeout() {
-    DEBUG("CGIResponse timeout handler called for client: " << client.get());
+    DEBUG("CGIResponse timeout handler called for client: " << client);
     CGI_ERROR(HttpStatusCode::GatewayTimeout);
 }
 
 CGIResponse::~CGIResponse() {
-    DEBUG("CGIResponse destructor called for client: " << client.get());
+    DEBUG("CGIResponse destructor called for client: " << client);
     terminateResponse();
 }
 
@@ -470,6 +489,7 @@ bool CGIResponse::isFullResponseSent() const {
 void CGIResponse::_closeToCGIProcessFd() {
     if (_cgiInputFD.isValidFd()) {
         _server.untrackCallbackFD(_cgiInputFD);
+        _cgiInputFD.setWriterFDState(FDState::Closed);
         _cgiInputFD.close();
     }
 }
@@ -477,6 +497,11 @@ void CGIResponse::_closeToCGIProcessFd() {
 void CGIResponse::_closeFromCGIProcessFd() {
     if (_cgiOutputFD.isValidFd()) {
         _server.untrackCallbackFD(_cgiOutputFD);
+        _cgiOutputFD.setReaderFDState(FDState::Closed);
         _cgiOutputFD.close();
     }
+}
+
+bool CGIResponse::isBrokenBeyondRepair() const {
+    return (_isBrokenBeyondRepair);
 }

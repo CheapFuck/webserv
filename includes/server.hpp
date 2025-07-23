@@ -25,10 +25,9 @@ bool is_fd_valid(int fd);
 
 struct ServerClientInfo {
     SocketFD fd;
-    std::shared_ptr<Client> client;
+    Client *client;
 
-    ServerClientInfo(SocketFD fd, std::shared_ptr<Client> client)
-        : fd(std::move(fd)), client(std::shared_ptr(client)) {}
+    ServerClientInfo(SocketFD fd, Client *client);
 };
 
 template <typename T>

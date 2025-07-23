@@ -152,6 +152,7 @@ std::string headerKeyToString(HeaderKey key) {
         case HeaderKey::Referer: return "Referer";
         case HeaderKey::Status: return "Status";
         case HeaderKey::TransferEncoding: return "Transfer-Encoding";
+        case HeaderKey::ContentDisposition: return "Content-Disposition";
 
         default:
             ERROR("Unknown Header Key: " << static_cast<int>(key));

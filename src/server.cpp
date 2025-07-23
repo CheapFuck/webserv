@@ -51,6 +51,9 @@ public:
     }
 };
 
+ServerClientInfo::ServerClientInfo(SocketFD fd, Client *client)
+    : fd(std::move(fd)), client(client) {}
+
 Server::Server(const std::map<int, std::vector<ServerConfig>> &configs) :
     _portToConfigs(),
     _cgiResponses(),
@@ -195,7 +198,7 @@ void Server::_handleNewConnection(int sourceFd) {
         int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
         SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
         if (!clientFD)
-        return ;
+            return ;
         
         if (clientFD.setNonBlocking() == -1) {
             clientFD.close();
@@ -207,10 +210,11 @@ void Server::_handleNewConnection(int sourceFd) {
             return ;
         }
 
-        std::shared_ptr<Client> client = std::make_shared<Client>(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
+        Client *client = new Client(*this, sourceFd, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
         auto it = _clientDescriptors.emplace(clientFD, ServerClientInfo(std::move(clientFD), client));
         if (it.second == false) {
             clientFD.close();
+            delete client;
             return ;
         }
 
@@ -301,6 +305,7 @@ void Server::untrackClient(int fd) {
     auto it = _clientDescriptors.find(fd);
     if (it != _clientDescriptors.end()) {
         it->second.fd.close();
+        delete it->second.client;
         _clientDescriptors.erase(it);
         DEBUG("Untracked and closed descriptor for fd: " << fd);
     }
@@ -313,28 +318,35 @@ void Server::_handleClientFD(ServerClientInfo &clientInfo, short revents) {
 
     if (revents & (EPOLLERR | EPOLLHUP)) {
         DEBUG("Client disconnected or error occurred, closing FD: " << clientInfo.fd.get());
-        clientInfo.fd.disconnectFromEpoll();
-        _clientDescriptors.erase(clientInfo.fd.get());
+        int fd = clientInfo.fd.get();
+        clientInfo.fd.close();
+        delete clientInfo.client;
+        _clientDescriptors.erase(fd);
         return ;
     }
 
     if (revents & EPOLLIN) {
         clientInfo.fd.setWriterFDState(FDState::OtherFunctionality);
+        clientInfo.fd.setReaderFDState(FDState::Ready);
         ssize_t readerRet = clientInfo.fd.read();
 
         if (clientInfo.fd.getReaderFDState() == FDState::Closed) {
             DEBUG("Client disconnected: " << clientInfo.fd.get());
-            clientInfo.fd.disconnectFromEpoll();
-            _clientDescriptors.erase(clientInfo.fd);
+            int fd = clientInfo.fd.get();
+            clientInfo.fd.close();
+            delete clientInfo.client;
+            _clientDescriptors.erase(fd);
             return ;
         }
 
-        clientInfo.client.get()->handleRead(clientInfo.fd, readerRet);
+        clientInfo.client->handleRead(clientInfo.fd, readerRet);
         return ;
     }
 
     if (revents & EPOLLOUT) {
-        clientInfo.client.get()->handleWrite(clientInfo.fd);
+        clientInfo.fd.setReaderFDState(FDState::OtherFunctionality);
+        clientInfo.fd.setWriterFDState(FDState::Ready);
+        clientInfo.client->handleWrite(clientInfo.fd);
     }
 }
 
@@ -394,17 +406,27 @@ void Server::runOnce() {
 
     for (CGIResponse *CGIResponse : _cgiResponses) {
         CGIResponse->tick();
-        if (CGIResponse->didResponseCreationFail()) {
-            DEBUG("CGIResponse creation failed, switching to error response");
-            CGIResponse->client.get()->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode());
+        if (CGIResponse->isBrokenBeyondRepair()) {
+            DEBUG("CGIResponse is broken beyond repair, closing the connection and cleaning up the client");
+            int fd = CGIResponse->socketFD.get();
+            CGIResponse->socketFD.close();
+            delete CGIResponse->client;
+            _clientDescriptors.erase(fd);
             break ;
         }
-        if (CGIResponse->isFullResponseSent()) {
+        else if (CGIResponse->didResponseCreationFail()) {
+            DEBUG("CGIResponse creation failed, switching to error response");
+            CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode());
+            break ;
+        }
+        else if (CGIResponse->isFullResponseSent()) {
             DEBUG("CGIResponse is fully sent, cleaning up");
-            CGIResponse->client.get()->handleClientReset(CGIResponse->socketFD);
+            CGIResponse->client->handleClientReset(CGIResponse->socketFD);
             break ;
         }
     }
+
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 // Helper to check if a file descriptor is valid (open)

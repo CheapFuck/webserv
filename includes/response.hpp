@@ -45,7 +45,6 @@ public:
     virtual bool didResponseCreationFail() const;
     virtual HttpStatusCode getFailedResponseStatusCode() const;
 
-    virtual bool isFullRequestBodyRecieved() const = 0;
     virtual bool isFullResponseSent() const = 0;
 
     virtual void handleRequestBody(SocketFD &fd) = 0;
@@ -63,7 +62,6 @@ public:
     FileResponse &operator=(const FileResponse &other) = default;
     ~FileResponse() override;
 
-    bool isFullRequestBodyRecieved() const override;
     bool isFullResponseSent() const override;
 
     void handleRequestBody(SocketFD &fd) override;
@@ -88,6 +86,8 @@ private:
     int _processId;
     
     bool _chunkedRequestBodyRead;
+    bool _hasSentFinalChunk;
+    bool _isBrokenBeyondRepair;
     CGIResponseTransferMode _transferMode;
     
     HttpStatusCode _innerStatusCode;
@@ -106,9 +106,9 @@ private:
     
 public:
     SocketFD &socketFD;
-    std::shared_ptr<Client> client;
-    
-    CGIResponse(Server &server, SocketFD &socketFD, std::shared_ptr<Client> client);
+    Client *client;
+
+    CGIResponse(Server &server, SocketFD &socketFD, Client *client);
     CGIResponse(const CGIResponse &other) = delete;
     CGIResponse &operator=(const CGIResponse &other) = delete;
     ~CGIResponse() override;
@@ -124,8 +124,8 @@ public:
     void handleSocketWriteTick(SocketFD &fd) override;
     void terminateResponse() override;
 
-    bool isFullRequestBodyRecieved() const override;
     bool isFullResponseSent() const override;
+    bool isBrokenBeyondRepair() const;
 };
 
 class StaticResponse : public Response {
@@ -138,7 +138,6 @@ public:
     StaticResponse &operator=(const StaticResponse &other) = default;
     ~StaticResponse() override;
 
-    bool isFullRequestBodyRecieved() const override;
     bool isFullResponseSent() const override;
     void handleRequestBody(SocketFD &fd) override;
     void handleSocketWriteTick(SocketFD &fd) override;

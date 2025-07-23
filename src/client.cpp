@@ -49,12 +49,13 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
 }
 
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
-    CGIResponse *response = new CGIResponse(_server, fd, shared_from_this());
+    CGIResponse *response = new CGIResponse(_server, fd, this);
     _configureResponse(response, HttpStatusCode::OK);
     response->start(config, route);
     if (response->didResponseCreationFail()) {
+        HttpStatusCode statusCode = response->getFailedResponseStatusCode();
         delete response;
-        return _createErrorResponse(response->getFailedResponseStatusCode(), route);
+        return _createErrorResponse(statusCode, route);
     }
     return (response);
 }
@@ -63,10 +64,23 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
     _server(server),
     _serverFd(serverFd),
     _state(ClientHTTPState::WaitingForHeaders),
+    _chunkedRequestBodyRead(false),
     _clientIP(std::string(clientIP)),
     _clientPort(std::to_string(clientPort)),
     response(nullptr),
     request() {}
+
+bool Client::isFullRequestBodyReceived(SocketFD &fd) const {
+    switch (request.receivingBodyMode) {
+        case ReceivingBodyMode::Chunked: {
+            return (_chunkedRequestBodyRead);
+        }
+        case ReceivingBodyMode::ContentLength:
+        default: {
+            return (fd.getTotalReadBytes() - request.headerPartLength >= request.contentLength);
+        }
+    }
+}
 
 Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     DEBUG("Creating response from request for Client, fd: " << fd.get());
@@ -113,7 +127,13 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
     switch (_state) {
         case ClientHTTPState::WaitingForHeaders: {
             std::string headerString = fd.extractHeadersFromReadBuffer();
-            if (headerString.empty()) return ;
+            if (headerString.empty()) {
+                if (fd.wouldReadExceedMaxBufferSize()) {
+                    DEBUG("No valid headers received; closing the connection.");
+                    _server.untrackClient(fd);
+                }
+                return ;
+            }
 
             request = Request(headerString);
             response = _createResponseFromRequest(fd, request);
@@ -123,8 +143,21 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
         }
 
         case ClientHTTPState::ReadingBody: {
+            if (request.receivingBodyMode == ReceivingBodyMode::Chunked) {
+                FDReader::HTTPChunkStatus chunkStatus = fd.returnHTTPChunkStatus();
+                if (chunkStatus == FDReader::HTTPChunkStatus::Error) {
+                    DEBUG("Error reading chunked body, bad input or incomplete chunk");
+                    response->terminateResponse();
+                    _server.untrackClient(fd);
+                    return ;
+                } else if (chunkStatus == FDReader::HTTPChunkStatus::Complete) {
+                    DEBUG("Chunked body is complete");
+                    _chunkedRequestBodyRead = true;
+                }
+            }
+
             response->handleRequestBody(fd);
-            if (response->isFullRequestBodyRecieved()) {
+            if (isFullRequestBodyReceived(fd)) {
                 _state = ClientHTTPState::SwitchingToOutput;
                 return handleRead(fd, funcReturnValue);
             }
@@ -139,6 +172,7 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
                 return ;
             }
 
+            _state = ClientHTTPState::ReadingBody;
             return ;
         }
 
@@ -156,10 +190,7 @@ void Client::handleWrite(SocketFD &fd) {
         ERROR("No response to write for Client: " << fd.get());
         return;
     }
-
-    ERROR_IF_NOT(_state == ClientHTTPState::SwitchingToOutput || _state == ClientHTTPState::SendingResponse,
-        "Client is not in a valid state for writing: " << static_cast<int>(_state));
-    _state = ClientHTTPState::SendingResponse;
+    // _state = ClientHTTPState::SendingResponse;
 
     response->handleSocketWriteTick(fd);
 
@@ -188,6 +219,8 @@ void Client::handleClientReset(SocketFD &fd) {
 
     _state = ClientHTTPState::WaitingForHeaders;
     request = Request();
+
+    _chunkedRequestBodyRead = false;
 }
 
 void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
@@ -205,9 +238,6 @@ void Client::switchResponseToErrorResponse(HttpStatusCode statusCode) {
 
 Client::~Client() {
     DEBUG("Destroying client for IP: " << _clientIP << ", Port: " << _clientPort << " (" << this << ")");
-    if (response) {
-        if (!response->isFullResponseSent())
-            response->terminateResponse();
+    if (response)
         delete response;
-    }
 }

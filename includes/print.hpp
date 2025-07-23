@@ -41,7 +41,7 @@ inline std::ostream& print_time(std::ostream& os) {
 #define PRINT_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cout); \
-        std::cout << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
+        std::cout << TERM_COLOR_YELLOW << "[COND: !(" #cond ")] " << TERM_COLOR_BLUE << x << TERM_COLOR_RESET << std::endl; \
     } \
 } while (0)
 #define ERROR(x) do { \
@@ -57,7 +57,7 @@ inline std::ostream& print_time(std::ostream& os) {
 #define ERROR_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !(" #cond ")] " << TERM_COLOR_RESET << x << std::endl; \
     } \
 } while (0)
 #define ERROR_RET_IF(cond, x) do { \
@@ -70,7 +70,7 @@ inline std::ostream& print_time(std::ostream& os) {
 #define ERROR_RET_IF_NOT(cond, x) do { \
     if (!(cond)) { \
         print_time(std::cerr); \
-        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !" #cond "] " << TERM_COLOR_RESET << x << std::endl; \
+        std::cerr << TERM_COLOR_RED << "[ERROR " << __FILE__ << ":" << __LINE__ << "] " << TERM_COLOR_YELLOW << "[COND: !(" #cond ")] " << TERM_COLOR_RESET << x << std::endl; \
         return; \
     } \
 } while (0)
