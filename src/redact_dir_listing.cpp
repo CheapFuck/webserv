@@ -40,8 +40,9 @@ static void addTimeToRowEntry(std::string& html, const std::filesystem::director
 
 	// Convert to time_t for printing
 	std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
-	html.append(std::strftime(std::localtime(&cftime)));
-}
+	char buffer[100];
+	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&cftime));
+	html.append(buffer);}
 
 // <table>
 // <tr>
