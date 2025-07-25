@@ -106,6 +106,7 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
     _environmentVariables["REMOTE_ADDR"] = client->getClientIP();
     _environmentVariables["REMOTE_PORT"] = client->getClientPort();
+    _environmentVariables["WEBSERV_UPLOAD_DIR"] =  route.uploadStore.getUploadDir().str(); //make work for upload/download script (thivan-d)
     _environmentVariables["SERVER_ADDR"] = client->getServer().getServerAddress();
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";

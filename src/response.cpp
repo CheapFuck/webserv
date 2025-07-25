@@ -127,7 +127,7 @@ FileResponse::~FileResponse() {
 
 StaticResponse::StaticResponse(const std::string &content) :
     _content(content) {
-    if (!_content.empty()) headers.replace(HeaderKey::ContentLength, std::to_string(_content.size()));
+    headers.replace(HeaderKey::ContentLength, std::to_string(_content.size()));
     DEBUG("StaticResponse created with content size: " << _content.size());
 }
 
