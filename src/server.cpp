@@ -48,7 +48,7 @@ private:
     std::string _message;
 
 public:
-    ServerCreationException(const std::string &message) : _message(message) {}
+    explicit ServerCreationException(const std::string &message) : _message(message) {}
     const char *what() const noexcept override {
         return _message.c_str();
     }
@@ -59,7 +59,7 @@ private:
     std::string _message;
 
 public:
-    ClientConnectionException(const std::string &message) : _message(message) {}
+    explicit ClientConnectionException(const std::string &message) : _message(message) {}
     const char *what() const noexcept override {
         return _message.c_str();
     }
@@ -206,7 +206,7 @@ void Server::_setupSocket(int listenPort, const std::vector<ServerConfig> &confi
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(listenPort);
 
-	if (bind(serverFd, (sockaddr *)&address, sizeof(address)) == -1)
+if (bind(serverFd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == -1)
 		throw ServerCreationException("Failed to bind socket");
 
 	if (listen(serverFd, SOMAXCONN) == -1)
@@ -244,8 +244,7 @@ void Server::_handleNewConnection(int sourceFd) {
     socklen_t client_len = sizeof(client_address);
 
     while (true) {
-        int fd = accept(sourceFd, (sockaddr *)&client_address, &client_len);
-        SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
+        int fd = accept(sourceFd, reinterpret_cast<sockaddr *>(&client_address), &client_len);        SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
         if (!clientFD)
             return ;
         

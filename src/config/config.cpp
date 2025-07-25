@@ -28,7 +28,7 @@ Argument::Argument(ArgumentType atype, ArgumentValue avalue, Rule *aparentRule, 
 /// @brief Recursively checks for unused rules in the configuration object.
 /// @param object The configuration object to check for unused rules.
 /// @param unusedException The exception to which unused rules will be added.
-static void _checkUnusedRules(Object *object, ParserUnusedRuleException *unusedException) {
+static void _checkUnusedRules(const Object *object, ParserUnusedRuleException *unusedException) {
     for (const auto &[key, rules] : object->rules) {
         for (Rule *rule : rules) {
             if (!rule->isUsed) {
@@ -48,7 +48,7 @@ static void _checkUnusedRules(Object *object, ParserUnusedRuleException *unusedE
 /// @brief Checks for unused rules in the configuration object. Only usable after the configuration has been parsed.
 /// @param object The configuration object to check for unused rules.
 /// @throws ParserUnusedRuleException if unused rules are found.
-static void checkUnusedRules(Object *object) {
+static void checkUnusedRules(const Object *object) {
     ParserUnusedRuleException exception("Unused rules found in configuration file", \
         "Remove the rules that are not used; or include them in a valid context.");
 

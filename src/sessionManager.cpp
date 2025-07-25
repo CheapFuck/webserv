@@ -79,8 +79,6 @@ std::shared_ptr<SessionMetaData> UserSessionManager::createNewSession() {
 		std::string sessionId = generateSessionId();
 		if (_currentSessions.find(sessionId) == _currentSessions.end()) {
 			std::shared_ptr<SessionMetaData> newSession = std::make_shared<SessionMetaData>(time(nullptr), sessionId, getAbsoluteStoragePath(sessionId));
-			if (!newSession) return (nullptr);
-
 			_currentSessions[sessionId] = newSession;
 			return (newSession);
 		}
@@ -100,7 +98,6 @@ std::shared_ptr<SessionMetaData> UserSessionManager::getOrCreateNewSession(const
 	}
 
 	std::shared_ptr<SessionMetaData> newSession = std::make_shared<SessionMetaData>(time(nullptr), sessionId, getAbsoluteStoragePath(sessionId));
-	if (!newSession) return (nullptr);
 
 	_currentSessions[sessionId] = newSession;
 	return (newSession);

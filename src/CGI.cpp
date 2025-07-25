@@ -143,7 +143,7 @@ void CGIResponse::_createEnvironmentArray(std::vector<char*> &envPtrs, std::vect
     strBuff.reserve(_environmentVariables.size());
     envPtrs.reserve(_environmentVariables.size() + 1);
 
-    for (auto &env : _environmentVariables) {
+for (const auto &env : _environmentVariables) {
         strBuff.push_back(env.first + "=" + env.second);
         envPtrs.push_back(const_cast<char*>(strBuff.back().c_str()));
     }

@@ -40,8 +40,7 @@ ssize_t FDReader::read() {
     }
     else if (bytesRead == 0)
         FDReader::_state = FDState::Closed;
-    else if (bytesRead < 0)
-        FDReader::_state = FDState::Awaiting;
+   
 
     return (bytesRead);
 }
@@ -87,22 +86,18 @@ std::string FDReader::extractHeadersFromReadBuffer() {
 
 FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
     size_t sizeSepPos = _readBuffer.find("\r\n");
-    ssize_t chunkSize = 0;
-
     if (sizeSepPos != std::string::npos) {
+        ssize_t chunkSize = 0;
         try { chunkSize = std::stoul(_readBuffer.substr(0, sizeSepPos), nullptr, 16); }
         catch (...) { throw std::runtime_error("Invalid chunk size format in buffer"); }
-
         size_t minBuffLen = sizeSepPos + 4 + chunkSize;
         if (_readBuffer.size() >= minBuffLen) {
             extractChunkFromReadBuffer(sizeSepPos + 2);
             std::string chunkData = extractChunkFromReadBuffer(chunkSize);
             extractChunkFromReadBuffer(2);
-
             return HTTPChunk(std::move(chunkData), chunkSize);
         }
     }
-
     return HTTPChunk("", HTTPChunk::noChunk);
 }
 

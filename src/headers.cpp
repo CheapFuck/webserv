@@ -116,10 +116,10 @@ void Headers::merge(const Headers &other) {
 }
 
 const std::string Headers::getAndRemoveHeader(HeaderKey key, const std::string &default_value) {
-    std::string result;
 
     auto it = _headers.find(headerKeyToString(key));
     if (it != _headers.end()) {
+        std::string result;
         result = it->second;
         _headers.erase(it);
         return (result);
