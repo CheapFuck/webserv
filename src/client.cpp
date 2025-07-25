@@ -22,6 +22,40 @@ Response *Client::_configureResponse(Response *response, HttpStatusCode statusCo
     return (response);
 }
 
+static const std::string getDefaultBody(HttpStatusCode statusCode) {
+std::string todisplay = std::to_string(static_cast<int>(statusCode)) + " - " + getStatusCodeAsStr(statusCode);
+std::string s = R"(<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[TITLEPLACE]</title>
+<style>
+    html, body {
+    height: 100%;
+    margin: 0px;
+    }
+    body {
+    display: flex;
+    justify-content: center;
+    border-style: inset;
+    border-width: 9px;
+    align-items: center;
+    font-size: 2em;
+    background-color: #F0F0F0
+;
+    }
+</style>
+</head>
+<body>
+Error [ERRORTEXTPLACE]
+</body>
+</html>)";
+s.replace(s.find("[ERRORTEXTPLACE]"), 16, todisplay);
+s.replace(s.find("[TITLEPLACE]"), 12, todisplay);
+
+return (s);
+}
+
 Response *Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route) {
     std::string errorPage = route.errorPages.getErrorPage(StatusCode(static_cast<int>(statusCode)));
     if (!errorPage.empty()) {
@@ -30,7 +64,7 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
             return (_configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode));
     }
 
-    return (_configureResponse(new StaticResponse(getStatusCodeAsStr(statusCode)), statusCode));
+    return (_configureResponse(new StaticResponse(getDefaultBody(statusCode)), statusCode));
 }
 
 Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {

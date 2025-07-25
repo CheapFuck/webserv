@@ -156,6 +156,8 @@ void Server::cleanUp() {
 
 void Server::_checkHangingConnections() {
     DEBUG("Checking for hanging connections");
+	std::vector<int> fdsToDelete;
+
     for (auto &[fd, clientInfo] : _clientDescriptors) {
         if (clientInfo.client->isTimedOut(_httpRule, clientInfo.fd)) {
             DEBUG("Client " << clientInfo.client->getClientIP() << ":" << clientInfo.client->getClientPort()
@@ -166,11 +168,14 @@ void Server::_checkHangingConnections() {
         if (clientInfo.client->shouldBeClosed(_httpRule, clientInfo.fd)) {
             DEBUG("Client " << clientInfo.client->getClientIP() << ":" << clientInfo.client->getClientPort()
                   << " should be closed, closing connection");
-            clientInfo.fd.close();
-            delete clientInfo.client;
-            _clientDescriptors.erase(fd);
+			clientInfo.fd.close();
+			delete clientInfo.client;
+			fdsToDelete.push_back(fd); 
         }
     }
+
+	for (int fd : fdsToDelete)
+        _clientDescriptors.erase(fd);
 }
 
 void Server::trackCGIResponse(CGIResponse *cgiResponse) {

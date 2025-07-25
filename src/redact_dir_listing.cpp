@@ -1,7 +1,6 @@
 #include <string>
 #include <filesystem>
 #include <iostream>
-#include <time.h>
 
 static void addTopBoilerplate(std::string& html)
 {
@@ -41,7 +40,7 @@ static void addTimeToRowEntry(std::string& html, const std::filesystem::director
 
 	// Convert to time_t for printing
 	std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
-	html.append(std::strftime(std::localtime(&cftime)));
+	html.append(std::asctime(std::localtime(&cftime)));
 }
 
 // <table>
