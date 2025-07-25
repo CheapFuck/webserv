@@ -478,7 +478,3 @@ void Server::runOnce() {
     // std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
-// Helper to check if a file descriptor is valid (open)
-bool is_fd_valid(int fd) {
-    return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
-}
