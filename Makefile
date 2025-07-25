@@ -110,7 +110,7 @@ dbrun: $(DBNAME)
 dbrerun: fclean dbrun
 
 analyze:
-	cppcheck --enable=all --std=c++11 $(SRCS) 
+	cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --std=c++20 $(SRCS) 
 
 gdb: $(DBNAME)
 	@echo "\033[1;32mRunning gdb on ./$(DBNAME)\033[0m"
