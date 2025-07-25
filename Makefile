@@ -109,6 +109,9 @@ dbrun: $(DBNAME)
 
 dbrerun: fclean dbrun
 
+analyze:
+	cppcheck --enable=all --std=c++11 $(SRCS) 
+
 gdb: $(DBNAME)
 	@echo "\033[1;32mRunning gdb on ./$(DBNAME)\033[0m"
 	gdb --args ./$(DBNAME)
