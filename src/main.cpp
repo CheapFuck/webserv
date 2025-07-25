@@ -27,7 +27,7 @@ void signalPipeShit(int signum) {
     ERROR("Broken pipe shit " << signum);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* const argv[]) {
     if (argc > 2) {
         ERROR("Usage: " << argv[0] << " [configuration file]");
         return 1;

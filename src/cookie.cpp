@@ -2,7 +2,7 @@
 #include "cookie.hpp"
 #include "print.hpp"
 #include "Utils.hpp"
-
+#include <algorithm> // for std::find_if
 #include <sstream>
 #include <vector>
 
@@ -66,10 +66,13 @@ Cookie Cookie::createSessionCookie(const std::string &sessionId) {
 /// @param cookies The vector of Cookie objects to search.
 /// @param name The name of the cookie to find.
 const Cookie *Cookie::getCookie(const std::vector<Cookie> &cookies, const std::string &name) {
-	for (const Cookie &cookie : cookies) {
-		if (cookie.getName() == name)
-			return (&cookie);
-	}
+auto it = std::find_if(cookies.begin(), cookies.end(),
+    [&name](const Cookie &cookie) {
+        return cookie.getName() == name;
+    });
+
+if (it != cookies.end())
+    return &(*it);
 	return nullptr;
 }
 
