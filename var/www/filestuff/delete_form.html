@@ -72,7 +72,7 @@
 
   <script>
     function fetchFiles() {
-      fetch('/cgi/list_files.php')
+      fetch('list_files.php')
         .then(response => response.json())
         .then(files => {
           const fileList = document.getElementById('fileList');
@@ -91,7 +91,7 @@
     }
 
     function deleteFile(file) {
-      fetch('/cgi/delete_file.php', {
+      fetch('delete_file.php', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=delete&file=${encodeURIComponent(file)}`

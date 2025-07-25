@@ -92,7 +92,7 @@ private:
     
     HttpStatusCode _innerStatusCode;
     
-    void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl);
+    void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl, const Path &serverExecutablePath);
 
     void _createEnvironmentArray(std::vector<char*> &envPtrs, std::vector<std::string> &strBuff) const;
 
@@ -118,7 +118,7 @@ public:
     
     void tick();
 
-    void start(const ServerConfig &config, const LocationRule &route);
+    void start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath);
     
     void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;

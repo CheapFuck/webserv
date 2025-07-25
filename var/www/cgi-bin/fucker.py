@@ -3,7 +3,6 @@
 import cgilib
 import time
 import math
-import sys
 
 cgi: cgilib.CGIClient = cgilib.CGIClient()
 

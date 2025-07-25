@@ -134,6 +134,8 @@ public:
 
     const std::string &peekReadBuffer() const;
     std::chrono::steady_clock::time_point getLastReadTime() const;
+
+    void resetCounter();
 };
 
 class FDWriter {

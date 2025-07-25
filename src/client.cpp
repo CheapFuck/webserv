@@ -86,7 +86,7 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
     CGIResponse *response = new CGIResponse(_server, fd, this);
     _configureResponse(response, HttpStatusCode::OK);
-    response->start(config, route);
+    response->start(config, route, Path(_server.getServerExecutablePath()));
     if (response->didResponseCreationFail()) {
         HttpStatusCode statusCode = response->getFailedResponseStatusCode();
         delete response;
@@ -108,10 +108,12 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
 bool Client::isFullRequestBodyReceived(SocketFD &fd) const {
     switch (request.receivingBodyMode) {
         case ReceivingBodyMode::Chunked: {
+            ERROR("Chunked");
             return (_chunkedRequestBodyRead);
         }
         case ReceivingBodyMode::ContentLength:
         default: {
+            ERROR(fd.getTotalReadBytes() - request.headerPartLength);
             return (fd.getTotalReadBytes() - request.headerPartLength >= request.contentLength);
         }
     }

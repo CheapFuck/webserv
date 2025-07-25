@@ -89,8 +89,7 @@ HttpStatusCode CGIResponse::getFailedResponseStatusCode() const {
 /// @details https://www6.uniovi.es/~antonio/ncsa_httpd/cgi/env.html
 /// @param config The server configuration
 /// @param route The location rule
-void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl) {
-    (void)route;
+void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl, const Path &serverExecutablePath) {
     _environmentVariables.clear();
     _environmentVariables["SERVER_SOFTWARE"] = "webserv/1.0";
     _environmentVariables["SERVER_NAME"] = std::string(config.serverName.getServerName());
@@ -106,10 +105,17 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
     _environmentVariables["REMOTE_ADDR"] = client->getClientIP();
     _environmentVariables["REMOTE_PORT"] = client->getClientPort();
-    _environmentVariables["WEBSERV_UPLOAD_DIR"] =  route.uploadStore.getUploadDir().str(); //make work for upload/download script (thivan-d)
     _environmentVariables["SERVER_ADDR"] = client->getServer().getServerAddress();
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";
+
+    DEBUG("Upload store: " << route.uploadStore.getUploadDir().str());
+    if (route.uploadStore.isSet()) {
+        DEBUG("Setting WEBSERV_UPLOAD_STORE environment variable for CGI: " << route.uploadStore.getUploadDir().str());
+        Path uploadStorePath = Path(serverExecutablePath).append(route.uploadStore.getUploadDir().str());
+        DEBUG("Upload store path: " << uploadStorePath.str());
+        _environmentVariables["WEBSERV_UPLOAD_STORE"] = uploadStorePath.str();
+    }
 
     if (client->request.session && !client->request.session->sessionId.empty())
         _environmentVariables["HTTP_SESSION_FILE"] = client->request.session->absoluteFilePath;
@@ -144,7 +150,7 @@ void CGIResponse::_createEnvironmentArray(std::vector<char*> &envPtrs, std::vect
     envPtrs.push_back(nullptr);
 }
 
-void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
+void CGIResponse::start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath) {
     DEBUG("Starting CGIResponse for client: " << client);
     const ParsedUrl parsedUrl = parseUrl(route, client->request.metadata);
 
@@ -165,7 +171,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route) {
         return;
     }
 
-    _setupEnvironmentVariables(config, route, parsedUrl);
+    _setupEnvironmentVariables(config, route, parsedUrl, serverExecutablePath);
 
     int cin[2], cout[2];
     if (pipe(cin) == -1) {
@@ -316,6 +322,7 @@ ssize_t CGIResponse::_sendRequestBodyToCGIProcess() {
 
 bool CGIResponse::_fetchCGIHeadersFromProcess() {
     std::string cgiHeaderString = _cgiOutputFD.extractHeadersFromReadBuffer();
+    DEBUG_ESC("Headers gotten: " << cgiHeaderString);
     if (cgiHeaderString.empty()) return (false);
 
     std::istringstream cgiHeaderStream(cgiHeaderString);
@@ -325,10 +332,10 @@ bool CGIResponse::_fetchCGIHeadersFromProcess() {
     try {
         int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "-1"));
         if (code < 100 || code > 599) {
-            ERROR("Invalid CGI response status code: " << code);
             CGI_ERROR(HttpStatusCode::InternalServerError);
             return (false);
         }
+        setStatusCode(static_cast<HttpStatusCode>(code));
     } catch (...) {
         ERROR("Failed to parse CGI response status code");
         CGI_ERROR(HttpStatusCode::InternalServerError);
@@ -375,7 +382,7 @@ void CGIResponse::_sendCGIResponse() {
 
         case CGIResponseTransferMode::Chunked: {
             std::string fullBuffer = _cgiOutputFD.extractFullBuffer();
-            ERROR("Sending chunked CGI response to socket, size: " << fullBuffer.size());
+            DEBUG("Sending chunked CGI response to socket, size: " << fullBuffer.size());
             ssize_t bytesWritten = socketFD.writeAsChunk(fullBuffer);
             if (bytesWritten < 0) {
                 ERROR("Failed to write chunked CGI response to socket");

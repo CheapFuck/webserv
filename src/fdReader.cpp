@@ -165,6 +165,10 @@ std::chrono::steady_clock::time_point FDReader::getLastReadTime() const {
     return (_lastReadTime);
 }
 
+void FDReader::resetCounter() {
+    _totalReadBytes = 0;
+}
+
 
 
 
