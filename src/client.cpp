@@ -23,37 +23,37 @@ Response *Client::_configureResponse(Response *response, HttpStatusCode statusCo
 }
 
 static const std::string getDefaultBody(HttpStatusCode statusCode) {
-std::string todisplay = std::to_string(static_cast<int>(statusCode)) + " - " + getStatusCodeAsStr(statusCode);
-std::string s = R"(<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>[TITLEPLACE]</title>
-<style>
-    html, body {
-    height: 100%;
-    margin: 0px;
-    }
-    body {
-    display: flex;
-    justify-content: center;
-    border-style: inset;
-    border-width: 9px;
-    align-items: center;
-    font-size: 2em;
-    background-color: #F0F0F0
-;
-    }
-</style>
-</head>
-<body>
-Error [ERRORTEXTPLACE]
-</body>
-</html>)";
-s.replace(s.find("[ERRORTEXTPLACE]"), 16, todisplay);
-s.replace(s.find("[TITLEPLACE]"), 12, todisplay);
+    std::string todisplay = std::to_string(static_cast<int>(statusCode)) + " - " + getStatusCodeAsStr(statusCode);
+    std::string s = R"(<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <title>[TITLEPLACE]</title>
+        <style>
+            html, body {
+            height: 100%;
+            margin: 0px;
+            }
+            body {
+            display: flex;
+            justify-content: center;
+            border-style: inset;
+            border-width: 9px;
+            align-items: center;
+            font-size: 2em;
+            background-color: #F0F0F0
+        ;
+            }
+        </style>
+        </head>
+        <body>
+        Error [ERRORTEXTPLACE]
+        </body>
+        </html>)";
+    s.replace(s.find("[ERRORTEXTPLACE]"), 16, todisplay);
+    s.replace(s.find("[TITLEPLACE]"), 12, todisplay);
 
-return (s);
+    return (s);
 }
 
 Response *Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route) {
@@ -245,7 +245,9 @@ void Client::handleWrite(SocketFD &fd) {
         ERROR("No response to write for Client: " << fd.get());
         return;
     }
-    // _state = ClientHTTPState::SendingResponse;
+
+    if (isFullRequestBodyReceived(fd))
+        _state = ClientHTTPState::SendingResponse;
 
     response->handleSocketWriteTick(fd);
 
@@ -274,6 +276,7 @@ void Client::handleClientReset(SocketFD &fd) {
 
     _state = ClientHTTPState::Idle;
     request = Request();
+    fd.resetCounter();
 
     _chunkedRequestBodyRead = false;
 }

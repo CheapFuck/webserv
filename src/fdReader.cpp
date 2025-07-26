@@ -175,8 +175,6 @@ ssize_t FDWriter::writeAsString(const std::string &data) {
         ERROR("Trying to write to an invalid file descriptor");
         return -1;
     }
-    DEBUG_ESC("Sending: '" << data << "'");
-    // if (data.length() < 20 && data.find("Method Not Allowed") != std::string::npos) throw std::runtime_error("Method Not Allowed");
     ssize_t bytesWritten = ::write(_fd, data.c_str(), data.size());
     if (bytesWritten < 0)
         FDWriter::_state = FDState::Awaiting;
