@@ -37,6 +37,7 @@ Request::Request(std::string &buffer) :
     headers = Headers(stream);
 
     _fetch_config_from_headers();
+    DEBUG("Request created with metadata: " << metadata);
 	DEBUG("Headers are: '''" << headers << "'''\n");
 }
 

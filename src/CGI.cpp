@@ -381,7 +381,7 @@ void CGIResponse::_sendCGIResponse() {
         }
 
         case CGIResponseTransferMode::Chunked: {
-            std::string fullBuffer = _cgiOutputFD.extractFullBuffer();
+            std::string fullBuffer = _cgiOutputFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE);
             DEBUG("Sending chunked CGI response to socket, size: " << fullBuffer.size());
             ssize_t bytesWritten = socketFD.writeAsChunk(fullBuffer);
             if (bytesWritten < 0) {
@@ -406,7 +406,7 @@ void CGIResponse::tick() {
     }
 
     DEBUG("CGIResponse output pipe state: " << static_cast<int>(_cgiOutputFD.getReaderFDState()) << ", fd: " << _cgiOutputFD.get());
-    if (_cgiOutputFD.isValidFd() && _cgiOutputFD.getReaderFDState() == FDState::Ready) {
+    if (_cgiOutputFD.getReadBufferSize() > 0) {
         if (!headersBeenSent() && _cgiOutputFD.wouldReadExceedMaxBufferSize()) {
             if (_transferMode == CGIResponseTransferMode::FullBuffer) {
                 DEBUG("CGI output is too large for full buffer mode, switching to chunked mode");
@@ -414,11 +414,11 @@ void CGIResponse::tick() {
             }
         }
 
-        if (_transferMode == CGIResponseTransferMode::Chunked && _cgiOutputFD.getReadBufferSize() > 0)
+        if (_transferMode == CGIResponseTransferMode::Chunked || !_cgiOutputFD.isValidFd())
             _sendCGIResponse();
     }
 
-    else if (!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) {
+    else if ((!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) && _cgiOutputFD.getReadBufferSize() == 0) {
         if (_transferMode == CGIResponseTransferMode::Chunked && !_hasSentFinalChunk) {
             if (socketFD.getWriterFDState() != FDState::Ready) {
                 DEBUG("Waiting for socket to be ready for writing, fd: " << socketFD.get() << ", state: " << static_cast<int>(socketFD.getWriterFDState()));
@@ -452,8 +452,6 @@ void CGIResponse::tick() {
                 CGI_ERROR(HttpStatusCode::InternalServerError);
             return;
         }
-
-        _sendCGIResponse();
     }
 }
 

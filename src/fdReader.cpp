@@ -129,10 +129,8 @@ FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
 }
 
 std::string FDReader::extractChunkFromReadBuffer(size_t chunkSize) {
-    if (chunkSize > _readBuffer.size()) {
-        ERROR("Requested chunk size exceeds buffer size");
-        return (std::string());
-    }
+    if (chunkSize > _readBuffer.size())
+        chunkSize = _readBuffer.size();
 
     std::string chunk = _readBuffer.substr(0, chunkSize);
     _readBuffer.erase(0, chunkSize);

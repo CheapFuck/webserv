@@ -56,18 +56,28 @@ static const std::string getDefaultBody(HttpStatusCode statusCode) {
     return (s);
 }
 
-Response *Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route) {
+Response *Client::_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route, bool shouldCloseConnection) {
+    DEBUG("Creating error response");
     std::string errorPage = route.errorPages.getErrorPage(StatusCode(static_cast<int>(statusCode)));
+    Response *ret = nullptr;
+
     if (!errorPage.empty()) {
         int fd = open(errorPage.c_str(), O_RDONLY);
         if (fd != -1)
-            return (_configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode));
+            ret = _configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode);
     }
 
-    return (_configureResponse(new StaticResponse(getDefaultBody(statusCode)), statusCode));
+    if (!ret)
+        ret = _configureResponse(new StaticResponse(getDefaultBody(statusCode)), statusCode);
+
+    if (shouldCloseConnection && ret)
+        ret->headers.replace(HeaderKey::Connection, "close");
+
+    return (ret);
 }
 
 Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
+    DEBUG("Creating return rule response for: " << returnRule.getParameter());
     Response *response = _configureResponse(new StaticResponse(returnRule.getParameter()), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
     if (returnRule.isRedirect()) 
         response->headers.replace(HeaderKey::Location, returnRule.getParameter());
@@ -75,6 +85,7 @@ Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
 }
 
 Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
+    DEBUG("Creating directory listing response for route: " << route);
     if (!route.autoIndex.get())
         return (_createErrorResponse(HttpStatusCode::Forbidden, route));
 
@@ -84,6 +95,7 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
 }
 
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
+    DEBUG("Creating CGI response for route: " << route);
     CGIResponse *response = new CGIResponse(_server, fd, this);
     _configureResponse(response, HttpStatusCode::OK);
     response->start(config, route, Path(_server.getServerExecutablePath()));
@@ -113,7 +125,6 @@ bool Client::isFullRequestBodyReceived(SocketFD &fd) const {
         }
         case ReceivingBodyMode::ContentLength:
         default: {
-            ERROR(fd.getTotalReadBytes() - request.headerPartLength);
             return (fd.getTotalReadBytes() - request.headerPartLength >= request.contentLength);
         }
     }
@@ -123,40 +134,39 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     DEBUG("Creating response from request for Client, fd: " << fd.get());
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
-    const LocationRule &route = config.getLocation(request.metadata.getRawUrl());
+    route = &config.getLocation(request.metadata.getRawUrl());
 
-    DEBUG("Route found for request: " << route);
+    DEBUG("Route found for request: " << *route);
     DEBUG("URL path: " << request.metadata.getPath().str());
 
-    if (!route.methods.isAllowed(request.metadata.getMethod()))
-        return _createErrorResponse(HttpStatusCode::MethodNotAllowed, route);
-    
-    if ((route.maxBodySize.isSet() && request.contentLength > route.maxBodySize.getMaxBodySize().get()))
-        return _createErrorResponse(HttpStatusCode::PayloadTooLarge, route);
+    if (!route->methods.isAllowed(request.metadata.getMethod()))
+        return _createErrorResponse(HttpStatusCode::MethodNotAllowed, *route);
 
-    if (route.returnRule.isSet())
-        return _createReturnRuleResponse(route.returnRule);
-    
-    if (!(route.root.isSet() || route.alias.isSet()))
-        return _createErrorResponse(HttpStatusCode::NotFound, route);
- 
+    if ((route->maxBodySize.isSet() && request.contentLength > route->maxBodySize.getMaxBodySize().get()))
+        return _createErrorResponse(HttpStatusCode::PayloadTooLarge, *route);
 
-    request.metadata.translateUrl(_server.getServerExecutablePath(), route);
+    if (route->returnRule.isSet())
+        return _createReturnRuleResponse(route->returnRule);
+
+    if (!(route->root.isSet() || route->alias.isSet()))
+        return _createErrorResponse(HttpStatusCode::NotFound, *route);
+
+    request.metadata.translateUrl(_server.getServerExecutablePath(), *route);
     if (!request.metadata.getPath().isValid())
-        return _createErrorResponse(HttpStatusCode::BadRequest, route);
-        
-    if (route.cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route.cgiExtension.isCGI(request.metadata.getPath())))
-        return _createCGIResponse(fd, config, route);
+        return _createErrorResponse(HttpStatusCode::BadRequest, *route);
+
+    if (route->cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route->cgiExtension.isCGI(request.metadata.getPath())))
+        return _createCGIResponse(fd, config, *route);
     
     if (request.metadata.pathIsDirectory())
-        return _createDirectoryListingResponse(route);
+        return _createDirectoryListingResponse(*route);
 
     if (request.metadata.getMethod() != Method::GET)
-        return _createErrorResponse(HttpStatusCode::BadRequest, route);
+        return _createErrorResponse(HttpStatusCode::BadRequest, *route);
 
     int fileFd = open(request.metadata.getPath().str().c_str(), O_RDONLY);
     if (fileFd == -1)
-        return _createErrorResponse(HttpStatusCode::NotFound, route);
+        return _createErrorResponse(HttpStatusCode::NotFound, *route);
 
     if (request.metadata.getRawUrl() == "/directory") {
         return _configureResponse(new StaticResponse(""), HttpStatusCode::OK);
@@ -167,7 +177,6 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
 
 void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
     DEBUG("Handling read for Client, fd: " << fd.get() << ", state: " << static_cast<int>(_state));
-    DEBUG_ESC(fd.peekReadBuffer());
     switch (_state) {
         case ClientHTTPState::Idle: {
             if (fd.getReadBufferSize() > 0) {
@@ -216,6 +225,13 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
                 _state = ClientHTTPState::SwitchingToOutput;
                 return handleRead(fd, funcReturnValue);
             }
+
+            if (route && route->maxBodySize.isSet() && route->maxBodySize.getMaxBodySize().get() < fd.getTotalReadBytes() - request.headerPartLength) {
+                DEBUG("Request body exceeds max body size, closing connection");
+                switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, fd);
+                return ;
+            }
+
             return ;
         }
 
@@ -291,7 +307,7 @@ void Client::switchResponseToErrorResponse(HttpStatusCode statusCode, SocketFD &
     }
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
-    response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()));
+    response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()), true);
 
     if (_state == ClientHTTPState::WaitingForHeaders || _state == ClientHTTPState::ReadingBody) {
         _state = ClientHTTPState::SwitchingToOutput;
