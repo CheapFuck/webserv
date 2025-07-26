@@ -110,6 +110,7 @@ dbrun: $(DBNAME)
 dbrerun: fclean dbrun
 
 testfile:
+	mkdir -p var/www/static
 	fallocate -l 1G var/www/static/testfile
 
 analyze:
