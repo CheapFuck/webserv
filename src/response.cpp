@@ -113,14 +113,16 @@ void FileResponse::handleSocketWriteTick(SocketFD &fd) {
         return ;
     }
 
-    if (_fileFD.getReaderFDState() == FDState::Closed && _fileFD.getReadBufferSize() == 0) {
+    if (_fileFD.getReaderFDState() == FDState::Closed && _fileFD.getReadBufferSize() == 0 && !_isFinalChunkSent) {
         _isFinalChunkSent = true;
         sendBodyAsChunk(fd, "");
         return ;
     }
 
     _fileFD.read();
-    sendBodyAsChunk(fd, _fileFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE));
+	std::string toSend = _fileFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE);
+	if (!toSend.empty())
+    	sendBodyAsChunk(fd, toSend);
 }
 
 void FileResponse::terminateResponse() {

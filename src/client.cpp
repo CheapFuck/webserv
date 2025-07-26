@@ -64,11 +64,11 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
     if (!errorPage.empty()) {
         int fd = open(errorPage.c_str(), O_RDONLY);
         if (fd != -1)
-            ret = _configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode);
+            ret = _configureResponse(new FileResponse(ReadableFD::file(fd), &request), statusCode);
     }
 
     if (!ret)
-        ret = _configureResponse(new StaticResponse(getDefaultBody(statusCode)), statusCode);
+        ret = _configureResponse(new StaticResponse(getDefaultBody(statusCode), &request), statusCode);
 
     if (shouldCloseConnection && ret)
         ret->headers.replace(HeaderKey::Connection, "close");
@@ -78,7 +78,7 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
 
 Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
     DEBUG("Creating return rule response for: " << returnRule.getParameter());
-    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter()), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
+    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter(), &request), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
     if (returnRule.isRedirect()) 
         response->headers.replace(HeaderKey::Location, returnRule.getParameter());
     return (response);
@@ -96,7 +96,7 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
 
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
     DEBUG("Creating CGI response for route: " << route);
-    CGIResponse *response = new CGIResponse(_server, fd, this);
+    CGIResponse *response = new CGIResponse(_server, fd, this, &request);
     _configureResponse(response, HttpStatusCode::OK);
     response->start(config, route, Path(_server.getServerExecutablePath()));
     if (response->didResponseCreationFail()) {
