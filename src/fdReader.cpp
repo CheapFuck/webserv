@@ -5,17 +5,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string>
+#include <chrono>
 
 FDReader::HTTPChunk::HTTPChunk(std::string data, size_t size)
     : data(std::move(data)), size(size) {}
 
 FDReader::FDReader() 
-    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _readBuffer(), _state(FDState::Invalid) {}
+    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _readBuffer(), _state(FDState::Invalid), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
 
 FDReader::FDReader(int fd, int maxBufferSize, FDState state)
-    : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _readBuffer(), _state(state) {
-    _readBuffer.reserve(_maxBufferSize);
-}
+    : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _readBuffer(), _state(state), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
 
 ssize_t FDReader::read() {
     if (_fd < 0) {
