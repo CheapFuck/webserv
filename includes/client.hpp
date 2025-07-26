@@ -38,13 +38,14 @@ private:
     Response &_processRequestByMethod(const ServerConfig &config, const LocationRule &route);
 
     Response *_configureResponse(Response *response, HttpStatusCode statusCode = HttpStatusCode::OK);
-    Response *_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route);
+    Response *_createErrorResponse(HttpStatusCode statusCode, const LocationRule &route, bool shouldCloseConnection = true);
     Response *_createDirectoryListingResponse(const LocationRule &route);
     Response *_createReturnRuleResponse(const ReturnRule &returnRule);
     Response *_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route);
     Response *_createResponseFromRequest(SocketFD &fd, Request &request);
 
 public:
+    const LocationRule *route;
     Response *response;
     Request request;
 

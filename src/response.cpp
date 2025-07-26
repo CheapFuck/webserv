@@ -78,14 +78,14 @@ HttpStatusCode Response::getFailedResponseStatusCode() const {
 }
 
 FileResponse::FileResponse(ReadableFD fileFD, Request *request) :
-    _fileFD(std::move(fileFD)) {
+    _fileFD(std::move(fileFD)), _isFinalChunkSent(false) {
 	_request = request;
     headers.replace(HeaderKey::TransferEncoding, "chunked");
     DEBUG("FileResponse created with file FD: " << _fileFD.get());
 }
 
 bool FileResponse::isFullResponseSent() const {
-    return (_fileFD.getReaderFDState() == FDState::Closed && headersBeenSent());
+    return (_isFinalChunkSent && headersBeenSent());
 }
 
 void FileResponse::handleRequestBody(SocketFD &fd, const Request &request) {
@@ -113,13 +113,14 @@ void FileResponse::handleSocketWriteTick(SocketFD &fd) {
         return ;
     }
 
-    if (_fileFD.getReaderFDState() == FDState::Closed) {
+    if (_fileFD.getReaderFDState() == FDState::Closed && _fileFD.getReadBufferSize() == 0) {
+        _isFinalChunkSent = true;
         sendBodyAsChunk(fd, "");
         return ;
     }
 
     _fileFD.read();
-    sendBodyAsChunk(fd, _fileFD.extractFullBuffer());
+    sendBodyAsChunk(fd, _fileFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE));
 }
 
 void FileResponse::terminateResponse() {

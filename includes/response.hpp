@@ -9,6 +9,8 @@
 
 #include <string>
 
+#define DEFAULT_CHUNK_SIZE 4096 // 4 Kb
+
 class Server;
 
 struct ParsedUrl {
@@ -61,6 +63,7 @@ public:
 class FileResponse : public Response {
 private:
     ReadableFD _fileFD;
+    bool _isFinalChunkSent;
 
 public:
     FileResponse(ReadableFD fileFD, Request *request);
