@@ -61,14 +61,14 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
     if (!errorPage.empty()) {
         int fd = open(errorPage.c_str(), O_RDONLY);
         if (fd != -1)
-            return (_configureResponse(new FileResponse(ReadableFD::file(fd)), statusCode));
+            return (_configureResponse(new FileResponse(ReadableFD::file(fd), &request), statusCode));
     }
 
-    return (_configureResponse(new StaticResponse(getDefaultBody(statusCode)), statusCode));
+    return (_configureResponse(new StaticResponse(getDefaultBody(statusCode), &request), statusCode));
 }
 
 Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
-    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter()), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
+    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter(), &request), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
     if (returnRule.isRedirect()) 
         response->headers.replace(HeaderKey::Location, returnRule.getParameter());
     return (response);
@@ -76,15 +76,15 @@ Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
 
 Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
     if (!route.autoIndex.get())
-        return (_createErrorResponse(HttpStatusCode::Forbidden, route));
+        return (_createErrorResponse(HttpStatusCode::NotFound, route));
 
-    Response *response = _configureResponse(new StaticResponse(redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl())), HttpStatusCode::OK);
+    Response *response = _configureResponse(new StaticResponse(redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl()), &request), HttpStatusCode::OK);
     response->headers.replace(HeaderKey::ContentType, "text/html");
     return (response);
 }
 
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
-    CGIResponse *response = new CGIResponse(_server, fd, this);
+    CGIResponse *response = new CGIResponse(_server, fd, this, &request);
     _configureResponse(response, HttpStatusCode::OK);
     response->start(config, route, Path(_server.getServerExecutablePath()));
     if (response->didResponseCreationFail()) {
@@ -159,10 +159,10 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
         return _createErrorResponse(HttpStatusCode::NotFound, route);
 
     if (request.metadata.getRawUrl() == "/directory") {
-        return _configureResponse(new StaticResponse(""), HttpStatusCode::OK);
+        return _configureResponse(new StaticResponse("", &request), HttpStatusCode::OK);
     }
 
-    return (_configureResponse(new FileResponse(ReadableFD::file(fileFd)), HttpStatusCode::OK));
+    return (_configureResponse(new FileResponse(ReadableFD::file(fileFd), &request), HttpStatusCode::OK));
 }
 
 void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {

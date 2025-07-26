@@ -17,7 +17,7 @@ static std::string get_time_as_readable_string() {
     return std::string(buffer);
 }
 
-Response::Response() : _statusCode(HttpStatusCode::OK), _sentHeaders(false) {}
+Response::Response() : _statusCode(HttpStatusCode::OK), _sentHeaders(false), _request(nullptr) {}
 
 /// @brief Sets the status code for the response.
 /// @param code The HTTP status code to set for the response.
@@ -58,6 +58,16 @@ void Response::sendHeaders(SocketFD &fd) {
     fd.writeAsString(headerStream.str());
 }
 
+ssize_t Response::sendBodyAsChunk(SocketFD &fd, const std::string &body) {
+	if (_request && _request->metadata.getMethod() == Method::HEAD) return static_cast<ssize_t>(body.length());
+	return fd.writeAsChunk(body);
+}
+
+ssize_t Response::sendBodyAsString(SocketFD &fd, const std::string &body) {
+	if (_request && _request->metadata.getMethod() == Method::HEAD) return static_cast<ssize_t>(body.length());
+	return fd.writeAsString(body);
+}
+
 /// @brief Returns the status code of the response.
 HttpStatusCode Response::getStatusCode() const {
     return _statusCode;
@@ -67,8 +77,9 @@ HttpStatusCode Response::getFailedResponseStatusCode() const {
     return (HttpStatusCode::OK);
 }
 
-FileResponse::FileResponse(ReadableFD fileFD) :
+FileResponse::FileResponse(ReadableFD fileFD, Request *request) :
     _fileFD(std::move(fileFD)) {
+	_request = request;
     headers.replace(HeaderKey::TransferEncoding, "chunked");
     DEBUG("FileResponse created with file FD: " << _fileFD.get());
 }
@@ -103,12 +114,12 @@ void FileResponse::handleSocketWriteTick(SocketFD &fd) {
     }
 
     if (_fileFD.getReaderFDState() == FDState::Closed) {
-        fd.writeAsChunk("");
+        sendBodyAsChunk(fd, "");
         return ;
     }
 
     _fileFD.read();
-    fd.writeAsChunk(_fileFD.extractFullBuffer());
+    sendBodyAsChunk(fd, _fileFD.extractFullBuffer());
 }
 
 void FileResponse::terminateResponse() {
@@ -125,9 +136,12 @@ FileResponse::~FileResponse() {
 
 
 
-StaticResponse::StaticResponse(const std::string &content) :
+StaticResponse::StaticResponse(const std::string &content, Request *request) :
     _content(content) {
-    headers.replace(HeaderKey::ContentLength, std::to_string(_content.size()));
+	_request = request;
+	if (_request->metadata.getMethod() != Method::HEAD)
+    	headers.replace(HeaderKey::ContentLength, std::to_string(_content.size()));
+	else headers.replace(HeaderKey::ContentLength, "0");
     DEBUG("StaticResponse created with content size: " << _content.size());
 }
 
@@ -162,7 +176,7 @@ void StaticResponse::handleSocketWriteTick(SocketFD &fd) {
     if (!headersBeenSent())
         sendHeaders(fd);
     if (!_content.empty())
-        fd.writeAsString(_content);
+        sendBodyAsString(fd, _content);
 }
 
 void StaticResponse::terminateResponse() {

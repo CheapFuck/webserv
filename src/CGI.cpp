@@ -67,7 +67,7 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
     });
 }
 
-CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, Client *client) : _server(server),
+CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, Client *client, Request *request) : _server(server),
     _cgiOutputFD(), _cgiInputFD(),
     _environmentVariables(),
     _timerId(-1), _processId(-1),
@@ -75,6 +75,7 @@ CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, Client *client) : _
     _transferMode(CGIResponseTransferMode::FullBuffer),
     _innerStatusCode(HttpStatusCode::OK), socketFD(socketFD), client(client) {
     DEBUG("CGIResponse created for client: " << client);
+	_request = request;
 }
 
 bool CGIResponse::didResponseCreationFail() const {
@@ -323,24 +324,26 @@ ssize_t CGIResponse::_sendRequestBodyToCGIProcess() {
 bool CGIResponse::_fetchCGIHeadersFromProcess() {
     std::string cgiHeaderString = _cgiOutputFD.extractHeadersFromReadBuffer();
     DEBUG_ESC("Headers gotten: " << cgiHeaderString);
-    if (cgiHeaderString.empty()) return (false);
+    // if (cgiHeaderString.empty()) return (false);
 
     std::istringstream cgiHeaderStream(cgiHeaderString);
     Headers cgiHeaders(cgiHeaderStream);
     headers.merge(cgiHeaders);
 
-    try {
-        int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "-1"));
-        if (code < 100 || code > 599) {
-            CGI_ERROR(HttpStatusCode::InternalServerError);
-            return (false);
-        }
-        setStatusCode(static_cast<HttpStatusCode>(code));
-    } catch (...) {
-        ERROR("Failed to parse CGI response status code");
-        CGI_ERROR(HttpStatusCode::InternalServerError);
-        return (false);
-    }
+    setStatusCode(HttpStatusCode::OK);
+	
+    // try {
+    //     int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "l"));
+    //     if (code < 100 || code > 599) {
+    //         CGI_ERROR(HttpStatusCode::InternalServerError);
+    //         return (false);
+    //     }
+    //     setStatusCode(static_cast<HttpStatusCode>(code));
+    // } catch (...) {
+    //     ERROR("Failed to parse CGI response status code");
+	// 	setStatusCode(HttpStatusCode::OK);
+    //     // CGI_ERROR(HttpStatusCode::InternalServerError);
+    // }
 
     if (_transferMode == CGIResponseTransferMode::FullBuffer) {
         headers.replace(HeaderKey::ContentLength, std::to_string(_cgiOutputFD.getReadBufferSize()));

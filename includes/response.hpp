@@ -23,6 +23,9 @@ private:
     HttpStatusCode _statusCode;
     bool _sentHeaders;
 
+protected:
+	Request *_request;
+
 public:
     Headers headers;
 
@@ -37,6 +40,9 @@ public:
     void setStatusCode(HttpStatusCode code);
     void setStatusCode(StatusCode code);
     void setDefaultHeaders();
+
+	ssize_t sendBodyAsChunk(SocketFD &fd, const std::string &body);
+	ssize_t sendBodyAsString(SocketFD &fd, const std::string &body);
 
     bool headersBeenSent() const;
     void sendHeaders(SocketFD &fd);
@@ -57,7 +63,7 @@ private:
     ReadableFD _fileFD;
 
 public:
-    FileResponse(ReadableFD fileFD);
+    FileResponse(ReadableFD fileFD, Request *request);
     FileResponse(const FileResponse &other) = default;
     FileResponse &operator=(const FileResponse &other) = default;
     ~FileResponse() override;
@@ -108,7 +114,7 @@ public:
     SocketFD &socketFD;
     Client *client;
 
-    CGIResponse(Server &server, SocketFD &socketFD, Client *client);
+    CGIResponse(Server &server, SocketFD &socketFD, Client *client, Request *request);
     CGIResponse(const CGIResponse &other) = delete;
     CGIResponse &operator=(const CGIResponse &other) = delete;
     ~CGIResponse() override;
@@ -133,7 +139,7 @@ private:
     std::string _content;
 
 public:
-    StaticResponse(const std::string &content);
+    StaticResponse(const std::string &content, Request *request);
     StaticResponse(const StaticResponse &other) = default;
     StaticResponse &operator=(const StaticResponse &other) = default;
     ~StaticResponse() override;
