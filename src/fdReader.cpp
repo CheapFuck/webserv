@@ -24,6 +24,7 @@ ssize_t FDReader::read() {
 
     if (_readBuffer.size() + READ_BUFFER_SIZE > _maxBufferSize) {
         DEBUG("Skipping read, buffer size exceeds max buffer size");
+        _lastReadTime = std::chrono::steady_clock::now();
         return -1;
     }
 

@@ -99,7 +99,7 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
     _environmentVariables["SERVER_PROTOCOL"] = Response::protocol + std::string("/") + Response::tlsVersion;
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REQUEST_METHOD"] = methodToStr(client->request.metadata.getMethod());
-    _environmentVariables["PATH_INFO"] = std::string(parsedUrl.pathInfo);
+    _environmentVariables["PATH_INFO"] = _request->metadata.getRawUrl();
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
     _environmentVariables["SCRIPT_FILENAME"] = parsedUrl.scriptPath;
     _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
@@ -302,8 +302,7 @@ ssize_t CGIResponse::_sendRequestBodyToCGIProcess() {
                 ssize_t written = _cgiInputFD.writeAsString(chunk.data);
                 if (written < 0) {
                     ERROR("Failed to write chunk to CGI process");
-                    CGI_ERROR(HttpStatusCode::InternalServerError);
-                    return (-1);
+                    return (0);
                 }
                 bytesWritten += written;
                 DEBUG("Sent chunk to CGI process: " << chunk.data);

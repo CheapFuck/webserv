@@ -6,7 +6,8 @@ mkdir -p YoupiBanane/Yeah
 
 touch YoupiBanane/youpi.bad_extension
 touch YoupiBanane/youpi.bla
-echo -e '#!/bin/bash\necho "hello"' > YoupiBanane/youpi.bla
+echo -e '#!/bin/bash\n../ubuntu_cgi_tester' > YoupiBanane/youpi.bla
+
 chmod +x YoupiBanane/youpi.bla
 
 touch YoupiBanane/nop/youpi.bad_extension

@@ -135,9 +135,13 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
 
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
     route = &config.getLocation(request.metadata.getRawUrl());
+    request.metadata.translateUrl(_server.getServerExecutablePath(), *route);
 
     DEBUG("Route found for request: " << *route);
     DEBUG("URL path: " << request.metadata.getPath().str());
+
+    if (route->cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route->cgiExtension.isCGI(request.metadata.getPath())))
+        return _createCGIResponse(fd, config, *route);
 
     if (!route->methods.isAllowed(request.metadata.getMethod()))
         return _createErrorResponse(HttpStatusCode::MethodNotAllowed, *route);
@@ -151,13 +155,9 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     if (!(route->root.isSet() || route->alias.isSet()))
         return _createErrorResponse(HttpStatusCode::NotFound, *route);
 
-    request.metadata.translateUrl(_server.getServerExecutablePath(), *route);
     if (!request.metadata.getPath().isValid())
         return _createErrorResponse(HttpStatusCode::BadRequest, *route);
 
-    if (route->cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route->cgiExtension.isCGI(request.metadata.getPath())))
-        return _createCGIResponse(fd, config, *route);
-    
     if (request.metadata.pathIsDirectory())
         return _createDirectoryListingResponse(*route);
 
@@ -206,7 +206,6 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
 
         case ClientHTTPState::ReadingBody: {
             if (request.receivingBodyMode == ReceivingBodyMode::Chunked) {
-                DEBUG(fd.peekReadBuffer());
                 FDReader::HTTPChunkStatus chunkStatus = fd.returnHTTPChunkStatus();
                 DEBUG("Chunk status: " << static_cast<int>(chunkStatus));
                 if (chunkStatus == FDReader::HTTPChunkStatus::Error) {
