@@ -8,16 +8,19 @@ document.addEventListener('mousemove', (e) => {
 
   createFirework(e.clientX, e.clientY);
 });
-
 function createFirework(x, y) {
   const particles = 12;
-  const hue = Math.floor(Math.random() * 360);
 
   for (let i = 0; i < particles; i++) {
     const particle = document.createElement('div');
     particle.classList.add('particle');
     particle.style.left = x + 'px';
     particle.style.top = y + 'px';
+
+    let hue;
+   
+      hue = Math.floor(Math.random() * 360);
+   
 
     const angle = (Math.PI * 2 * i) / particles;
     const radius = 60 + Math.random() * 20;
@@ -30,8 +33,11 @@ function createFirework(x, y) {
 
     fireworkLayer.appendChild(particle);
 
+    // Duration depends on party mode for longer lasting particles
+    const duration = document.body.classList.contains('party-mode') ? 1200 : 600;
+
     setTimeout(() => {
       particle.remove();
-    }, 600);
+    }, duration);
   }
 }
