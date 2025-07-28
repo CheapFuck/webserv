@@ -1,11 +1,11 @@
 body {
-  font-family: 'Comic Neue', cursive, sans-serif;
+  font-family: "Comic Neue", cursive, sans-serif;
   margin: 0;
   padding: 0;
   line-height: 1.6;
   background-color: #f9f9f9;
   color: #333;
-  cursor: none; Optional
+  cursor: none;
 }
 
 header {
@@ -45,9 +45,16 @@ section {
   gap: 1rem;
   background: #fff;
   padding: 1rem;
-  border: 1px solid #ddd;
+  border: none !important;
   justify-content: center;
   align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.project:focus,
+.project:focus-visible {
+  outline: none;
+  border: none;
 }
 
 .project > div {
@@ -147,7 +154,7 @@ footer {
   }
 }
 
-
+/* Dark mode base theme */
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #121212;
@@ -164,7 +171,7 @@ footer {
   }
 
   main {
-    background-color: transparent; /* keep the contrast */
+    background-color: transparent;
   }
 
   .project {
@@ -191,12 +198,351 @@ footer {
     color: #ccc;
   }
 
-  /* Firework particles can be more vibrant on dark background */
   .firework-cursor {
     background-color: #fff;
   }
 
   .particle {
     background-color: hsl(var(--hue), 100%, 70%);
+  }
+}
+
+/* ======================== */
+/* 🎉 PARTY MODE SECTION 🎉 */
+/* ======================== */
+
+/* Enhanced color cycling keyframes - VIBRANT COLORS */
+@keyframes bodyCycle {
+  0% {
+    background-color: #ff1744;
+  }
+  12.5% {
+    background-color: #00e676;
+  }
+  25% {
+    background-color: #2196f3;
+  }
+  37.5% {
+    background-color: #ff9800;
+  }
+  50% {
+    background-color: #e91e63;
+  }
+  62.5% {
+    background-color: #00bcd4;
+  }
+  75% {
+    background-color: #8bc34a;
+  }
+  87.5% {
+    background-color: #9c27b0;
+  }
+  100% {
+    background-color: #ff1744;
+  }
+}
+
+@keyframes bgCycle {
+  0% {
+    background-color: #d32f2f;
+    color: #fff;
+  }
+  12.5% {
+    background-color: #1976d2;
+    color: #fff;
+  }
+  25% {
+    background-color: #388e3c;
+    color: #fff;
+  }
+  37.5% {
+    background-color: #f57c00;
+    color: #fff;
+  }
+  50% {
+    background-color: #7b1fa2;
+    color: #fff;
+  }
+  62.5% {
+    background-color: #0097a7;
+    color: #fff;
+  }
+  75% {
+    background-color: #689f38;
+    color: #fff;
+  }
+  87.5% {
+    background-color: #512da8;
+    color: #fff;
+  }
+  100% {
+    background-color: #d32f2f;
+    color: #fff;
+  }
+}
+
+@keyframes textCycle {
+  0% {
+    color: #ff1744;
+  }
+  12.5% {
+    color: #2196f3;
+  }
+  25% {
+    color: #4caf50;
+  }
+  37.5% {
+    color: #ff9800;
+  }
+  50% {
+    color: #e91e63;
+  }
+  62.5% {
+    color: #00bcd4;
+  }
+  75% {
+    color: #8bc34a;
+  }
+  87.5% {
+    color: #9c27b0;
+  }
+  100% {
+    color: #ff1744;
+  }
+}
+
+@keyframes lineColorCycle {
+  0% {
+    border-bottom-color: #ff1744;
+  }
+  12.5% {
+    border-bottom-color: #2196f3;
+  }
+  25% {
+    border-bottom-color: #4caf50;
+  }
+  37.5% {
+    border-bottom-color: #ff9800;
+  }
+  50% {
+    border-bottom-color: #e91e63;
+  }
+  62.5% {
+    border-bottom-color: #00bcd4;
+  }
+  75% {
+    border-bottom-color: #8bc34a;
+  }
+  87.5% {
+    border-bottom-color: #9c27b0;
+  }
+  100% {
+    border-bottom-color: #ff1744;
+  }
+}
+
+@keyframes projectCycle {
+  0% {
+    background-color: #ffcdd2;
+  }
+  12.5% {
+    background-color: #bbdefb;
+  }
+  25% {
+    background-color: #c8e6c9;
+  }
+  37.5% {
+    background-color: #ffe0b2;
+  }
+  50% {
+    background-color: #f8bbd9;
+  }
+  62.5% {
+    background-color: #b2ebf2;
+  }
+  75% {
+    background-color: #dcedc8;
+  }
+  87.5% {
+    background-color: #e1bee7;
+  }
+  100% {
+    background-color: #ffcdd2;
+  }
+}
+
+@keyframes buttonCycle {
+  0% {
+    background-color: #d32f2f;
+    color: #fff;
+  }
+  12.5% {
+    background-color: #1976d2;
+    color: #fff;
+  }
+  25% {
+    background-color: #388e3c;
+    color: #fff;
+  }
+  37.5% {
+    background-color: #f57c00;
+    color: #fff;
+  }
+  50% {
+    background-color: #7b1fa2;
+    color: #fff;
+  }
+  62.5% {
+    background-color: #0097a7;
+    color: #fff;
+  }
+  75% {
+    background-color: #689f38;
+    color: #fff;
+  }
+  87.5% {
+    background-color: #512da8;
+    color: #fff;
+  }
+  100% {
+    background-color: #d32f2f;
+    color: #fff;
+  }
+}
+
+/* Party mode animations - Targeted approach */
+.party-mode html {
+  animation: bodyCycle 4s infinite linear;
+}
+
+.party-mode body {
+  animation: bodyCycle 4s infinite linear;
+}
+
+.party-mode header {
+  animation: bgCycle 3s infinite linear;
+}
+
+.party-mode footer {
+  animation: bgCycle 3.5s infinite linear;
+}
+
+.party-mode main {
+  animation: bodyCycle 4.5s infinite linear !important;
+}
+
+.party-mode section {
+  animation: projectCycle 4.8s infinite linear;
+}
+
+.party-mode #about {
+  animation: projectCycle 5.2s infinite linear;
+}
+
+.party-mode #projects {
+  animation: projectCycle 5.5s infinite linear;
+}
+
+.party-mode .project {
+  animation: projectCycle 5s infinite linear;
+}
+
+.party-mode .project > div {
+  animation: projectCycle 5.2s infinite linear;
+}
+
+.party-mode button {
+  animation: buttonCycle 2s infinite linear;
+}
+
+/* Text color animations - specific targeting */
+.party-mode header h1 {
+  animation: textCycle 2.5s infinite linear;
+}
+
+.party-mode #about p {
+  animation: textCycle 3s infinite linear;
+}
+
+.party-mode .project p {
+  animation: textCycle 3s infinite linear;
+}
+
+.party-mode .team-list li:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.party-mode .team-list li:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+.party-mode .cgi-list li:nth-child(odd) {
+  animation-delay: 0.4s;
+}
+
+.party-mode .cgi-list li a {
+  animation: textCycle 2.4s infinite linear;
+}
+
+/* Fix specific elements that aren't animating */
+.party-mode .team-list li:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.party-mode .team-list li:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.party-mode .team-list li:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+/* Combined Text & Border Animations */
+.party-mode #about h2,
+.party-mode #projects h1,
+.party-mode .project h2,
+.party-mode .project h4 {
+  animation: textCycle 2.5s infinite linear, lineColorCycle 2.7s infinite linear !important;
+}
+
+.party-mode .team-list li,
+.party-mode .cgi-list li {
+  animation: textCycle 2.8s infinite linear, lineColorCycle 3.2s infinite linear !important;
+}
+
+/* Enhanced firework particles in party mode */
+.party-mode .particle {
+  background-color: hsl(calc(var(--hue) + 180), 100%, 70%);
+  animation: explode 1.2s ease-out forwards;
+}
+
+/* Dark mode party animations */
+@media (prefers-color-scheme: dark) {
+  .party-mode html {
+    animation: bodyCycle 4s infinite linear;
+  }
+
+  .party-mode body {
+    animation: bodyCycle 4s infinite linear;
+  }
+
+  .party-mode header {
+    animation: bgCycle 3s infinite linear;
+  }
+
+  .party-mode footer {
+    animation: bgCycle 3.5s infinite linear;
+  }
+
+  .party-mode main {
+    animation: bodyCycle 4.5s infinite linear !important;
+  }
+
+  .party-mode .project {
+    animation: projectCycle 5s infinite linear;
+  }
+
+  .party-mode section {
+    animation: projectCycle 4.8s infinite linear;
   }
 }
