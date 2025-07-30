@@ -7,14 +7,17 @@
 #include <string>
 #include <chrono>
 
+FDReader::HTTPChunk::HTTPChunk()
+    : data(""), size(FDReader::HTTPChunk::noChunk) {}
+
 FDReader::HTTPChunk::HTTPChunk(std::string data, size_t size)
     : data(std::move(data)), size(size) {}
 
 FDReader::FDReader() 
-    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _readBuffer(), _state(FDState::Invalid), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
+    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _totalBodyBytes(0), _readBuffer(), _state(FDState::Invalid), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
 
 FDReader::FDReader(int fd, int maxBufferSize, FDState state)
-    : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _readBuffer(), _state(state), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
+    : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _totalBodyBytes(0), _readBuffer(), _state(state), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
 
 ssize_t FDReader::read() {
     if (_fd < 0) {
@@ -49,6 +52,10 @@ ssize_t FDReader::getTotalReadBytes() const {
     return (_totalReadBytes);
 }
 
+ssize_t FDReader::getTotalBodyBytes() const {
+    return (_totalBodyBytes);
+}
+
 size_t FDReader::getReadBufferSize() const {
     return (_readBuffer.size());
 }
@@ -76,8 +83,8 @@ const std::string &FDReader::peekReadBuffer() const {
 std::string FDReader::extractHeadersFromReadBuffer() {
     size_t pos = _readBuffer.find("\r\n\r\n");
     if (pos != std::string::npos) {
-        std::string headerStr = extractChunkFromReadBuffer(pos);
-        extractChunkFromReadBuffer(4);
+        std::string headerStr = _readBuffer.substr(0, pos);
+        _readBuffer.erase(0, pos + 4);
         return (headerStr);
     }
 
@@ -92,9 +99,9 @@ FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
         catch (...) { throw std::runtime_error("Invalid chunk size format in buffer"); }
         size_t minBuffLen = sizeSepPos + 4 + chunkSize;
         if (_readBuffer.size() >= minBuffLen) {
-            extractChunkFromReadBuffer(sizeSepPos + 2);
+            _readBuffer.erase(0, sizeSepPos + 2);
             std::string chunkData = extractChunkFromReadBuffer(chunkSize);
-            extractChunkFromReadBuffer(2);
+            _readBuffer.erase(0, 2);
             return HTTPChunk(std::move(chunkData), chunkSize);
         }
     }
@@ -112,7 +119,6 @@ FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
     while (sizePos != std::string::npos) {
         try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
         catch (...) { return HTTPChunkStatus::Error; }
-        DEBUG("Chunk size: " << chunkSize);
 
         size_t minBuffLen = sizePos + 4 + chunkSize;
         if (_readBuffer.size() < minBuffLen) return (HTTPChunkStatus::Ongoing);
@@ -124,6 +130,11 @@ FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
 
         chunkStartPos = sizePos + 4 + chunkSize;
         sizePos = _readBuffer.find("\r\n", chunkStartPos);
+
+        if (_readBuffer.size() > 1024 * 512) { // 512 KB
+            DEBUG("Buffer size exceeds 512 KB, returning Ongoing status");
+            return (HTTPChunkStatus::Ongoing);
+        }
     }
 
     return (HTTPChunkStatus::Ongoing);
@@ -135,12 +146,14 @@ std::string FDReader::extractChunkFromReadBuffer(size_t chunkSize) {
 
     std::string chunk = _readBuffer.substr(0, chunkSize);
     _readBuffer.erase(0, chunkSize);
+    _totalBodyBytes += chunkSize;
     DEBUG("Extracted chunk of size: " << chunkSize << " from buffer");
     return (chunk);
 }
 
 std::string FDReader::extractFullBuffer() {
     std::string fullBuffer = std::move(_readBuffer);
+    _totalReadBytes += fullBuffer.size();
     _readBuffer = std::string();
     return (fullBuffer);
 }
@@ -160,6 +173,7 @@ std::chrono::steady_clock::time_point FDReader::getLastReadTime() const {
 
 void FDReader::resetCounter() {
     _totalReadBytes = 0;
+    _totalBodyBytes = 0;
 }
 
 

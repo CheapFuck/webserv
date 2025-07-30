@@ -11,8 +11,8 @@
 #define DEFAULT_EPOLLIN_EVENTS (EPOLLIN)
 #define DEFAULT_EPOLLOUT_EVENTS (EPOLLOUT)
 
-#define DEFAULT_MAX_BUFFER_SIZE (1024 * 1024 * 1024) // 256 KB
-#define READ_BUFFER_SIZE (32 * 1024) // 32 KB
+#define DEFAULT_MAX_BUFFER_SIZE (1024 * 1024 * 128) // 16 MB
+#define READ_BUFFER_SIZE (516 * 1024) // 516 KB
 // #define READ_BUFFER_SIZE (512) // 512 bytes
 
 enum class FDState {
@@ -90,6 +90,7 @@ private:
     int _fd;
     size_t _maxBufferSize;
     ssize_t _totalReadBytes;
+    ssize_t _totalBodyBytes;
     std::string _readBuffer;
     FDState _state;
     std::chrono::steady_clock::time_point _lastReadTime;
@@ -99,6 +100,7 @@ public:
         std::string data;
         size_t size;
 
+        HTTPChunk();
         HTTPChunk(std::string data, size_t size);
         static constexpr size_t noChunk = static_cast<size_t>(-1);
     };
@@ -117,6 +119,7 @@ public:
 
     ssize_t read();
     ssize_t getTotalReadBytes() const;
+    ssize_t getTotalBodyBytes() const;
     size_t getReadBufferSize() const;
 
     void clearReadBuffer();

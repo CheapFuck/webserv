@@ -120,7 +120,6 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
 bool Client::isFullRequestBodyReceived(SocketFD &fd) const {
     switch (request.receivingBodyMode) {
         case ReceivingBodyMode::Chunked: {
-            ERROR("Chunked");
             return (_chunkedRequestBodyRead);
         }
         case ReceivingBodyMode::ContentLength:
@@ -140,14 +139,14 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
     DEBUG("Route found for request: " << *route);
     DEBUG("URL path: " << request.metadata.getPath().str());
 
+    if ((route->maxBodySize.isSet() && request.contentLength > route->maxBodySize.getMaxBodySize().get()))
+        return _createErrorResponse(HttpStatusCode::PayloadTooLarge, *route);
+
     if (route->cgi.isEnabled() || (!request.metadata.pathIsDirectory() && route->cgiExtension.isCGI(request.metadata.getPath())))
         return _createCGIResponse(fd, config, *route);
 
     if (!route->methods.isAllowed(request.metadata.getMethod()))
         return _createErrorResponse(HttpStatusCode::MethodNotAllowed, *route);
-
-    if ((route->maxBodySize.isSet() && request.contentLength > route->maxBodySize.getMaxBodySize().get()))
-        return _createErrorResponse(HttpStatusCode::PayloadTooLarge, *route);
 
     if (route->returnRule.isSet())
         return _createReturnRuleResponse(route->returnRule);
@@ -220,15 +219,16 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
             }
 
             response->handleRequestBody(fd, request);
-            if (isFullRequestBodyReceived(fd)) {
-                _state = ClientHTTPState::SwitchingToOutput;
-                return handleRead(fd, funcReturnValue);
-            }
-
-            if (route && route->maxBodySize.isSet() && route->maxBodySize.getMaxBodySize().get() < fd.getTotalReadBytes() - request.headerPartLength) {
+            DEBUG("Max body size: " << route->maxBodySize.getMaxBodySize().get() << ", total body bytes: " << fd.getTotalBodyBytes());
+            if (route && route->maxBodySize.isSet() && static_cast<ssize_t>(route->maxBodySize.getMaxBodySize().get()) < fd.getTotalBodyBytes()) {
                 DEBUG("Request body exceeds max body size, closing connection");
                 switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, fd);
                 return ;
+            }
+
+            if (isFullRequestBodyReceived(fd)) {
+                _state = ClientHTTPState::SwitchingToOutput;
+                return handleRead(fd, funcReturnValue);
             }
 
             return ;
@@ -272,6 +272,7 @@ void Client::handleWrite(SocketFD &fd) {
 
 void Client::handleClientReset(SocketFD &fd) {
     DEBUG("Full response sent for Client, fd: " << fd.get());
+    ERROR("Reset go brr");
     if (response) {
         delete response;
         response = nullptr;

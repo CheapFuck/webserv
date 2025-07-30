@@ -7,7 +7,7 @@
 #include <string>
 #include <sstream>
 
-Headers::Headers() {}
+Headers::Headers(): _headers() {}
 
 static std::string removePortFromHostValue(const std::string& value)
 {

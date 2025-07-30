@@ -284,7 +284,7 @@ class CGIClient:
             raise RuntimeError('No routes provided.')
 
         best_path: str | None = None
-        path_info = self.getEnvironmentVariable('PATH_INFO', '/') or '/'
+        path_info = self.getEnvironmentVariable('PATH_INFO', '/').removeprefix(self.getEnvironmentVariable('SCRIPT_FILENAME', '/')) or '/'
         assert isinstance(path_info, str)
 
         for route in self.routes:

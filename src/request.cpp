@@ -30,7 +30,7 @@ void Request::_fetch_config_from_headers() {
 /// @brief Parses the request headers from the buffer.
 /// @return Returns true if the headers are (already) parsed, false otherwise.
 Request::Request(std::string &buffer) :
-    metadata(), headers(), contentLength(0), headerPartLength(0), cookies(), session(nullptr), receivingBodyMode(ReceivingBodyMode::NotSet)
+    metadata(), headers(), contentLength(0), headerPartLength(buffer.size()), cookies(), session(nullptr), receivingBodyMode(ReceivingBodyMode::NotSet)
 {
     std::istringstream stream(buffer);
     metadata = RequestLine(stream);

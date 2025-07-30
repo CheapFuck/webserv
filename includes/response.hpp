@@ -9,7 +9,7 @@
 
 #include <string>
 
-#define DEFAULT_CHUNK_SIZE 4096 // 4 Kb
+#define DEFAULT_CHUNK_SIZE 512 * 1024 // 512 KB
 
 class Server;
 
@@ -90,6 +90,9 @@ private:
     WritableFD _cgiInputFD;
     
     std::unordered_map<std::string, std::string> _environmentVariables;
+
+    ssize_t _sendBytesTracker;
+    ssize_t _responseLength;
 
     int _timerId;
     int _processId;

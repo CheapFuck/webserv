@@ -402,7 +402,7 @@ void Server::_handleClientFD(ServerClientInfo &clientInfo, short revents) {
 void Server::runOnce() {
     epoll_event events[EPOLL_MAX_EVENTS];
 
-    int event_count = epoll_wait(_epoll_fd, events, EPOLL_MAX_EVENTS, std::min(1000, _timer.getNextEventTimeoutMS()));
+    int event_count = epoll_wait(_epoll_fd, events, EPOLL_MAX_EVENTS, std::min(1, _timer.getNextEventTimeoutMS()));
     if (event_count == -1) {
         ERROR("epoll_wait failed: " << strerror(errno));
         return ;
@@ -465,6 +465,11 @@ void Server::runOnce() {
         else if (CGIResponse->didResponseCreationFail()) {
             DEBUG("CGIResponse creation failed, switching to error response");
             CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode(), CGIResponse->socketFD);
+            break ;
+        }
+        else if (CGIResponse->client->route && CGIResponse->client->route->maxBodySize.isSet() && static_cast<ssize_t>(CGIResponse->client->route->maxBodySize.getMaxBodySize().get()) < CGIResponse->socketFD.getTotalBodyBytes()) {
+            DEBUG("Max body size exceeded");
+            CGIResponse->client->switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, CGIResponse->socketFD);
             break ;
         }
         else if (CGIResponse->isFullResponseSent()) {
