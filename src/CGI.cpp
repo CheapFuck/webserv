@@ -352,20 +352,17 @@ HttpStatusCode CGIResponse::_prepareCGIResponse() {
     Headers cgiHeaders(cgiHeaderStream);
     headers.merge(cgiHeaders);
 
-    setStatusCode(HttpStatusCode::OK);
-
-    // try {
-    //     int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "l"));
-    //     if (code < 100 || code > 599) {
-    //         CGI_ERROR(HttpStatusCode::InternalServerError);
-    //         return (false);
-    //     }
-    //     setStatusCode(static_cast<HttpStatusCode>(code));
-    // } catch (...) {
-    //     ERROR("Failed to parse CGI response status code");
-	// 	setStatusCode(HttpStatusCode::OK);
-    //     // CGI_ERROR(HttpStatusCode::InternalServerError);
-    // }
+    try {
+        int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "l"));
+        if (code < 100 || code > 599) {
+            return (HttpStatusCode::InternalServerError);
+        }
+        setStatusCode(static_cast<HttpStatusCode>(code));
+        if (code / 100 != 2)
+            return (static_cast<HttpStatusCode>(code));
+    } catch (...) {
+        return (HttpStatusCode::InternalServerError);
+    }
 
     if (headers.getHeader(HeaderKey::ContentLength, "").empty()
         || headers.getHeader(HeaderKey::TransferEncoding, "") == "chunked") {
@@ -397,8 +394,25 @@ void CGIResponse::handleRequestBody(SocketFD &fd, const Request &request) {
 void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
     if (_transferMode == CGIResponseTransferMode::Unknown)
         return ;
-
     DEBUG("CGIResponse handleSocketWriteTick for client: " << _client << ", fd: " << fd.get());
+
+    if (_processId != -1) {
+        int status;
+        if (waitpid(_processId, &status, WNOHANG) == -1) {
+            DEBUG("CGI process not yet finished, waiting for it to complete");
+            return ;
+        }
+        PRINT("Return thingy code" << WEXITSTATUS(status));
+
+        if (WEXITSTATUS(status) != 0) {
+            ERROR("CGI process exited with error, status: " << WEXITSTATUS(status));
+            _client->switchResponseToErrorResponse(HttpStatusCode::InternalServerError, socketFD);
+            return ;
+        }
+
+        _processId = -1;
+    }
+
     if (!headersBeenSent())
         return (sendHeaders(fd));
 
