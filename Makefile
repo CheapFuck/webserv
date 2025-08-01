@@ -5,7 +5,7 @@ DBNAME := $(NAME)_db
 CXX := c++# or g++-12
 DIR := objs/
 DBDIR := db_objs/
-CXXFLAGS := -DDEBUG_MODE -Wall -Wextra -Werror -Wpedantic -std=c++20 -MMD -I includes/
+CXXFLAGS := -Wall -Wextra -Werror -Wpedantic -std=c++20 -MMD -I includes/
 CXXDBFLAGS := $(CXXFLAGS) -g3 -fsanitize=address,undefined,leak -DDEBUG_MODE -D_GLIBCXX_ASSERTIONS -DFD_TRACKING
 MAKEFLAGS += -j $(shell nproc)
 

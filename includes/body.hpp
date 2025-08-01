@@ -32,7 +32,7 @@ private:
         }
 
         if (static_cast<size_t>(bytesWritten) < data.size()) {
-            _failedBuffer = data.substr(bytesWritten);
+            _failedBuffer = data.substr(bytesWritten) + _failedBuffer;
 			amountOfBytesWritten += bytesWritten;
             return (bytesWritten);
         }
@@ -73,31 +73,21 @@ public:
     }
 
     ssize_t sendBodyAsHTTPChunk(std::string &data, To &to) {
-        if (!_failedBuffer.empty())
+        if (!_failedBuffer.empty()) {
+            _failedBuffer += data;
             return (_safeWrite(to, _failedBuffer));
+        }
 
-        size_t bytesToSend = std::min(data.size(), static_cast<size_t>(DEFAULT_CHUNK_SIZE));
-        if (bytesToSend == 0)
-            return (0);
-
-        std::string toSend = data.substr(0, bytesToSend);
-        data.erase(0, bytesToSend);
-
-        return (_safeWriteAsHTTPChunk(to, toSend));
+        return (_safeWriteAsHTTPChunk(to, data));
     }
 
     ssize_t sendBodyAsString(std::string &data, To &to) {
-        if (!_failedBuffer.empty())
+        if (!_failedBuffer.empty()) {
+            _failedBuffer += data;
             return (_safeWrite(to, _failedBuffer));
+        }
 
-        size_t bytesToSend = std::min(data.size(), static_cast<size_t>(DEFAULT_CHUNK_SIZE));
-        if (bytesToSend == 0)
-            return (0);
-
-        std::string toSend = data.substr(0, bytesToSend);
-        data.erase(0, bytesToSend);
-
-        return (_safeWrite(to, toSend));
+        return (_safeWrite(to, data));
     }
 
     ssize_t tick(To &to) {

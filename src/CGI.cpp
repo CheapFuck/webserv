@@ -268,8 +268,7 @@ void CGIResponse::_handleCGIInputPipeEvent(WritableFD &fd, short revents) {
 
         if (!_pipeWriter.isEmpty()) {
             _pipeWriter.tick(_cgiInputFD);
-        }
-        else {
+        } else {
             switch (_client->request.receivingBodyMode) {
                 case ReceivingBodyMode::Chunked: {
                     FDReader::HTTPChunk chunk = socketFD.extractHTTPChunkFromReadBuffer();
@@ -396,36 +395,36 @@ void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
         return ;
     DEBUG("CGIResponse handleSocketWriteTick for client: " << _client << ", fd: " << fd.get());
 
-    if (_processId != -1) {
-        int status;
-        if (waitpid(_processId, &status, WNOHANG) == -1) {
-            DEBUG("CGI process not yet finished, waiting for it to complete");
-            return ;
-        }
-        PRINT("Return thingy code" << WEXITSTATUS(status));
+    // if (_processId != -1) {
+    //     int status;
+    //     if (waitpid(_processId, &status, WNOHANG) == -1) {
+    //         DEBUG("CGI process not yet finished, waiting for it to complete");
+    //         return ;
+    //     }
+    //     PRINT("Return thingy code" << WEXITSTATUS(status));
 
-        if (WEXITSTATUS(status) != 0) {
-            ERROR("CGI process exited with error, status: " << WEXITSTATUS(status));
-            _client->switchResponseToErrorResponse(HttpStatusCode::InternalServerError, socketFD);
-            return ;
-        }
+    //     if (WEXITSTATUS(status) != 0) {
+    //         ERROR("CGI process exited with error, status: " << WEXITSTATUS(status));
+    //         _client->switchResponseToErrorResponse(HttpStatusCode::InternalServerError, socketFD);
+    //         return ;
+    //     }
 
-        _processId = -1;
-    }
+    //     _processId = -1;
+    // }
 
     if (!headersBeenSent())
         return (sendHeaders(fd));
 
     switch (_transferMode) {
         case CGIResponseTransferMode::Chunked: {
-			if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
+			// if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
             if (_bodyWriter.sendBodyAsHTTPChunk(_cgiOutputFD, fd) != 0)
                 return ;
             break ;
         }
 
         case CGIResponseTransferMode::FullBuffer: {
-			if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
+			// if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
             if (_bodyWriter.sendBodyAsString(_cgiOutputFD, fd) != 0)
                 return ;
             break ;
@@ -444,6 +443,7 @@ void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
         DEBUG("CGI output pipe closed, sending final chunk");
         if (_transferMode == CGIResponseTransferMode::Chunked && !_hasSentFinalChunk) {
             sendBodyAsChunk(fd, "");
+            DEBUG("Amount of bytes sent to CGI process: " << _pipeWriter.amountOfBytesWritten);
             _hasSentFinalChunk = true;
             return ;
         }
