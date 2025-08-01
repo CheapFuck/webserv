@@ -110,7 +110,7 @@ dbrerun: fclean dbrun
 
 testfile:
 	mkdir -p var/www/static
-	fallocate -l 1G var/www/static/testfile
+	fallocate -l 1G var/www/static/bigaf
 
 analyze:
 	cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --std=c++20 $(SRCS) 
