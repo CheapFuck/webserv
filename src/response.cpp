@@ -27,7 +27,7 @@ void Response::setStatusCode(HttpStatusCode code) {
 
 /// @brief Sets the status code for the response using a StatusCode enum.
 void Response::setStatusCode(StatusCode code) {
-    setStatusCode(fromStatusCode(code));
+    setStatusCode(HttpStatusCode (static_cast<int>(code)));
 }
 
 /// @brief Sets default headers for the response, including Content-Type and Date.
