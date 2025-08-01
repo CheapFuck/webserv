@@ -28,6 +28,18 @@ std::string methodToStr(const Method &method) {
 	return str;
 }
 
+Method stringToMethod(const std::string &str) {
+    std::string lowerStr = str;
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
+    if (lowerStr == "get") return GET;
+	if (lowerStr == "post") return POST;
+	if (lowerStr == "delete") return DELETE;
+	if (lowerStr == "put") return PUT;
+	if (lowerStr == "head") return HEAD;
+	if (lowerStr == "options") return OPTIONS;
+	return UNKNOWN_METHOD;
+}
+
 std::ostream& operator<<(std::ostream& os, const Method& method) {
 	os << methodToStr(method);
 	return os;
