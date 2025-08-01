@@ -117,13 +117,13 @@ FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
 FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
     DEBUG("Call the chunk checker; len remaining buff: " << _readBuffer.size());
     size_t sizePos = _readBuffer.find("\r\n");
-    size_t chunkStartPos = 0;
     ssize_t chunkSize = 0;
 
     if (_readBuffer.empty())
         return (HTTPChunkStatus::Ok);
 
-    try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
+    try {   size_t chunkStartPos = 0;
+            chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
     catch (...) { return (HTTPChunkStatus::Error); }
 
     if (chunkSize > MAX_ACCEPT_CHUNK_SIZE)

@@ -15,7 +15,6 @@ SRCS := src/main.cpp \
 	src/server.cpp \
 	src/headers.cpp \
 	src/response.cpp \
-	src/methods.cpp \
 	src/requestline.cpp \
 	src/timer.cpp \
 	src/fd.cpp \
