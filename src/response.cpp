@@ -121,14 +121,15 @@ void FileResponse::handleSocketWriteTick(SocketFD &fd) {
         return ;
     }
 
+    if (_fileFD.getReaderFDState() != FDState::Closed)
+        _fileFD.read();
+
     if (_fileFD.getReaderFDState() == FDState::Closed) {
         if (_fileFD.getReadBufferSize() == 0 && _bodyWriter.isEmpty() && !_isFinalChunkSent) {
             _isFinalChunkSent = true;
             sendBodyAsChunk(fd, "");
             return ;
         }
-    } else {
-        _fileFD.read();
     }
 
     _bodyWriter.sendBodyAsHTTPChunk(_fileFD, fd);

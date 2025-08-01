@@ -341,14 +341,6 @@ void CGIResponse::_handleCGIOutputPipeEvent(ReadableFD &fd, short revents) {
 }
 
 HttpStatusCode CGIResponse::_prepareCGIResponse() {
-    // if (_cgiOutputFD.getReaderFDState() == FDState::Closed) {
-    //     int exitStatus = 0;
-    //     if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
-    //         DEBUG("CGI process is still running, waiting for it to finish");
-    //         return;
-    //     }
-    // }
-
     std::string cgiHeaderString = _cgiOutputFD.extractHeadersFromReadBuffer();
     DEBUG_ESC("Headers gotten: " << cgiHeaderString);
     if (cgiHeaderString.empty()) {
@@ -385,28 +377,6 @@ HttpStatusCode CGIResponse::_prepareCGIResponse() {
     else {
         _transferMode = CGIResponseTransferMode::FullBuffer;
     }
-
-    // headers.remove(HeaderKey::Status);
-
-    // if (_transferMode == CGIResponseTransferMode::FullBuffer) {
-    //     if (!headers.getHeader(HeaderKey::ContentLength, "").empty())
-    //         headers.replace(HeaderKey::ContentLength, std::to_string(_cgiOutputFD.getReadBufferSize()));
-    //     headers.remove(HeaderKey::TransferEncoding);
-    // } else {
-    //     headers.replace(HeaderKey::ContentDisposition, "attachment; filename=\"response\"");
-    //     headers.replace(HeaderKey::ContentType, "application/octet-stream");
-    //     headers.replace(HeaderKey::TransferEncoding, "chunked");
-    //     headers.remove(HeaderKey::ContentLength);
-    // }
-
-    // if (!headers.getHeader(HeaderKey::ContentLength, "").empty()) {
-    //     try {
-    //         _responseLength = std::stoll(headers.getHeader(HeaderKey::ContentLength, ""));
-    //     } catch (...) {
-    //         ERROR("Failed to parse Content-Length header");
-    //         CGI_ERROR(HttpStatusCode::InternalServerError);
-    //     }
-    // }
 
     return (HttpStatusCode::OK);
 }
@@ -475,7 +445,6 @@ void CGIResponse::terminateResponse() {
         kill(_processId, SIGKILL);
         _processId = -1;
     }
-    _server.untrackCGIResponse(this);
 }
 
 void CGIResponse::_handleTimeout() {

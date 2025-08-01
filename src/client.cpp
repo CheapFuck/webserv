@@ -239,9 +239,6 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
                 }
             }
 
-            DEBUG("Max body size: " << route->maxBodySize.getMaxBodySize().get());
-            DEBUG("Request body read, total bytes: " << fd.getTotalBodyBytes() << ", content length: " << request.headerPartLength);
-            DEBUG("Request body read, total body bytes: " << fd.getTotalBodyBytes() << ", content length: " << request.contentLength);
             if (route && route->maxBodySize.isSet() && route->maxBodySize.getMaxBodySize().get() < static_cast<size_t>(fd.getTotalBodyBytes())) {
                 DEBUG("Request body exceeds max body size, using error response");
                 switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, fd);

@@ -47,9 +47,9 @@ public:
     Request request;
 
     Client(Server &server, int serverFd, const char *clientIP, int clientPort);
+    Client &operator=(const Client &other) = delete;
+    Client(const Client &other) = delete;
     ~Client();
-    // Client(const Client &other) = default;
-    // Client &operator=(const Client &other) = default;
 
     void handleRead(SocketFD &fd, ssize_t funcReturnValue);
     void handleWrite(SocketFD &fd);

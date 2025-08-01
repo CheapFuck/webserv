@@ -70,7 +70,6 @@ ServerClientInfo::ServerClientInfo(SocketFD fd, Client *client)
 
 Server::Server(HTTPRule &http) :
     _portToConfigs(),
-    _cgiResponses(),
     _sessionManager("sessions"),
     _server_fd(-1),
     _epoll_fd(-1),
@@ -102,7 +101,6 @@ Server::Server(HTTPRule &http) :
 
 Server::Server(const Server &other) :
     _portToConfigs(other._portToConfigs),
-    _cgiResponses(other._cgiResponses),
     _sessionManager(other._sessionManager),
     _server_fd(other._server_fd),
     _epoll_fd(other._epoll_fd),
@@ -115,7 +113,6 @@ Server::Server(const Server &other) :
 Server &Server::operator=(const Server &other) {
     if (this != &other) {
         _portToConfigs = other._portToConfigs;
-        _cgiResponses = other._cgiResponses;
         _sessionManager = other._sessionManager;
         _server_fd = other._server_fd;
         _epoll_fd = other._epoll_fd;
@@ -176,18 +173,6 @@ void Server::_checkHangingConnections() {
 
 	for (int fd : fdsToDelete)
         _clientDescriptors.erase(fd);
-}
-
-void Server::trackCGIResponse(CGIResponse *cgiResponse) {
-    ERROR_RET_IF(!cgiResponse, "Cannot track null CGIResponse");
-    _cgiResponses.push_back(cgiResponse);
-}
-
-void Server::untrackCGIResponse(CGIResponse *cgiResponse) {
-    ERROR_RET_IF(!cgiResponse, "Cannot untrack null CGIResponse");
-    auto it = std::find(_cgiResponses.begin(), _cgiResponses.end(), cgiResponse);
-    ERROR_RET_IF(it == _cgiResponses.end(), "CGIResponse not found in tracked responses");
-    _cgiResponses.erase(it);
 }
 
 /// @brief Set up the server socket
@@ -452,34 +437,5 @@ void Server::runOnce() {
     }
 
     _timer.processEvents();
-
-    for (CGIResponse *CGIResponse : _cgiResponses) {
-        CGIResponse->tick();
-        // if (CGIResponse->isBrokenBeyondRepair()) {
-        //     DEBUG("CGIResponse is broken beyond repair, closing the connection and cleaning up the client");
-        //     int fd = CGIResponse->socketFD.get();
-        //     CGIResponse->socketFD.close();
-        //     delete CGIResponse->client;
-        //     _clientDescriptors.erase(fd);
-        //     break ;
-        // }
-        // else if (CGIResponse->didResponseCreationFail()) {
-        //     DEBUG("CGIResponse creation failed, switching to error response");
-        //     CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode(), CGIResponse->socketFD);
-        //     break ;
-        // }
-        // else if (CGIResponse->client->route && CGIResponse->client->route->maxBodySize.isSet() && static_cast<ssize_t>(CGIResponse->client->route->maxBodySize.getMaxBodySize().get()) < CGIResponse->socketFD.getTotalBodyBytes()) {
-        //     DEBUG("Max body size exceeded");
-        //     CGIResponse->client->switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, CGIResponse->socketFD);
-        //     break ;
-        // }
-        // else if (CGIResponse->isFullResponseSent()) {
-        //     DEBUG("CGIResponse is fully sent, cleaning up");
-        //     CGIResponse->client->handleClientReset(CGIResponse->socketFD);
-        //     break ;
-        // }
-    }
-
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 

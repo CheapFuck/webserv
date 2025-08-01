@@ -39,7 +39,6 @@ struct FDEvent {
 class Server {
 private:
     std::map<int, std::vector<ServerConfig>> _portToConfigs;
-    std::vector<CGIResponse *> _cgiResponses;
     UserSessionManager _sessionManager;
     int _server_fd;
     int _epoll_fd;
@@ -85,12 +84,8 @@ public:
 
     void untrackCallbackFD(int fd);
 
-    void trackCGIResponse(CGIResponse *cgiResponse);
-    void untrackCGIResponse(CGIResponse *cgiResponse);
-
     inline Timer &getTimer() { return _timer; }
     inline int getEpollFd() const { return _epoll_fd; }
-    // inline void trackDescriptor(const FD &fd) { _descriptors[fd.get()] = fd; }
     inline std::string getServerAddress() { return _serverAddress; }
     inline std::string getServerExecutablePath() { return _serverExecutablePath; }
 };
