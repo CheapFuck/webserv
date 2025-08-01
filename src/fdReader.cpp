@@ -43,7 +43,8 @@ ssize_t FDReader::read() {
     }
     else if (bytesRead == 0)
         FDReader::_state = FDState::Closed;
-   
+    else if (bytesRead < 0)
+        FDReader::_state = FDState::Awaiting;
 
     return (bytesRead);
 }
