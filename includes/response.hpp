@@ -10,8 +10,6 @@
 
 #include <string>
 
-#define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5 // 512 KB
-
 class Server;
 
 struct ParsedUrl {

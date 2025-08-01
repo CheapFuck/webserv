@@ -2,9 +2,7 @@
 
 #include <functional>
 
-#ifndef DEFAULT_CHUNK_SIZE
-# define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5
-#endif
+#define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5 // 512 KB
 
 template <typename From, typename To>
 class BodyWriter {
