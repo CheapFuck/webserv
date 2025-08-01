@@ -13,18 +13,6 @@ Method operator|(Method lhs, Method rhs) {
 	);
 }
 
-Method stringToMethod(const std::string &str) {
-    std::string lowerStr = str;
-    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
-    if (lowerStr == "get") return GET;
-	if (lowerStr == "post") return POST;
-	if (lowerStr == "delete") return DELETE;
-	if (lowerStr == "put") return PUT;
-	if (lowerStr == "head") return HEAD;
-	if (lowerStr == "options") return OPTIONS;
-	return UNKNOWN_METHOD;
-}
-
 std::string methodToStr(const Method &method) {
 	std::string str;
 
@@ -123,10 +111,6 @@ std::string getStatusCodeAsStr(HttpStatusCode code) {
             ERROR("Unknown HTTP Status Code: " << static_cast<int>(code));
             return "Unknown Status Code";
     }
-}
-
-HttpStatusCode fromStatusCode(StatusCode code) {
-    return static_cast<HttpStatusCode>(code.value);
 }
 
 std::ostream& operator<<(std::ostream& os, HttpStatusCode code) {
