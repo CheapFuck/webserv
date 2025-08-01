@@ -107,6 +107,7 @@ private:
     bool _chunkedRequestBodyRead;
     bool _hasSentFinalChunk;
     bool _isBrokenBeyondRepair;
+    bool _isGamblingResponseWillWork;
     CGIResponseTransferMode _transferMode;
 
     HttpStatusCode _innerStatusCode;

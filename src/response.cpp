@@ -32,7 +32,9 @@ void Response::setStatusCode(StatusCode code) {
 
 /// @brief Sets default headers for the response, including Content-Type and Date.
 void Response::setDefaultHeaders() {
+    headers.replace(HeaderKey::CacheControl, "no-cache, no-store, must-revalidate");
     headers.replace(HeaderKey::Date, get_time_as_readable_string());
+    headers.replace(HeaderKey::RetryAfter, "0");
 }
 
 bool Response::headersBeenSent() const {

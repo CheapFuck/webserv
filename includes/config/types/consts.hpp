@@ -195,7 +195,9 @@ enum class HeaderKey {
     Referer,
     Status,
 	TransferEncoding,
-    ContentDisposition
+    ContentDisposition,
+    RetryAfter,
+    CacheControl,
 };
 
 std::string headerKeyToString(HeaderKey key);
