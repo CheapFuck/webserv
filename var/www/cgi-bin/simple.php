@@ -2,7 +2,7 @@
 
 <?php
     header("Content-Type: text/html");
-    header("Status: 200 OK");
+    header("Status: 205 OK");
 
-    echo "Hello from PHP CGI!\n";
+    echo "Hello from PHP CsGI!\n";
 ?>

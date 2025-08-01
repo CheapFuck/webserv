@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5 // 512 KB
+# define DEFAULT_CHUNK_SIZE 1024 * 8
 
 template <typename From, typename To>
 class BodyWriter {
@@ -33,10 +33,12 @@ private:
 
         if (static_cast<size_t>(bytesWritten) < data.size()) {
             _failedBuffer = data.substr(bytesWritten);
+			amountOfBytesWritten += bytesWritten;
             return (bytesWritten);
         }
 
         _failedBuffer.clear();
+		amountOfBytesWritten += bytesWritten;
         return (bytesWritten);
     }
 
@@ -45,6 +47,8 @@ public:
     BodyWriter(const BodyWriter &other) = default;
     BodyWriter& operator=(const BodyWriter &other) = default;
     ~BodyWriter() = default;
+
+	ssize_t amountOfBytesWritten;
 
     ssize_t sendBodyAsHTTPChunk(From &from, To &to) {
         if (!_failedBuffer.empty())

@@ -418,12 +418,14 @@ void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
 
     switch (_transferMode) {
         case CGIResponseTransferMode::Chunked: {
+			if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
             if (_bodyWriter.sendBodyAsHTTPChunk(_cgiOutputFD, fd) != 0)
                 return ;
             break ;
         }
 
         case CGIResponseTransferMode::FullBuffer: {
+			if (_cgiOutputFD.getReadBufferSize() < 1024 * 1024 && _cgiOutputFD.getReaderFDState() != FDState::Closed) break ;
             if (_bodyWriter.sendBodyAsString(_cgiOutputFD, fd) != 0)
                 return ;
             break ;

@@ -64,7 +64,7 @@ void Response::sendHeaders(SocketFD &fd) {
 
 ssize_t Response::sendBodyAsChunk(SocketFD &fd, const std::string &body) {
 	if (_request && _request->metadata.getMethod() == Method::HEAD) return static_cast<ssize_t>(body.length());
-	return fd.writeAsChunk(body);
+	return fd.writeAsString("0\r\n\r\n");
 }
 
 ssize_t Response::sendBodyAsString(SocketFD &fd, const std::string &body) {

@@ -60,6 +60,8 @@ public:
     virtual void handleRequestBody(SocketFD &fd, const Request &request) = 0;
     virtual void handleSocketWriteTick(SocketFD &fd) = 0;
     virtual void terminateResponse() = 0;
+
+	ssize_t fuckyou() { return (_bodyWriter.amountOfBytesWritten); }
 };
 
 class FileResponse : public Response {
