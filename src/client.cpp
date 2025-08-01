@@ -64,11 +64,11 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
     if (!errorPage.empty()) {
         int fd = open(errorPage.c_str(), O_RDONLY);
         if (fd != -1)
-            ret = _configureResponse(new FileResponse(ReadableFD::file(fd), &request), statusCode);
+            ret = _configureResponse(new FileResponse(this, ReadableFD::file(fd), &request), statusCode);
     }
 
     if (!ret)
-        ret = _configureResponse(new StaticResponse(getDefaultBody(statusCode), &request), statusCode);
+        ret = _configureResponse(new StaticResponse(this, getDefaultBody(statusCode), &request), statusCode);
 
     if (shouldCloseConnection && ret)
         ret->headers.replace(HeaderKey::Connection, "close");
@@ -78,8 +78,8 @@ Response *Client::_createErrorResponse(HttpStatusCode statusCode, const Location
 
 Response *Client::_createReturnRuleResponse(const ReturnRule &returnRule) {
     DEBUG("Creating return rule response for: " << returnRule.getParameter());
-    Response *response = _configureResponse(new StaticResponse(returnRule.getParameter(), &request), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
-    if (returnRule.isRedirect()) 
+    Response *response = _configureResponse(new StaticResponse(this, returnRule.getParameter(), &request), static_cast<HttpStatusCode>(int(returnRule.getStatusCode())));
+    if (returnRule.isRedirect())
         response->headers.replace(HeaderKey::Location, returnRule.getParameter());
     return (response);
 }
@@ -89,20 +89,18 @@ Response *Client::_createDirectoryListingResponse(const LocationRule &route) {
     if (!route.autoIndex.get())
         return (_createErrorResponse(HttpStatusCode::NotFound, route));
 
-    Response *response = _configureResponse(new StaticResponse(redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl()), &request), HttpStatusCode::OK);
+    Response *response = _configureResponse(new StaticResponse(this, redactDirectoryListing(request.metadata.getPath().str(), request.metadata.getRawUrl()), &request), HttpStatusCode::OK);
     response->headers.replace(HeaderKey::ContentType, "text/html");
     return (response);
 }
 
 Response *Client::_createCGIResponse(SocketFD &fd, const ServerConfig &config, const LocationRule &route) {
     DEBUG("Creating CGI response for route: " << route);
-    CGIResponse *response = new CGIResponse(_server, fd, this, &request);
+    CGIResponse *response = new CGIResponse(this, _server, fd, &request);
     _configureResponse(response, HttpStatusCode::OK);
-    response->start(config, route, Path(_server.getServerExecutablePath()));
-    if (response->didResponseCreationFail()) {
-        HttpStatusCode statusCode = response->getFailedResponseStatusCode();
+    if (!response->start(config, route, Path(_server.getServerExecutablePath()))) {
         delete response;
-        return _createErrorResponse(statusCode, route);
+        return _createErrorResponse(HttpStatusCode::InternalServerError, route);
     }
     return (response);
 }
@@ -120,11 +118,11 @@ Client::Client(Server &server, int serverFd, const char *clientIP, int clientPor
 bool Client::isFullRequestBodyReceived(SocketFD &fd) const {
     switch (request.receivingBodyMode) {
         case ReceivingBodyMode::Chunked: {
-            return (_chunkedRequestBodyRead);
+            return (fd.isFinalChunkRead());
         }
         case ReceivingBodyMode::ContentLength:
         default: {
-            return (fd.getTotalReadBytes() - request.headerPartLength >= request.contentLength);
+            return (fd.getTotalBodyBytes() - request.headerPartLength >= request.contentLength);
         }
     }
 }
@@ -168,10 +166,30 @@ Response *Client::_createResponseFromRequest(SocketFD &fd, Request &request) {
         return _createErrorResponse(HttpStatusCode::NotFound, *route);
 
     if (request.metadata.getRawUrl() == "/directory") {
-        return _configureResponse(new StaticResponse("", &request), HttpStatusCode::OK);
+        return _configureResponse(new StaticResponse(this, "", &request), HttpStatusCode::OK);
     }
 
-    return (_configureResponse(new FileResponse(ReadableFD::file(fileFd), &request), HttpStatusCode::OK));
+    return (_configureResponse(new FileResponse(this, ReadableFD::file(fileFd), &request), HttpStatusCode::OK));
+}
+
+bool Client::setEpollWriteNotification(SocketFD &fd) {
+    DEBUG("Setting EPOLLOUT for Client: " << fd.get());
+    if (fd.setEpollEvents(EPOLLOUT | EPOLLIN) == -1) {
+        ERROR("Failed to set EPOLLOUT for client: " << fd.get());
+        _server.untrackClient(fd);
+        return (false);
+    }
+    return (true);
+}
+
+bool Client::unsetEpollWriteNotification(SocketFD &fd) {
+    DEBUG("Unsetting EPOLLOUT for Client: " << fd.get());
+    if (fd.setEpollEvents(EPOLLIN) == -1) {
+        ERROR("Failed to unset EPOLLOUT for client: " << fd.get());
+        _server.untrackClient(fd);
+        return (false);
+    }
+    return (true);
 }
 
 void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
@@ -188,7 +206,6 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
         case ClientHTTPState::WaitingForHeaders: {
             std::string headerString = fd.extractHeadersFromReadBuffer();
             if (headerString.empty()) {
-                DEBUG("No valid headers received, fd: " << fd.get() << ", funcReturnValue: " << funcReturnValue);
                 if (fd.wouldReadExceedMaxBufferSize()) {
                     DEBUG("No valid headers received; closing the connection.");
                     _server.untrackClient(fd);
@@ -199,56 +216,47 @@ void Client::handleRead(SocketFD &fd, ssize_t funcReturnValue) {
             request = Request(headerString);
             response = _createResponseFromRequest(fd, request);
 
+            if (response->shouldDirectlySendResponse() &&
+                !setEpollWriteNotification(fd)) return ;
+
             _state = ClientHTTPState::ReadingBody;
             return handleRead(fd, funcReturnValue);
         }
 
         case ClientHTTPState::ReadingBody: {
+            response->handleRequestBody(fd, request);
+
             if (request.receivingBodyMode == ReceivingBodyMode::Chunked) {
                 FDReader::HTTPChunkStatus chunkStatus = fd.returnHTTPChunkStatus();
-                DEBUG("Chunk status: " << static_cast<int>(chunkStatus));
                 if (chunkStatus == FDReader::HTTPChunkStatus::Error) {
-                    DEBUG("Error reading chunked body, bad input or incomplete chunk");
-                    response->terminateResponse();
-                    _server.untrackClient(fd);
+                    DEBUG("Error reading chunked body, using error response");
+                    switchResponseToErrorResponse(HttpStatusCode::BadRequest, fd);
                     return ;
-                } else if (chunkStatus == FDReader::HTTPChunkStatus::Complete) {
-                    DEBUG("Chunked body is complete");
-                    _chunkedRequestBodyRead = true;
+                } else if (chunkStatus == FDReader::HTTPChunkStatus::TooLarge) {
+                    DEBUG("Chunk size exceeds maximum allowed size, using error response");
+                    switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, fd);
+                    return ;
                 }
             }
 
-            response->handleRequestBody(fd, request);
-            DEBUG("Max body size: " << route->maxBodySize.getMaxBodySize().get() << ", total body bytes: " << fd.getTotalBodyBytes());
-            if (route && route->maxBodySize.isSet() && static_cast<ssize_t>(route->maxBodySize.getMaxBodySize().get()) < fd.getTotalBodyBytes()) {
-                DEBUG("Request body exceeds max body size, closing connection");
+            DEBUG("Max body size: " << route->maxBodySize.getMaxBodySize().get());
+            DEBUG("Request body read, total bytes: " << fd.getTotalBodyBytes() << ", content length: " << request.headerPartLength);
+            DEBUG("Request body read, total body bytes: " << fd.getTotalBodyBytes() << ", content length: " << request.contentLength);
+            if (route && route->maxBodySize.isSet() && route->maxBodySize.getMaxBodySize().get() < static_cast<size_t>(fd.getTotalBodyBytes())) {
+                DEBUG("Request body exceeds max body size, using error response");
                 switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, fd);
                 return ;
             }
 
-            if (isFullRequestBodyReceived(fd)) {
-                _state = ClientHTTPState::SwitchingToOutput;
-                return handleRead(fd, funcReturnValue);
-            }
+            if (isFullRequestBodyReceived(fd))
+                _state = ClientHTTPState::SendingResponse;
 
-            return ;
-        }
-
-        case ClientHTTPState::SwitchingToOutput: {
-            if (fd.setEpollEvents(EPOLLOUT) == -1) {
-                ERROR("Failed to set EPOLLOUT for client: " << fd.get());
-                response->terminateResponse();
-                _server.untrackClient(fd);
-                return ;
-            }
-
-            _state = ClientHTTPState::ReadingBody;
             return ;
         }
 
         default: {
-            DEBUG("Client is in an unexpected state: " << static_cast<int>(_state));
-            return;
+            ERROR("Unexpected state in Client::handleRead: " << static_cast<int>(_state));
+            return ;
         }
     }
 }
@@ -309,10 +317,11 @@ void Client::switchResponseToErrorResponse(HttpStatusCode statusCode, SocketFD &
     ServerConfig &config = _server.loadRequestConfig(request, _serverFd);
     response = _createErrorResponse(statusCode, config.getLocation(request.metadata.getRawUrl()), true);
 
-    if (_state == ClientHTTPState::WaitingForHeaders || _state == ClientHTTPState::ReadingBody) {
-        _state = ClientHTTPState::SwitchingToOutput;
-        handleRead(fd, 0);
-    }
+    if (_state == ClientHTTPState::WaitingForHeaders || _state == ClientHTTPState::ReadingBody)
+        _state = ClientHTTPState::SendingResponse;
+
+    if (!setEpollWriteNotification(fd))
+        return ;
 }
 
 bool Client::isTimedOut(const HTTPRule &httpRule, const SocketFD &fd) const {

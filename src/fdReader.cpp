@@ -14,10 +14,10 @@ FDReader::HTTPChunk::HTTPChunk(std::string data, size_t size)
     : data(std::move(data)), size(size) {}
 
 FDReader::FDReader() 
-    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _totalReadBytes(0), _totalBodyBytes(0), _readBuffer(), _state(FDState::Invalid), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
+    : _fd(-1), _maxBufferSize(DEFAULT_MAX_BUFFER_SIZE), _readBuffer(), _state(FDState::Invalid), _lastReadTime(std::chrono::steady_clock::time_point::max()), _totalReadBytes(0), _totalBodyBytes(0), _isLastChunkRead(false) {}
 
 FDReader::FDReader(int fd, int maxBufferSize, FDState state)
-    : _fd(fd), _maxBufferSize(maxBufferSize), _totalReadBytes(0), _totalBodyBytes(0), _readBuffer(), _state(state), _lastReadTime(std::chrono::steady_clock::time_point::max()) {}
+    : _fd(fd), _maxBufferSize(maxBufferSize), _readBuffer(), _state(state), _lastReadTime(std::chrono::steady_clock::time_point::max()), _totalReadBytes(0), _totalBodyBytes(0), _isLastChunkRead(false) {}
 
 ssize_t FDReader::read() {
     if (_fd < 0) {
@@ -72,6 +72,10 @@ bool FDReader::wouldReadExceedMaxBufferSize() const {
     return (_readBuffer.size() + READ_BUFFER_SIZE > _maxBufferSize);
 }
 
+bool FDReader::isFinalChunkRead() const {
+    return (_isLastChunkRead);
+}
+
 FDState FDReader::getReaderFDState() const {
     return (FDReader::_state);
 }
@@ -102,6 +106,8 @@ FDReader::HTTPChunk FDReader::extractHTTPChunkFromReadBuffer() {
             _readBuffer.erase(0, sizeSepPos + 2);
             std::string chunkData = extractChunkFromReadBuffer(chunkSize);
             _readBuffer.erase(0, 2);
+            if (chunkSize == 0)
+                _isLastChunkRead = true;
             return HTTPChunk(std::move(chunkData), chunkSize);
         }
     }
@@ -114,30 +120,23 @@ FDReader::HTTPChunkStatus FDReader::returnHTTPChunkStatus() const {
     size_t chunkStartPos = 0;
     ssize_t chunkSize = 0;
 
-    if (_readBuffer.empty()) return (HTTPChunkStatus::Ongoing);
+    if (_readBuffer.empty())
+        return (HTTPChunkStatus::Ok);
 
-    while (sizePos != std::string::npos) {
-        try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
-        catch (...) { return HTTPChunkStatus::Error; }
+    try { chunkSize = std::stoul(_readBuffer.substr(chunkStartPos, sizePos), nullptr, 16); }
+    catch (...) { return (HTTPChunkStatus::Error); }
 
-        size_t minBuffLen = sizePos + 4 + chunkSize;
-        if (_readBuffer.size() < minBuffLen) return (HTTPChunkStatus::Ongoing);
+    if (chunkSize > MAX_ACCEPT_CHUNK_SIZE)
+        return (HTTPChunkStatus::TooLarge);
 
-        if (_readBuffer.compare(sizePos + 2 + chunkSize, 2, "\r\n") != 0)
-            return (HTTPChunkStatus::Error);
-        if (chunkSize == 0)
-            return (HTTPChunkStatus::Complete);
+    size_t minBuffLen = sizePos + 4 + chunkSize;
+    if (_readBuffer.size() < minBuffLen)
+        return (HTTPChunkStatus::Ok);
 
-        chunkStartPos = sizePos + 4 + chunkSize;
-        sizePos = _readBuffer.find("\r\n", chunkStartPos);
+    if (_readBuffer.compare(sizePos + 2 + chunkSize, 2, "\r\n") != 0)
+        return (HTTPChunkStatus::Error);
 
-        if (_readBuffer.size() > 1024 * 512) { // 512 KB
-            DEBUG("Buffer size exceeds 512 KB, returning Ongoing status");
-            return (HTTPChunkStatus::Ongoing);
-        }
-    }
-
-    return (HTTPChunkStatus::Ongoing);
+    return (HTTPChunkStatus::Ok);
 }
 
 std::string FDReader::extractChunkFromReadBuffer(size_t chunkSize) {
@@ -174,6 +173,7 @@ std::chrono::steady_clock::time_point FDReader::getLastReadTime() const {
 void FDReader::resetCounter() {
     _totalReadBytes = 0;
     _totalBodyBytes = 0;
+    _isLastChunkRead = false;
 }
 
 

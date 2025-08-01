@@ -29,7 +29,7 @@
 typedef struct sockaddr_in sockaddr_in;
 typedef struct epoll_event epoll_event;
 
-std::map<int, std::vector<ServerConfig>> translate_config_vec_to_map(const std::vector<ServerConfig> &configs) {
+static std::map<int, std::vector<ServerConfig>> translate_config_vec_to_map(const std::vector<ServerConfig> &configs) {
     std::map<int, std::vector<ServerConfig>> portToConfigs;
 
     for (const auto &config : configs) {
@@ -40,7 +40,7 @@ std::map<int, std::vector<ServerConfig>> translate_config_vec_to_map(const std::
         }
     }
 
-    return portToConfigs;
+    return (portToConfigs);
 }
 
 class ServerCreationException : public std::exception {
@@ -206,7 +206,7 @@ void Server::_setupSocket(int listenPort, const std::vector<ServerConfig> &confi
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(listenPort);
 
-if (bind(serverFd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == -1)
+    if (bind(serverFd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == -1)
 		throw ServerCreationException("Failed to bind socket");
 
 	if (listen(serverFd, SOMAXCONN) == -1)
@@ -244,15 +244,16 @@ void Server::_handleNewConnection(int sourceFd) {
     socklen_t client_len = sizeof(client_address);
 
     while (true) {
-        int fd = accept(sourceFd, reinterpret_cast<sockaddr *>(&client_address), &client_len);        SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
+        int fd = accept(sourceFd, reinterpret_cast<sockaddr *>(&client_address), &client_len);
+        SocketFD clientFD(fd, DEFAULT_MAX_BUFFER_SIZE);
         if (!clientFD)
             return ;
-        
+
         if (clientFD.setNonBlocking() == -1) {
             clientFD.close();
             return ;
         }
-        
+
         if (clientFD.connectToEpoll(_epoll_fd, DEFAULT_EPOLLIN_EVENTS) == -1) {
             clientFD.close();
             return ;
@@ -454,29 +455,29 @@ void Server::runOnce() {
 
     for (CGIResponse *CGIResponse : _cgiResponses) {
         CGIResponse->tick();
-        if (CGIResponse->isBrokenBeyondRepair()) {
-            DEBUG("CGIResponse is broken beyond repair, closing the connection and cleaning up the client");
-            int fd = CGIResponse->socketFD.get();
-            CGIResponse->socketFD.close();
-            delete CGIResponse->client;
-            _clientDescriptors.erase(fd);
-            break ;
-        }
-        else if (CGIResponse->didResponseCreationFail()) {
-            DEBUG("CGIResponse creation failed, switching to error response");
-            CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode(), CGIResponse->socketFD);
-            break ;
-        }
-        else if (CGIResponse->client->route && CGIResponse->client->route->maxBodySize.isSet() && static_cast<ssize_t>(CGIResponse->client->route->maxBodySize.getMaxBodySize().get()) < CGIResponse->socketFD.getTotalBodyBytes()) {
-            DEBUG("Max body size exceeded");
-            CGIResponse->client->switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, CGIResponse->socketFD);
-            break ;
-        }
-        else if (CGIResponse->isFullResponseSent()) {
-            DEBUG("CGIResponse is fully sent, cleaning up");
-            CGIResponse->client->handleClientReset(CGIResponse->socketFD);
-            break ;
-        }
+        // if (CGIResponse->isBrokenBeyondRepair()) {
+        //     DEBUG("CGIResponse is broken beyond repair, closing the connection and cleaning up the client");
+        //     int fd = CGIResponse->socketFD.get();
+        //     CGIResponse->socketFD.close();
+        //     delete CGIResponse->client;
+        //     _clientDescriptors.erase(fd);
+        //     break ;
+        // }
+        // else if (CGIResponse->didResponseCreationFail()) {
+        //     DEBUG("CGIResponse creation failed, switching to error response");
+        //     CGIResponse->client->switchResponseToErrorResponse(CGIResponse->getFailedResponseStatusCode(), CGIResponse->socketFD);
+        //     break ;
+        // }
+        // else if (CGIResponse->client->route && CGIResponse->client->route->maxBodySize.isSet() && static_cast<ssize_t>(CGIResponse->client->route->maxBodySize.getMaxBodySize().get()) < CGIResponse->socketFD.getTotalBodyBytes()) {
+        //     DEBUG("Max body size exceeded");
+        //     CGIResponse->client->switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, CGIResponse->socketFD);
+        //     break ;
+        // }
+        // else if (CGIResponse->isFullResponseSent()) {
+        //     DEBUG("CGIResponse is fully sent, cleaning up");
+        //     CGIResponse->client->handleClientReset(CGIResponse->socketFD);
+        //     break ;
+        // }
     }
 
     // std::this_thread::sleep_for(std::chrono::seconds(1));

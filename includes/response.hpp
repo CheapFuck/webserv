@@ -5,11 +5,12 @@
 #include "headers.hpp"
 #include "server.hpp"
 #include "client.hpp"
+#include "body.hpp"
 #include "fd.hpp"
 
 #include <string>
 
-#define DEFAULT_CHUNK_SIZE 512 * 1024 // 512 KB
+#define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5 // 512 KB
 
 class Server;
 
@@ -26,7 +27,9 @@ private:
     bool _sentHeaders;
 
 protected:
+    BodyWriter<FDReader, FDWriter> _bodyWriter;
 	Request *_request;
+    Client *_client;
 
 public:
     Headers headers;
@@ -34,7 +37,7 @@ public:
     static constexpr const char* protocol = "HTTP";
     static constexpr const char* tlsVersion = "1.1";
 
-    Response();
+    Response(Client *client);
     Response(const Response& other) = default;
     Response& operator=(const Response& other) = default;
     virtual ~Response() = default;
@@ -51,6 +54,7 @@ public:
     HttpStatusCode getStatusCode() const;
 
     virtual bool didResponseCreationFail() const;
+    virtual bool shouldDirectlySendResponse() const;
     virtual HttpStatusCode getFailedResponseStatusCode() const;
 
     virtual bool isFullResponseSent() const = 0;
@@ -66,12 +70,13 @@ private:
     bool _isFinalChunkSent;
 
 public:
-    FileResponse(ReadableFD fileFD, Request *request);
+    FileResponse(Client *client, ReadableFD fileFD, Request *request);
     FileResponse(const FileResponse &other) = default;
     FileResponse &operator=(const FileResponse &other) = default;
     ~FileResponse() override;
 
     bool isFullResponseSent() const override;
+    bool shouldDirectlySendResponse() const override;
 
     void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
@@ -81,6 +86,7 @@ public:
 class CGIResponse : public Response {
 private:
     enum class CGIResponseTransferMode {
+        Unknown,
         FullBuffer,
         Chunked,
     };
@@ -88,29 +94,33 @@ private:
     Server &_server;
     ReadableFD _cgiOutputFD;
     WritableFD _cgiInputFD;
-    
+
     std::unordered_map<std::string, std::string> _environmentVariables;
+    BodyWriter<FDReader, FDWriter> _pipeWriter;
 
     ssize_t _sendBytesTracker;
     ssize_t _responseLength;
 
     int _timerId;
     int _processId;
-    
+
     bool _chunkedRequestBodyRead;
     bool _hasSentFinalChunk;
     bool _isBrokenBeyondRepair;
     CGIResponseTransferMode _transferMode;
-    
+
     HttpStatusCode _innerStatusCode;
-    
+
     void _setupEnvironmentVariables(const ServerConfig &config, const LocationRule &route, const ParsedUrl &parsedUrl, const Path &serverExecutablePath);
 
     void _createEnvironmentArray(std::vector<char*> &envPtrs, std::vector<std::string> &strBuff) const;
 
+    void _handleCGIInputPipeEvent(WritableFD &fd, short revents);
+    void _handleCGIOutputPipeEvent(ReadableFD &fd, short revents);
+
     void _handleTimeout();
     ssize_t _sendRequestBodyToCGIProcess();
-    bool _fetchCGIHeadersFromProcess();
+    HttpStatusCode _prepareCGIResponse();
     void _sendCGIResponse();
 
     void _closeToCGIProcessFd();
@@ -118,9 +128,8 @@ private:
     
 public:
     SocketFD &socketFD;
-    Client *client;
 
-    CGIResponse(Server &server, SocketFD &socketFD, Client *client, Request *request);
+    CGIResponse(Client *client, Server &server, SocketFD &socketFD, Request *request);
     CGIResponse(const CGIResponse &other) = delete;
     CGIResponse &operator=(const CGIResponse &other) = delete;
     ~CGIResponse() override;
@@ -130,7 +139,7 @@ public:
     
     void tick();
 
-    void start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath);
+    bool start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath);
     
     void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
@@ -145,12 +154,14 @@ private:
     std::string _content;
 
 public:
-    StaticResponse(const std::string &content, Request *request);
+    StaticResponse(Client *client, const std::string &content, Request *request);
     StaticResponse(const StaticResponse &other) = default;
     StaticResponse &operator=(const StaticResponse &other) = default;
     ~StaticResponse() override;
 
     bool isFullResponseSent() const override;
+    bool shouldDirectlySendResponse() const override;
+
     void handleRequestBody(SocketFD &fd, const Request &request) override;
     void handleSocketWriteTick(SocketFD &fd) override;
     void terminateResponse() override;

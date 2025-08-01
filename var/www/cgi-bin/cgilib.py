@@ -259,7 +259,7 @@ class CGIClient:
         self._cgiStatus: CGIStatus = CGIStatus.INIT
         self._body: str | None = None
 
-        self.pathParameters: list[str] = os.environ.get('PATH_INFO', '').strip('/').split('/') if 'PATH_INFO' in os.environ else []
+        self.pathParameters: list[str] = os.environ.get('PATH_TRANSLATED', '/').removeprefix(os.environ.get('SCRIPT_FILENAME', '/')).strip('/').split('/') if 'PATH_TRANSLATED' in os.environ else []
         self.queryParameters: dict[str, str] = {k: v for k, v in (param.split('=') for param in os.environ.get('QUERY_STRING', '').split('&') if '=' in param)}
 
         self.routes: dict[str, typing.Callable[[], None]] = {}
@@ -284,7 +284,7 @@ class CGIClient:
             raise RuntimeError('No routes provided.')
 
         best_path: str | None = None
-        path_info = self.getEnvironmentVariable('PATH_INFO', '/').removeprefix(self.getEnvironmentVariable('SCRIPT_FILENAME', '/')) or '/'
+        path_info = self.getEnvironmentVariable('PATH_TRANSLATED', '/').removeprefix(self.getEnvironmentVariable('SCRIPT_FILENAME', '/')) or '/'
         assert isinstance(path_info, str)
 
         for route in self.routes:

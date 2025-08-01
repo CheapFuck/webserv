@@ -10,12 +10,6 @@
 #include <cstring>
 #include <chrono>
 
-#define CGI_ERROR(state) \
-    do { \
-        DEBUG("CGI_ERROR at " << __FILE__ << ":" << __LINE__ << " (" << __func__ << "), setting _innerStatusCode to " << (state)); \
-        _innerStatusCode = state;\
-    } while(0)
-
 /// @brief Parses the given URL and extracts the script path, path info, and query string.
 /// @param url The URL to parse, which may include a query string.
 /// @param route The location rule to use for parsing the URL.
@@ -69,14 +63,17 @@ static ParsedUrl parseUrl(const LocationRule &route, RequestLine &requestLine) {
     });
 }
 
-CGIResponse::CGIResponse(Server &server, SocketFD &socketFD, Client *client, Request *request) : _server(server),
+CGIResponse::CGIResponse(Client *client, Server &server, SocketFD &socketFD, Request *request) :
+    Response(client),
+    _server(server),
     _cgiOutputFD(), _cgiInputFD(),
     _environmentVariables(),
+    _pipeWriter(),
     _sendBytesTracker(0), _responseLength(0),
     _timerId(-1), _processId(-1),
     _chunkedRequestBodyRead(false), _hasSentFinalChunk(false), _isBrokenBeyondRepair(false),
-    _transferMode(CGIResponseTransferMode::FullBuffer),
-    _innerStatusCode(HttpStatusCode::OK), socketFD(socketFD), client(client) {
+    _transferMode(CGIResponseTransferMode::Unknown),
+    _innerStatusCode(HttpStatusCode::OK), socketFD(socketFD) {
     DEBUG("CGIResponse created for client: " << client);
 	_request = request;
 }
@@ -101,15 +98,15 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
 
     _environmentVariables["SERVER_PROTOCOL"] = Response::protocol + std::string("/") + Response::tlsVersion;
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
-    _environmentVariables["REQUEST_METHOD"] = methodToStr(client->request.metadata.getMethod());
+    _environmentVariables["REQUEST_METHOD"] = methodToStr(_client->request.metadata.getMethod());
     _environmentVariables["PATH_INFO"] = _request->metadata.getRawUrl();
     _environmentVariables["PATH_TRANSLATED"] = std::string(parsedUrl.scriptPath + parsedUrl.pathInfo);
     _environmentVariables["SCRIPT_FILENAME"] = parsedUrl.scriptPath;
     _environmentVariables["SCRIPT_NAME"] = Path(parsedUrl.scriptPath).getFilename();
     _environmentVariables["QUERY_STRING"] = std::string(parsedUrl.query);
-    _environmentVariables["REMOTE_ADDR"] = client->getClientIP();
-    _environmentVariables["REMOTE_PORT"] = client->getClientPort();
-    _environmentVariables["SERVER_ADDR"] = client->getServer().getServerAddress();
+    _environmentVariables["REMOTE_ADDR"] = _client->getClientIP();
+    _environmentVariables["REMOTE_PORT"] = _client->getClientPort();
+    _environmentVariables["SERVER_ADDR"] = _client->getServer().getServerAddress();
     _environmentVariables["SERVER_PORT"] = std::to_string(config.port.getPort());
     _environmentVariables["REDIRECT_STATUS"] = "200";
 
@@ -121,18 +118,18 @@ void CGIResponse::_setupEnvironmentVariables(const ServerConfig &config, const L
         _environmentVariables["WEBSERV_UPLOAD_STORE"] = uploadStorePath.str();
     }
 
-    if (client->request.session && !client->request.session->sessionId.empty())
-        _environmentVariables["HTTP_SESSION_FILE"] = client->request.session->absoluteFilePath;
+    if (_client->request.session && !_client->request.session->sessionId.empty())
+        _environmentVariables["HTTP_SESSION_FILE"] = _client->request.session->absoluteFilePath;
 
-    const std::string contentHeader = client->request.headers.getHeader(HeaderKey::ContentType, "");
+    const std::string contentHeader = _client->request.headers.getHeader(HeaderKey::ContentType, "");
     if (!contentHeader.empty())
         _environmentVariables["CONTENT_TYPE"] = contentHeader;
 
-    const std::string contentLength = client->request.headers.getHeader(HeaderKey::ContentLength, "");
+    const std::string contentLength = _client->request.headers.getHeader(HeaderKey::ContentLength, "");
     if (!contentLength.empty())
         _environmentVariables["CONTENT_LENGTH"] = contentLength;
 
-    for (const auto &[headerKey, headerValue] : client->request.headers.getHeaders()) {
+    for (const auto &[headerKey, headerValue] : _client->request.headers.getHeaders()) {
         std::string envVarKey = "HTTP_" + headerKey;
         std::replace(envVarKey.begin(), envVarKey.end(), '-', '_');
         std::transform(envVarKey.begin(), envVarKey.end(), envVarKey.begin(), ::toupper);
@@ -154,53 +151,38 @@ for (const auto &env : _environmentVariables) {
     envPtrs.push_back(nullptr);
 }
 
-void CGIResponse::start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath) {
-    DEBUG("Starting CGIResponse for client: " << client);
-    const ParsedUrl parsedUrl = parseUrl(route, client->request.metadata);
+bool CGIResponse::start(const ServerConfig &config, const LocationRule &route, const Path &serverExecutablePath) {
+    DEBUG("Starting CGIResponse for client: " << _client);
+    const ParsedUrl parsedUrl = parseUrl(route, _client->request.metadata);
 
     DEBUG("Parsed URL: scriptPath=" << parsedUrl.scriptPath
           << ", pathInfo=" << parsedUrl.pathInfo
           << ", query=" << parsedUrl.query
           << ", isValid=" << parsedUrl.isValid);
 
-    // if (!parsedUrl.isValid || !std::filesystem::exists(parsedUrl.scriptPath)) {
-    //     DEBUG("Unknown URL for CGI processing: " << client->request.metadata.getRawUrl());
-    //     CGI_ERROR(HttpStatusCode::NotFound);
-    //     return;
-    // }
-
-    // if (!(route.cgiExtension.isCGI(Path(parsedUrl.scriptPath)) || route.cgi.isEnabled())) {
-    //     ERROR("The requested path is not a CGI script: " << parsedUrl.scriptPath);
-    //     CGI_ERROR(HttpStatusCode::Forbidden);
-    //     return;
-    // }
-
     _setupEnvironmentVariables(config, route, parsedUrl, serverExecutablePath);
 
     int cin[2], cout[2];
     if (pipe(cin) == -1) {
         ERROR("Failed to create pipes for CGI process: " << strerror(errno));
-        CGI_ERROR(HttpStatusCode::InternalServerError);
-        return;
+        return (false);
     }
 
     if (pipe(cout) == -1) {
         ERROR("Failed to create pipes for CGI process: " << strerror(errno));
         close(cin[0]);
         close(cin[1]);
-        CGI_ERROR(HttpStatusCode::InternalServerError);
-        return;
+        return (false);
     }
 
     _processId = fork();
     if (_processId < 0) {
-        ERROR("Failed to fork CGI process for client: " << &client);
+        ERROR("Failed to fork CGI process for client: " << &_client);
         close(cin[0]);
         close(cin[1]);
         close(cout[0]);
         close(cout[1]);
-        CGI_ERROR(HttpStatusCode::InternalServerError);
-        return;
+        return (false);
     }
 
     if (_processId == 0) {
@@ -251,8 +233,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route, c
             ERROR("Failed to set non-blocking mode for CGI pipes: " << strerror(errno));
             _closeToCGIProcessFd();
             _closeFromCGIProcessFd();
-            CGI_ERROR(HttpStatusCode::InternalServerError);
-            return;
+            return (false);
         }
 
         if (_cgiInputFD.connectToEpoll(_server.getEpollFd(), DEFAULT_EPOLLOUT_EVENTS) == -1 ||
@@ -260,8 +241,7 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route, c
             ERROR("Failed to connect CGI pipes to epoll: " << strerror(errno));
             _closeToCGIProcessFd();
             _closeFromCGIProcessFd();
-            CGI_ERROR(HttpStatusCode::InternalServerError);
-            return;
+            return (false);
         }
 
         _timerId = _server.getTimer().addEvent(std::chrono::milliseconds(static_cast<int>(route.cgiTimeout.timeout.getSeconds() * 1000.0)), [this]() {
@@ -269,88 +249,119 @@ void CGIResponse::start(const ServerConfig &config, const LocationRule &route, c
         });
 
         _server.trackCallbackFD(_cgiInputFD, [this](WritableFD &fd, short revents) {
-            (void) fd;
-            DEBUG("CGIResponse read callback, fd: " << fd.get() << ", revents: " << revents);
-            if (revents & EPOLLOUT) _cgiInputFD.setWriterFDState(FDState::Ready);
-            else _cgiInputFD.setWriterFDState(FDState::Awaiting);
+            _handleCGIInputPipeEvent(fd, revents);
         });
         _server.trackCallbackFD(_cgiOutputFD, [this](ReadableFD &fd, short revents) {
-            (void) fd;
-            DEBUG("CGIResponse write callback, fd: " << fd.get() << ", revents: " << revents);
-            if (fd.getReaderFDState() == FDState::Ready) fd.read();
-            if (revents & EPOLLHUP) {
-                DEBUG("CGI process output pipe closed, setting state to Closed");
-                _closeFromCGIProcessFd();
-            }
+            _handleCGIOutputPipeEvent(fd, revents);
         });
 
-        _server.trackCGIResponse(this);
+        // _server.trackCGIResponse(this);
         DEBUG("CGI process started with PID: " << _processId << ", cgiInputFD: " << _cgiInputFD.get() << ", cgiOutputFD: " << _cgiOutputFD.get());
     }
+
+    return (true);
 }
 
-ssize_t CGIResponse::_sendRequestBodyToCGIProcess() {
-    static std::string failSafe;
-    ssize_t bytesWritten = 0;
+void CGIResponse::_handleCGIInputPipeEvent(WritableFD &fd, short revents) {
+    if (revents & EPOLLOUT) {
+        DEBUG("CGI input pipe is ready for writing, fd: " << fd.get());
 
-    if (!failSafe.empty()) {
-        bytesWritten = _cgiInputFD.writeAsString(failSafe);
-        if (bytesWritten < 0) {
-            ERROR("Failed to write fail-safe data to CGI process: " << strerror(errno));
-            return (0);
+        if (!_pipeWriter.isEmpty()) {
+            _pipeWriter.tick(_cgiInputFD);
         }
-        failSafe.clear();
+        else {
+            switch (_client->request.receivingBodyMode) {
+                case ReceivingBodyMode::Chunked: {
+                    FDReader::HTTPChunk chunk = socketFD.extractHTTPChunkFromReadBuffer();
+                    if (chunk.size == FDReader::HTTPChunk::noChunk) break ;
+                    if (chunk.size == 0) {
+                        _chunkedRequestBodyRead = true;
+                        DEBUG("Chunked request body read complete, no more data to send");
+                        break ;
+                    }
+
+                    _pipeWriter.sendBodyAsString(chunk.data, fd);
+                    DEBUG("Sent chunked request body to CGI process, size: " << chunk.size);
+                    break ;
+                }
+
+                case ReceivingBodyMode::ContentLength:
+                case ReceivingBodyMode::NotSet: {
+                    _pipeWriter.sendBodyAsString(socketFD, fd);
+                    DEBUG("Sent request body to CGI process, size: " << socketFD.getReadBufferSize());
+                    break ;
+                }
+            }
+        }
     }
 
-    switch (client->request.receivingBodyMode) {
-        case ReceivingBodyMode::Chunked: {
-            while (true) {
-                FDReader::HTTPChunk chunk = socketFD.extractHTTPChunkFromReadBuffer();
-                if (chunk.size == FDReader::HTTPChunk::noChunk) return (bytesWritten);
-                if (chunk.size == 0) {
-                    _chunkedRequestBodyRead = true;
-                    return (0);
-                }
+    if (_client->route && _client->route->maxBodySize.isSet()
+        && _client->route->maxBodySize.getMaxBodySize().get() < static_cast<size_t>(socketFD.getTotalBodyBytes())) {
+        DEBUG("Request body exceeds max body size, using error response");
+        _client->switchResponseToErrorResponse(HttpStatusCode::PayloadTooLarge, socketFD);
+        return ;
+    }
+    
+    if (revents & (EPOLLHUP | EPOLLERR)) {
+        DEBUG("CGI input pipe closed");
+        _closeToCGIProcessFd();
+    }
 
-                ssize_t written = _cgiInputFD.writeAsString(chunk.data);
-                if (written < 0) {
-                    failSafe = chunk.data;
-                    ERROR("Failed to write chunk to CGI process");
-                    return (0);
-                }
-                
-                bytesWritten += written;
-                if (written < static_cast<ssize_t>(chunk.data.size())) {
-                    failSafe = chunk.data.substr(written);
-                    ERROR("Partial write to CGI process, saving remaining data for next write");
-                    return (bytesWritten);
-                }
-                // DEBUG("Sent chunk to CGI process: " << chunk.data);
-            }
-        }
-
-        default: {
-            bytesWritten = _cgiInputFD.writeAsString(socketFD.extractFullBuffer());
-            if (bytesWritten < 0) {
-                ERROR("Failed to write request body to CGI process");
-                CGI_ERROR(HttpStatusCode::InternalServerError);
-            }
-            return (bytesWritten);
-        }
+    if (_client->isFullRequestBodyReceived(socketFD) && socketFD.getReadBufferSize() == 0) {
+        DEBUG("Full request body received, closing CGI input pipe");
+        _closeToCGIProcessFd();
     }
 }
 
-bool CGIResponse::_fetchCGIHeadersFromProcess() {
+void CGIResponse::_handleCGIOutputPipeEvent(ReadableFD &fd, short revents) {
+    if (revents & EPOLLIN) {
+        DEBUG("CGI output pipe is ready for reading, fd: " << fd.get());
+
+        if (fd.wouldReadExceedMaxBufferSize()) {
+            if (_transferMode == CGIResponseTransferMode::Unknown) {
+                if (_prepareCGIResponse() != HttpStatusCode::OK) return ;
+            }
+        } else {
+            fd.read();
+        }
+    }
+
+    if (revents & (EPOLLHUP | EPOLLERR)) {
+        DEBUG("CGI output pipe closed");
+        _closeFromCGIProcessFd();
+
+        if (_transferMode == CGIResponseTransferMode::Unknown) {
+            if (_prepareCGIResponse() != HttpStatusCode::OK) return ;
+        }
+    }
+
+    if (_transferMode != CGIResponseTransferMode::Unknown
+        && !_client->setEpollWriteNotification(socketFD))
+        return ;
+}
+
+HttpStatusCode CGIResponse::_prepareCGIResponse() {
+    // if (_cgiOutputFD.getReaderFDState() == FDState::Closed) {
+    //     int exitStatus = 0;
+    //     if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
+    //         DEBUG("CGI process is still running, waiting for it to finish");
+    //         return;
+    //     }
+    // }
+
     std::string cgiHeaderString = _cgiOutputFD.extractHeadersFromReadBuffer();
     DEBUG_ESC("Headers gotten: " << cgiHeaderString);
-    // if (cgiHeaderString.empty()) return (false);
+    if (cgiHeaderString.empty()) {
+        _client->switchResponseToErrorResponse(HttpStatusCode::InternalServerError, socketFD);
+        return (HttpStatusCode::InternalServerError);
+    }
 
     std::istringstream cgiHeaderStream(cgiHeaderString);
     Headers cgiHeaders(cgiHeaderStream);
     headers.merge(cgiHeaders);
 
     setStatusCode(HttpStatusCode::OK);
-	
+
     // try {
     //     int code = std::stoi(headers.getAndRemoveHeader(HeaderKey::Status, "l"));
     //     if (code < 100 || code > 599) {
@@ -364,160 +375,48 @@ bool CGIResponse::_fetchCGIHeadersFromProcess() {
     //     // CGI_ERROR(HttpStatusCode::InternalServerError);
     // }
 
-    if (_transferMode == CGIResponseTransferMode::FullBuffer) {
-        if (!headers.getHeader(HeaderKey::ContentLength, "").empty())
-            headers.replace(HeaderKey::ContentLength, std::to_string(_cgiOutputFD.getReadBufferSize()));
-        headers.remove(HeaderKey::TransferEncoding);
-    } else {
-        headers.replace(HeaderKey::ContentDisposition, "attachment; filename=\"response\"");
-        headers.replace(HeaderKey::ContentType, "application/octet-stream");
-        headers.replace(HeaderKey::TransferEncoding, "chunked");
+    if (headers.getHeader(HeaderKey::ContentLength, "").empty()
+        || headers.getHeader(HeaderKey::TransferEncoding, "") == "chunked") {
         headers.remove(HeaderKey::ContentLength);
+        headers.replace(HeaderKey::TransferEncoding, "chunked");
+        _transferMode = CGIResponseTransferMode::Chunked;
     }
 
-    if (!headers.getHeader(HeaderKey::ContentLength, "").empty()) {
-        try {
-            _responseLength = std::stoll(headers.getHeader(HeaderKey::ContentLength, ""));
-        } catch (...) {
-            ERROR("Failed to parse Content-Length header");
-            CGI_ERROR(HttpStatusCode::InternalServerError);
-        }
+    else {
+        _transferMode = CGIResponseTransferMode::FullBuffer;
     }
 
-    return (true);
+    // headers.remove(HeaderKey::Status);
+
+    // if (_transferMode == CGIResponseTransferMode::FullBuffer) {
+    //     if (!headers.getHeader(HeaderKey::ContentLength, "").empty())
+    //         headers.replace(HeaderKey::ContentLength, std::to_string(_cgiOutputFD.getReadBufferSize()));
+    //     headers.remove(HeaderKey::TransferEncoding);
+    // } else {
+    //     headers.replace(HeaderKey::ContentDisposition, "attachment; filename=\"response\"");
+    //     headers.replace(HeaderKey::ContentType, "application/octet-stream");
+    //     headers.replace(HeaderKey::TransferEncoding, "chunked");
+    //     headers.remove(HeaderKey::ContentLength);
+    // }
+
+    // if (!headers.getHeader(HeaderKey::ContentLength, "").empty()) {
+    //     try {
+    //         _responseLength = std::stoll(headers.getHeader(HeaderKey::ContentLength, ""));
+    //     } catch (...) {
+    //         ERROR("Failed to parse Content-Length header");
+    //         CGI_ERROR(HttpStatusCode::InternalServerError);
+    //     }
+    // }
+
+    return (HttpStatusCode::OK);
 }
 
 void CGIResponse::_sendCGIResponse() {
-    static std::string failThingy;
-
-    if (socketFD.getWriterFDState() != FDState::Ready) {
-        DEBUG("Socket is not ready for writing, waiting for it to be ready");
-        return;
-    }
-
-    if (!headersBeenSent() && !_fetchCGIHeadersFromProcess()) {
-        ERROR("Failed to fetch CGI headers");
-        CGI_ERROR(HttpStatusCode::InternalServerError);
-        return;
-    }
-
-    if (!headersBeenSent())
-        sendHeaders(socketFD);
-    
-    if (!failThingy.empty()) {
-        ssize_t bytesWritten = socketFD.writeAsString(failThingy);
-        if (bytesWritten < 0) {
-            ERROR("Failed to write fail-safe data to socket: " << strerror(errno));
-            // CGI_ERROR(HttpStatusCode::InternalServerError);
-            return;
-        }
-        if (bytesWritten < static_cast<ssize_t>(failThingy.size())) {
-            failThingy = failThingy.substr(bytesWritten);
-            ERROR("Partial write to socket, saving remaining data for next write");
-            return;
-        } else {
-            failThingy.clear();
-        }
-    }
-
-    switch (_transferMode) {
-        case CGIResponseTransferMode::FullBuffer: {
-            if (_cgiOutputFD.getReadBufferSize() == 0) {
-                DEBUG("No data to send in full buffer mode, skipping");
-                return;
-            }
-            std::string toSend = _cgiOutputFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE);
-            ssize_t bytesWritten = socketFD.writeAsString(toSend);
-            if (bytesWritten < 0) {
-                ERROR("Failed to write full CGI response to socket");
-                // CGI_ERROR(HttpStatusCode::InternalServerError);
-                failThingy = toSend; // Save the remaining data for next write
-                return;
-            }
-            if (bytesWritten < static_cast<ssize_t>(toSend.size())) {
-                failThingy = toSend.substr(bytesWritten);
-                ERROR("Partial write to socket, saving remaining data for next write");
-            }
-            _sendBytesTracker += bytesWritten;
-            DEBUG((float)_sendBytesTracker / _responseLength * 100.0f << "% of CGI response sent to socket");
-            return;
-        }
-
-        case CGIResponseTransferMode::Chunked: {
-            std::string fullBuffer = _cgiOutputFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE);
-            DEBUG("Sending chunked CGI response to socket, size: " << fullBuffer.size());
-            ssize_t bytesWritten = socketFD.writeAsChunk(fullBuffer);
-            if (bytesWritten < 0) {
-                ERROR("Failed to write chunked CGI response to socket");
-                ERROR(errno << ": " << strerror(errno));
-                // _isBrokenBeyondRepair = true;
-            }
-            return;
-        }
-    }
+    return ;
 }
 
 void CGIResponse::tick() {
-    DEBUG("CGIResponse tick for client: " << client);
-    if (_cgiInputFD.isValidFd() && _cgiInputFD.getWriterFDState() == FDState::Ready) {
-        DEBUG("CGIResponse input pipe is ready for writing, fd: " << _cgiInputFD.get());
-        DEBUG("read buffer size: " << socketFD.getReadBufferSize());
-        if (socketFD.getReadBufferSize() > 0)
-            _sendRequestBodyToCGIProcess();
-        else if (client->isFullRequestBodyReceived(socketFD)) {
-            ERROR("Total read bytes: " << socketFD.getTotalReadBytes() << ", header part length: " << client->request.headerPartLength << ", content length: " << client->request.contentLength);
-            _closeToCGIProcessFd();
-        }
-    }
-
-    DEBUG("CGIResponse output pipe state: " << static_cast<int>(_cgiOutputFD.getReaderFDState()) << ", fd: " << _cgiOutputFD.get());
-    if (_cgiOutputFD.getReadBufferSize() > 0) {
-        if (!headersBeenSent() && _cgiOutputFD.wouldReadExceedMaxBufferSize()) {
-            if (_transferMode == CGIResponseTransferMode::FullBuffer) {
-                DEBUG("CGI output is too large for full buffer mode, switching to chunked mode");
-                _transferMode = CGIResponseTransferMode::Chunked;
-            }
-        }
-
-        if (_transferMode == CGIResponseTransferMode::Chunked || !_cgiOutputFD.isValidFd())
-            _sendCGIResponse();
-    }
-
-    else if ((!_cgiOutputFD.isValidFd() || _cgiOutputFD.getReaderFDState() == FDState::Closed) && _cgiOutputFD.getReadBufferSize() == 0) {
-        if (_transferMode == CGIResponseTransferMode::Chunked && !_hasSentFinalChunk) {
-            if (socketFD.getWriterFDState() != FDState::Ready) {
-                DEBUG("Waiting for socket to be ready for writing, fd: " << socketFD.get() << ", state: " << static_cast<int>(socketFD.getWriterFDState()));
-                return;
-            }
-            DEBUG("Sending final chunk to socket");
-            ssize_t bytesWritten = socketFD.writeAsChunk("");
-            if (bytesWritten < 0) {
-                ERROR("Failed to write final chunk to socket");
-                CGI_ERROR(HttpStatusCode::InternalServerError);
-                return;
-            }
-            _hasSentFinalChunk = true;
-        }
-
-        int exitStatus = 0;
-        if (_processId != -1 && waitpid(_processId, &exitStatus, WNOHANG) <= 0) {
-            DEBUG("CGI process is still running, waiting for it to finish");
-            return;
-        }
-
-        _processId = -1;
-        exitStatus = WEXITSTATUS(exitStatus);
-        DEBUG("CGI process exited with status: " << exitStatus);
-
-        if (exitStatus != 0) {
-            DEBUG("CGI process exited with non-zero status: " << exitStatus);
-            if (_transferMode == CGIResponseTransferMode::Chunked)
-                _isBrokenBeyondRepair = true;
-            else
-                CGI_ERROR(HttpStatusCode::InternalServerError);
-            return;
-        }
-    }
+    return ;
 }
 
 void CGIResponse::handleRequestBody(SocketFD &fd, const Request &request) {
@@ -526,7 +425,43 @@ void CGIResponse::handleRequestBody(SocketFD &fd, const Request &request) {
 }
 
 void CGIResponse::handleSocketWriteTick(SocketFD &fd) {
-    (void) fd;
+    if (_transferMode == CGIResponseTransferMode::Unknown)
+        return ;
+
+    DEBUG("CGIResponse handleSocketWriteTick for client: " << _client << ", fd: " << fd.get());
+    if (!headersBeenSent())
+        return (sendHeaders(fd));
+
+    switch (_transferMode) {
+        case CGIResponseTransferMode::Chunked: {
+            if (_bodyWriter.sendBodyAsHTTPChunk(_cgiOutputFD, fd) != 0)
+                return ;
+            break ;
+        }
+
+        case CGIResponseTransferMode::FullBuffer: {
+            if (_bodyWriter.sendBodyAsString(_cgiOutputFD, fd) != 0)
+                return ;
+            break ;
+        }
+
+        default: {
+            ERROR("Unknown transfer mode: " << static_cast<int>(_transferMode));
+            break ;
+        }
+    }
+
+    if (!_bodyWriter.isEmpty())
+        return (_bodyWriter.tick(fd), void());
+
+    if (_cgiOutputFD.getReaderFDState() == FDState::Closed && _cgiOutputFD.getReadBufferSize() == 0) {
+        DEBUG("CGI output pipe closed, sending final chunk");
+        if (_transferMode == CGIResponseTransferMode::Chunked && !_hasSentFinalChunk) {
+            sendBodyAsChunk(fd, "");
+            _hasSentFinalChunk = true;
+            return ;
+        }
+    }
 }
 
 void CGIResponse::terminateResponse() {
@@ -544,18 +479,18 @@ void CGIResponse::terminateResponse() {
 }
 
 void CGIResponse::_handleTimeout() {
-    DEBUG("CGIResponse timeout handler called for client: " << client);
-    CGI_ERROR(HttpStatusCode::GatewayTimeout);
+    DEBUG("CGIResponse timeout handler called for client: " << _client);
+    _client->switchResponseToErrorResponse(HttpStatusCode::RequestTimeout, socketFD);
 }
 
 CGIResponse::~CGIResponse() {
-    DEBUG("CGIResponse destructor called for client: " << client);
+    DEBUG("CGIResponse destructor called for client: " << _client);
     terminateResponse();
 }
 
 bool CGIResponse::isFullResponseSent() const {
     return (_cgiOutputFD.getReaderFDState() == FDState::Closed && _cgiOutputFD.getReadBufferSize() == 0 &&
-        !didResponseCreationFail() && _processId == -1 && (_transferMode == CGIResponseTransferMode::Chunked || _sendBytesTracker >= _responseLength));
+        !didResponseCreationFail() && _bodyWriter.isEmpty() && ((_transferMode == CGIResponseTransferMode::Chunked && _hasSentFinalChunk) || (_transferMode == CGIResponseTransferMode::FullBuffer && _sendBytesTracker >= _responseLength)));
 }
 
 void CGIResponse::_closeToCGIProcessFd() {

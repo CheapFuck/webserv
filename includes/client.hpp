@@ -11,13 +11,10 @@ class Server;
 class Response;
 
 enum class ClientHTTPState {
+    Idle,
     WaitingForHeaders,
     ReadingBody,
-    CopyingBody,
-    TrashingBody,
-    SwitchingToOutput,
     SendingResponse,
-    Idle,
 };
 
 class Client {
@@ -62,6 +59,8 @@ public:
     bool isFullRequestBodyReceived(SocketFD &fd) const;
     bool isTimedOut(const HTTPRule &httpRule, const SocketFD &fd) const;
     bool shouldBeClosed(const HTTPRule &httpRule, const SocketFD &fd) const;
+    bool setEpollWriteNotification(SocketFD &fd);
+    bool unsetEpollWriteNotification(SocketFD &fd);
     ClientHTTPState getState() const;
 
     inline std::string &getClientIP() { return _clientIP; }

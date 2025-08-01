@@ -17,7 +17,7 @@ static std::string get_time_as_readable_string() {
     return std::string(buffer);
 }
 
-Response::Response() : _statusCode(HttpStatusCode::OK), _sentHeaders(false), _request(nullptr) {}
+Response::Response(Client *client) : _statusCode(HttpStatusCode::OK), _sentHeaders(false), _bodyWriter(), _request(nullptr), _client(client) {}
 
 /// @brief Sets the status code for the response.
 /// @param code The HTTP status code to set for the response.
@@ -40,6 +40,10 @@ bool Response::headersBeenSent() const {
 }
 
 bool Response::didResponseCreationFail() const {
+    return (false);
+}
+
+bool Response::shouldDirectlySendResponse() const {
     return (false);
 }
 
@@ -77,8 +81,8 @@ HttpStatusCode Response::getFailedResponseStatusCode() const {
     return (HttpStatusCode::OK);
 }
 
-FileResponse::FileResponse(ReadableFD fileFD, Request *request) :
-    _fileFD(std::move(fileFD)), _isFinalChunkSent(false) {
+FileResponse::FileResponse(Client *client, ReadableFD fileFD, Request *request) :
+    Response(client), _fileFD(std::move(fileFD)), _isFinalChunkSent(false) {
 	_request = request;
     headers.replace(HeaderKey::TransferEncoding, "chunked");
     DEBUG("FileResponse created with file FD: " << _fileFD.get());
@@ -86,6 +90,10 @@ FileResponse::FileResponse(ReadableFD fileFD, Request *request) :
 
 bool FileResponse::isFullResponseSent() const {
     return (_isFinalChunkSent && headersBeenSent());
+}
+
+bool FileResponse::shouldDirectlySendResponse() const {
+    return (true);
 }
 
 void FileResponse::handleRequestBody(SocketFD &fd, const Request &request) {
@@ -113,16 +121,17 @@ void FileResponse::handleSocketWriteTick(SocketFD &fd) {
         return ;
     }
 
-    if (_fileFD.getReaderFDState() == FDState::Closed && _fileFD.getReadBufferSize() == 0 && !_isFinalChunkSent) {
-        _isFinalChunkSent = true;
-        sendBodyAsChunk(fd, "");
-        return ;
+    if (_fileFD.getReaderFDState() == FDState::Closed) {
+        if (_fileFD.getReadBufferSize() == 0 && _bodyWriter.isEmpty() && !_isFinalChunkSent) {
+            _isFinalChunkSent = true;
+            sendBodyAsChunk(fd, "");
+            return ;
+        }
+    } else {
+        _fileFD.read();
     }
 
-    _fileFD.read();
-	std::string toSend = _fileFD.extractChunkFromReadBuffer(DEFAULT_CHUNK_SIZE);
-	if (!toSend.empty())
-    	sendBodyAsChunk(fd, toSend);
+    _bodyWriter.sendBodyAsHTTPChunk(_fileFD, fd);
 }
 
 void FileResponse::terminateResponse() {
@@ -139,8 +148,8 @@ FileResponse::~FileResponse() {
 
 
 
-StaticResponse::StaticResponse(const std::string &content, Request *request) :
-    _content(content) {
+StaticResponse::StaticResponse(Client *client, const std::string &content, Request *request) :
+    Response(client), _content(content) {
 	_request = request;
 	if (_request->metadata.getMethod() != Method::HEAD)
     	headers.replace(HeaderKey::ContentLength, std::to_string(_content.size()));
@@ -153,7 +162,11 @@ StaticResponse::~StaticResponse() {
 }
 
 bool StaticResponse::isFullResponseSent() const {
-    return (headersBeenSent());
+    return (headersBeenSent() && _content.empty());
+}
+
+bool StaticResponse::shouldDirectlySendResponse() const {
+    return (true);
 }
 
 void StaticResponse::handleRequestBody(SocketFD &fd, const Request &request) {
@@ -179,7 +192,7 @@ void StaticResponse::handleSocketWriteTick(SocketFD &fd) {
     if (!headersBeenSent())
         sendHeaders(fd);
     if (!_content.empty())
-        sendBodyAsString(fd, _content);
+        _bodyWriter.sendBodyAsString(_content, fd);
 }
 
 void StaticResponse::terminateResponse() {

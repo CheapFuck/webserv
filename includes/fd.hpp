@@ -11,9 +11,9 @@
 #define DEFAULT_EPOLLIN_EVENTS (EPOLLIN)
 #define DEFAULT_EPOLLOUT_EVENTS (EPOLLOUT)
 
-#define DEFAULT_MAX_BUFFER_SIZE (1024 * 1024 * 128) // 16 MB
-#define READ_BUFFER_SIZE (516 * 1024) // 516 KB
-// #define READ_BUFFER_SIZE (512) // 512 bytes
+#define DEFAULT_MAX_BUFFER_SIZE (1024 * 1024 * 1024) // 1 GB
+#define READ_BUFFER_SIZE (1024 * 1024 * 5) // 5 MB
+#define MAX_ACCEPT_CHUNK_SIZE (1024 * 1024)
 
 enum class FDState {
     /// @brief The file descriptor is in an invalid state (e.g., not initialized).
@@ -89,11 +89,13 @@ class FDReader {
 private:
     int _fd;
     size_t _maxBufferSize;
-    ssize_t _totalReadBytes;
-    ssize_t _totalBodyBytes;
     std::string _readBuffer;
     FDState _state;
     std::chrono::steady_clock::time_point _lastReadTime;
+    
+    ssize_t _totalReadBytes;
+    ssize_t _totalBodyBytes;
+    bool _isLastChunkRead;
 
 public:
     struct HTTPChunk {
@@ -106,8 +108,8 @@ public:
     };
 
     enum class HTTPChunkStatus {
-        Ongoing,
-        Complete,
+        Ok,
+        TooLarge,
         Error,
     };
 
@@ -126,6 +128,7 @@ public:
     void setReaderFDState(FDState state);
 
     bool wouldReadExceedMaxBufferSize() const;
+    bool isFinalChunkRead() const;
 
     FDState getReaderFDState() const;
 
