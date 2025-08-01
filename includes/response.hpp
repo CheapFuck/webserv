@@ -10,7 +10,7 @@
 
 #include <string>
 
-#define DEFAULT_CHUNK_SIZE 1024 * 1024 * 5 // 512 KB
+#define DEFAULT_CHUNK_SIZE 1024 * 8 // 512 KB
 
 class Server;
 
@@ -62,6 +62,8 @@ public:
     virtual void handleRequestBody(SocketFD &fd, const Request &request) = 0;
     virtual void handleSocketWriteTick(SocketFD &fd) = 0;
     virtual void terminateResponse() = 0;
+
+	ssize_t fuckyou() { return (_bodyWriter.amountOfBytesWritten); }
 };
 
 class FileResponse : public Response {

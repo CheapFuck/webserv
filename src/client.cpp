@@ -278,6 +278,10 @@ void Client::handleWrite(SocketFD &fd) {
 void Client::handleClientReset(SocketFD &fd) {
     DEBUG("Full response sent for Client, fd: " << fd.get());
     ERROR("Reset go brr");
+
+	DEBUG("Socket body bytes" << fd.getTotalBodyBytes());
+	DEBUG("Socket wrote bytes" << response->fuckyou());
+	// 25026400
     if (response) {
         delete response;
         response = nullptr;

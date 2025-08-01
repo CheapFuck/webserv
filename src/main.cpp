@@ -50,10 +50,17 @@ int main(int argc, const char* const argv[]) {
     signal(SIGPIPE, signalPipeShit);
 
     PRINT("Configuration loaded successfully from " << configPath);
-    Server server(configs);
-    while (!g_quit)
-        server.runOnce();
-    server.cleanUp();
+	try{
+    	Server server(configs);
+		while (!g_quit)
+        	server.runOnce();
+    	server.cleanUp();
+	}
+	catch (const std::exception &e)
+	{
+		std::cout << e.what() << std::endl;
+		return (1);
+	}
 
     PRINT("Server shutting down gracefully - how nice ^^");
     return (0);
